@@ -29,7 +29,7 @@ const useApi = () => {
         }
 
         if (
-          (method === 'POST' || method === 'PUT') &&
+          (method === 'POST' || method === 'PUT' || method === 'PATCH') &&
           isFormData &&
           options.onUploadProgress
         ) {

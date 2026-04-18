@@ -68,9 +68,9 @@ export const AuthProvider = ({ children }) => {
       });
 
       const accessToken =
-        res.accessToken || res.token || res.access_token;
+        res.access || res.accessToken || res.token || res.access_token;
       const refreshToken =
-        res.refreshToken || res.refresh_token;
+        res.refresh || res.refreshToken || res.refresh_token;
 
       if (!accessToken) {
         setIsAuthenticated(false);

@@ -5,8 +5,9 @@ import ProtectedRoute from './context/ProtectedRoute.jsx';
 
 // Lazy load page components for code splitting
 const Overview = lazy(() => import('./pages/Overview.jsx'));
+const ConfigurationPage = lazy(() => import('./pages/ConfigurationPage.jsx'));
 
-const LoginPage = lazy(() => import('./logins/LoginPage.jsx'));
+const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
 
 const appRouter = createBrowserRouter([
   {
@@ -21,7 +22,14 @@ const appRouter = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-      
+      {
+        path: 'configuration',
+        element: (
+          <ProtectedRoute>
+            <ConfigurationPage />
+          </ProtectedRoute>
+        ),
+      },
     ],
   },
   {

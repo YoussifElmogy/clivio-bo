@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
-import Alert from '@mui/material/Alert';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import LocalHospitalRounded from '@mui/icons-material/LocalHospitalRounded';
 import LoginForm from '../forms/LoginForm/LoginForm';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 export default function LoginPage() {
   const theme = useTheme();
@@ -17,7 +17,7 @@ export default function LoginPage() {
   const location = useLocation();
   const from = location.state?.from?.pathname || '/';
   const { login, isAuthenticated } = useAuth();
-  const [apiError, setApiError] = useState('');
+  const { showError } = useToast();
 
   React.useEffect(() => {
     if (isAuthenticated === true) {
@@ -26,7 +26,6 @@ export default function LoginPage() {
   }, [isAuthenticated, from, navigate]);
 
   const handleLogin = async values => {
-    setApiError('');
     try {
       await login({
         username: values.username,
@@ -40,7 +39,7 @@ export default function LoginPage() {
         err?.response?.data?.message ||
         err?.message ||
         'Unable to sign in. Check your credentials and try again.';
-      setApiError(typeof msg === 'string' ? msg : 'Sign in failed.');
+      showError(typeof msg === 'string' ? msg : 'Sign in failed.');
     }
   };
 
@@ -141,11 +140,6 @@ export default function LoginPage() {
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
             Sign in with your clinic credentials to open the dashboard.
           </Typography>
-          {apiError ? (
-            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setApiError('')}>
-              {apiError}
-            </Alert>
-          ) : null}
           <LoginForm onSubmit={handleLogin} />
         </Paper>
       </Box>

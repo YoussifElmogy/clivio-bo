@@ -38,7 +38,7 @@ async function performRefresh() {
 
   const { data } = await axios.post(
     `${API_BASE_URL}/auth/refresh`,
-    { refreshToken },
+    { refresh: refreshToken },
     {
       headers: {
         'Content-Type': 'application/json',
@@ -47,9 +47,9 @@ async function performRefresh() {
   );
 
   const accessToken =
-    data.accessToken || data.token || data.access_token;
+    data.access || data.accessToken || data.token || data.access_token;
   const newRefresh =
-    data.refreshToken || data.refresh_token || refreshToken;
+    data.refresh || data.refreshToken || data.refresh_token || refreshToken;
 
   if (!accessToken) {
     throw new Error('No access token in refresh response');
