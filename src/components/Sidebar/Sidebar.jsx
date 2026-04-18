@@ -7,12 +7,14 @@ import ListItemText from '@mui/material/ListItemText';
 import Box from '@mui/material/Box';
 import DashboardRounded from '@mui/icons-material/DashboardRounded';
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
+import AccountTreeOutlined from '@mui/icons-material/AccountTreeOutlined';
 import LocalHospitalRounded from '@mui/icons-material/LocalHospitalRounded';
 import { useTheme } from '@mui/material/styles';
 import { NavLink, useLocation } from 'react-router-dom';
 
 const navItems = [
   { label: 'Overview', to: '/', Icon: DashboardRounded },
+  { label: 'Branches', to: '/branches', Icon: AccountTreeOutlined },
   { label: 'Configurations', to: '/configuration', Icon: SettingsOutlined },
 ];
 
