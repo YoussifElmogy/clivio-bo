@@ -22,6 +22,7 @@ export default function BranchEditPage() {
     control,
     handleSubmit,
     reset,
+    trigger,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(branchSchema),
@@ -100,6 +101,7 @@ export default function BranchEditPage() {
           handleSubmit={handleSubmit}
           onSubmit={onSubmit}
           submitLabel="Save changes"
+          trigger={trigger}
         />
       )}
     </FormPageShell>

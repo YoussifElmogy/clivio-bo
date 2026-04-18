@@ -19,6 +19,22 @@ export default function BranchFormSkeleton() {
         <Grid size={12}>
           <Skeleton variant="rounded" height={120} sx={{ borderRadius: 1 }} />
         </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <Skeleton variant="rounded" height={56} sx={{ borderRadius: 1 }} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <Skeleton variant="rounded" height={56} sx={{ borderRadius: 1 }} />
+        </Grid>
+        <Grid size={12}>
+          <Skeleton variant="text" width={140} sx={{ mb: 1 }} />
+          <Grid container spacing={1}>
+            {[1, 2, 3, 4, 5, 6, 7].map(i => (
+              <Grid key={i} size={{ xs: 12, sm: 6, md: 4 }}>
+                <Skeleton variant="rounded" height={36} sx={{ borderRadius: 1 }} />
+              </Grid>
+            ))}
+          </Grid>
+        </Grid>
         <Grid size={12}>
           <Skeleton variant="rounded" width={180} height={40} sx={{ borderRadius: 1 }} />
         </Grid>

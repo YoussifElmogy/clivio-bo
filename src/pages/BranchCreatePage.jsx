@@ -18,6 +18,7 @@ export default function BranchCreatePage() {
   const {
     control,
     handleSubmit,
+    trigger,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(branchSchema),
@@ -59,6 +60,7 @@ export default function BranchCreatePage() {
         handleSubmit={handleSubmit}
         onSubmit={onSubmit}
         submitLabel="Create branch"
+        trigger={trigger}
       />
     </FormPageShell>
   );

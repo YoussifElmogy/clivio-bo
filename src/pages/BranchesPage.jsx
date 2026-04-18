@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -8,6 +9,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
 import BranchCardGrid from '../components/BranchCardGrid/BranchCardGrid';
+import CustomLoader from '../components/CustomLoader/CustomLoader';
 import { useToast } from '../context/ToastContext';
 
 /**
@@ -166,56 +168,64 @@ export default function BranchesPage() {
   );
 
   return (
-    <FormPageShell
-      title={`Branches (${count})`}
-      headerAction={
-        <Button variant="contained" onClick={() => navigate('/branches/new')} sx={{ borderRadius: 2 }}>
-          Add branches
-        </Button>
-      }
-      paperSx={{ p: { xs: 2, sm: 3 } }}
-    >
-      <BranchCardGrid
-        rows={paginatedRows}
-        loading={loading}
-        emptyMessage="No branches yet."
-        page={page}
-        rowsPerPage={rowsPerPage}
-        onPageChange={handleChangePage}
-        onRowsPerPageChange={handleChangeRowsPerPage}
-        count={count}
-        getRowId={row => row.id ?? row.uuid ?? JSON.stringify(row)}
-        onEdit={handleEdit}
-        onDelete={requestDelete}
-      />
-      <Dialog
-        open={deleteTarget != null}
-        onClose={() => !deleteSubmitting && setDeleteTarget(null)}
-        aria-labelledby="delete-branch-dialog-title"
+    <>
+      <CustomLoader active={deleteSubmitting} />
+      <FormPageShell
+        title={`Branches (${count})`}
+        headerAction={
+          <Button variant="contained" onClick={() => navigate('/branches/new')} sx={{ borderRadius: 2 }}>
+            Add branches
+          </Button>
+        }
+        paperSx={{ p: { xs: 2, sm: 3 } }}
       >
-        <DialogTitle id="delete-branch-dialog-title">Delete branch?</DialogTitle>
-        <DialogContent>
-          This cannot be undone.{' '}
-          {deleteTarget ? (
-            <>
-              Remove <strong>{deleteTarget.name}</strong>?
-            </>
-          ) : null}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDeleteTarget(null)} disabled={deleteSubmitting}>
-            Cancel
-          </Button>
-          <Button
-            color="error"
-            variant="contained"
-            onClick={handleConfirmDelete}
-            disabled={deleteSubmitting}
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </FormPageShell>
+        <BranchCardGrid
+          rows={paginatedRows}
+          loading={loading}
+          emptyMessage="No branches yet."
+          page={page}
+          rowsPerPage={rowsPerPage}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          count={count}
+          getRowId={row => row.id ?? row.uuid ?? JSON.stringify(row)}
+          onEdit={handleEdit}
+          onDelete={requestDelete}
+        />
+        <Dialog
+          open={deleteTarget != null}
+          onClose={() => !deleteSubmitting && setDeleteTarget(null)}
+          aria-labelledby="delete-branch-dialog-title"
+        >
+          <DialogTitle id="delete-branch-dialog-title">Delete branch?</DialogTitle>
+          <DialogContent>
+            This cannot be undone.{' '}
+            {deleteTarget ? (
+              <>
+                Remove <strong>{deleteTarget.name}</strong>?
+              </>
+            ) : null}
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setDeleteTarget(null)} disabled={deleteSubmitting}>
+              Cancel
+            </Button>
+            <Button
+              color="error"
+              variant="contained"
+              onClick={handleConfirmDelete}
+              disabled={deleteSubmitting}
+              startIcon={
+                deleteSubmitting ? (
+                  <CircularProgress size={18} thickness={5} color="inherit" aria-hidden />
+                ) : null
+              }
+            >
+              {deleteSubmitting ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </FormPageShell>
+    </>
   );
 }

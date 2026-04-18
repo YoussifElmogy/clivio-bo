@@ -13,8 +13,53 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import EditOutlined from '@mui/icons-material/EditOutlined';
 import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined';
+import AccessTime from '@mui/icons-material/AccessTime';
+import EventBusy from '@mui/icons-material/EventBusy';
 import PhoneOutlined from '@mui/icons-material/PhoneOutlined';
 import PlaceOutlined from '@mui/icons-material/PlaceOutlined';
+import { VACATION_DAY_OPTIONS } from '../../schemas/branchSchema';
+
+const VACATION_SHORT = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+
+/** Parses API time strings (e.g. `09:00`, `18:00:00`) into 24h hour and minute. */
+function parseTimeParts(value) {
+  if (value == null || value === '') return null;
+  const s = String(value).trim();
+  const m = s.match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  const h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  if (Number.isNaN(h) || Number.isNaN(min) || h > 23 || min > 59) return null;
+  return { h, min };
+}
+
+/** Displays a single time as 12-hour with AM/PM (e.g. `6:00 PM`). */
+function formatTimeAmPm(value) {
+  const parts = parseTimeParts(value);
+  if (!parts) return null;
+  const { h, min } = parts;
+  const period = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  const mm = String(min).padStart(2, '0');
+  return `${h12}:${mm} ${period}`;
+}
+
+function formatSchedule(row) {
+  const from = formatTimeAmPm(row.from_time);
+  const to = formatTimeAmPm(row.to_time);
+  if (from && to) return `${from} – ${to}`;
+  if (from) return `${from} –`;
+  if (to) return `– ${to}`;
+  return null;
+}
+
+function vacationDayLabels(row) {
+  const raw = row.vacation_days;
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+  return [...new Set(raw.map(Number).filter(n => n >= 0 && n <= 6))]
+    .sort((a, b) => a - b)
+    .map(v => VACATION_SHORT[v] ?? VACATION_DAY_OPTIONS.find(o => o.value === v)?.label ?? String(v));
+}
 
 function BranchCardSkeleton() {
   return (
@@ -22,13 +67,27 @@ function BranchCardSkeleton() {
       elevation={0}
       variant="outlined"
       sx={{
+        width: '100%',
         height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
         borderRadius: 2,
         borderColor: 'divider',
         overflow: 'hidden',
       }}
     >
-      <CardContent sx={{ pb: 2, pt: 2.25, px: 2.25 }}>
+      <CardContent
+        sx={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          boxSizing: 'border-box',
+          pb: 2,
+          pt: 2.25,
+          px: 2.25,
+        }}
+      >
         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
           <Skeleton variant="rounded" height={26} sx={{ flex: 1, maxWidth: 220 }} />
           <Stack direction="row" spacing={0.5}>
@@ -36,9 +95,15 @@ function BranchCardSkeleton() {
             <Skeleton variant="circular" width={34} height={34} />
           </Stack>
         </Stack>
-        <Skeleton variant="text" width="55%" sx={{ mt: 2 }} />
-        <Skeleton variant="text" width="85%" />
-        <Skeleton variant="rounded" width={76} height={26} sx={{ mt: 2, borderRadius: 1 }} />
+        <Stack spacing={1.25} sx={{ mt: 2, flex: 1 }}>
+          <Skeleton variant="text" width="55%" />
+          <Skeleton variant="text" width="85%" />
+          <Skeleton variant="text" width="45%" />
+          <Skeleton variant="text" width="70%" />
+        </Stack>
+        <Box sx={{ mt: 'auto', pt: 2 }}>
+          <Skeleton variant="rounded" width={76} height={26} sx={{ borderRadius: 1 }} />
+        </Box>
       </CardContent>
     </Card>
   );
@@ -82,7 +147,7 @@ export default function BranchCardGrid({
         {loading ? (
           <Grid container spacing={2.5}>
             {Array.from({ length: skeletonCount }, (_, i) => (
-              <Grid key={`sk-${i}`} size={{ xs: 12, sm: 6, md: 4 }}>
+              <Grid key={`sk-${i}`} size={{ xs: 12, sm: 6, md: 4 }} sx={{ display: 'flex' }}>
                 <BranchCardSkeleton />
               </Grid>
             ))}
@@ -99,12 +164,15 @@ export default function BranchCardGrid({
               const name = row.name?.trim() || '—';
               const phone = row.phone ?? '—';
               const address = row.address ?? '—';
+              const schedule = formatSchedule(row);
+              const closedDays = vacationDayLabels(row);
               return (
-                <Grid key={String(id)} size={{ xs: 12, sm: 6, md: 4 }}>
+                <Grid key={String(id)} size={{ xs: 12, sm: 6, md: 4 }} sx={{ display: 'flex' }}>
                   <Card
                     elevation={0}
                     variant="outlined"
                     sx={{
+                      width: '100%',
                       height: '100%',
                       display: 'flex',
                       flexDirection: 'column',
@@ -119,7 +187,18 @@ export default function BranchCardGrid({
                       },
                     }}
                   >
-                    <CardContent sx={{ flex: 1, pt: 2.25, pb: 2, px: 2.25 }}>
+                    <CardContent
+                      sx={{
+                        flex: 1,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        height: '100%',
+                        boxSizing: 'border-box',
+                        pt: 2.25,
+                        pb: 2,
+                        px: 2.25,
+                      }}
+                    >
                       <Stack
                         direction="row"
                         alignItems="flex-start"
@@ -163,10 +242,10 @@ export default function BranchCardGrid({
                         </Stack>
                       </Stack>
 
-                      <Stack spacing={1.25} sx={{ mt: 2 }}>
+                      <Stack spacing={1.25} sx={{ mt: 2, flex: 1, minHeight: 0 }}>
                         <Stack direction="row" spacing={1} alignItems="flex-start">
                           <PhoneOutlined
-                            sx={{ fontSize: 18, color: 'text.secondary', mt: 0.15 }}
+                            sx={{ fontSize: 18, color: 'text.secondary', mt: 0.15, flexShrink: 0 }}
                           />
                           <Typography variant="body2" color="text.secondary" sx={{ wordBreak: 'break-word' }}>
                             {phone}
@@ -190,9 +269,55 @@ export default function BranchCardGrid({
                             {address}
                           </Typography>
                         </Stack>
+                        <Stack direction="row" spacing={1} alignItems="flex-start">
+                          <AccessTime
+                            sx={{ fontSize: 18, color: 'text.secondary', mt: 0.15, flexShrink: 0 }}
+                          />
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontVariantNumeric: 'tabular-nums' }}
+                          >
+                            {schedule ?? '—'}
+                          </Typography>
+                        </Stack>
+                        {closedDays.length > 0 ? (
+                          <Stack direction="row" spacing={1} alignItems="flex-start">
+                            <EventBusy
+                              sx={{ fontSize: 18, color: 'text.secondary', mt: 0.15, flexShrink: 0 }}
+                              aria-hidden
+                            />
+                            <Stack
+                              direction="row"
+                              alignItems="center"
+                              flexWrap="wrap"
+                              useFlexGap
+                              gap={0.75}
+                              sx={{ flex: 1, minWidth: 0 }}
+                            >
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                component="span"
+                                sx={{ fontWeight: 600, lineHeight: 1.2, flexShrink: 0 }}
+                              >
+                                Closed on
+                              </Typography>
+                              {closedDays.map(day => (
+                                <Chip
+                                  key={day}
+                                  label={day}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{ height: 22, fontSize: '0.7rem', fontWeight: 600 }}
+                                />
+                              ))}
+                            </Stack>
+                          </Stack>
+                        ) : null}
                       </Stack>
 
-                      <Box sx={{ mt: 2 }}>
+                      <Box sx={{ mt: 'auto', pt: 2 }}>
                         <Chip
                           size="small"
                           label={active ? 'Active' : 'Inactive'}
