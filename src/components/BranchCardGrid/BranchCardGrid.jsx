@@ -289,11 +289,8 @@ export default function BranchCardGrid({
                             />
                             <Stack
                               direction="row"
-                              alignItems="center"
-                              flexWrap="wrap"
-                              useFlexGap
-                              gap={0.75}
-                              sx={{ flex: 1, minWidth: 0 }}
+                            
+                              sx={{ flex: 1, minWidth: 0, alignItems: 'center', gap: 0.75 ,flexWrap: 'wrap'}}
                             >
                               <Typography
                                 variant="caption"
@@ -314,7 +311,21 @@ export default function BranchCardGrid({
                               ))}
                             </Stack>
                           </Stack>
-                        ) : null}
+                        ) : 
+                        <Stack direction="row" spacing={1} alignItems="flex-start">
+                            <EventBusy
+                              sx={{ fontSize: 18, color: 'text.secondary', mt: 0.15, flexShrink: 0 }}
+                              aria-hidden
+                            />
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            component="span"
+                            sx={{ fontWeight: 600, flexShrink: 0  ,flex: 1, minWidth: 0}}
+                          >
+                            Open on all days
+                          </Typography>
+                        </Stack>}
                       </Stack>
 
                       <Box sx={{ mt: 'auto', pt: 2 }}>
