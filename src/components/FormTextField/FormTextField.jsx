@@ -59,6 +59,9 @@ function FormTextFieldTime({
   errorMessage,
   disabled,
   sx: sxBase,
+  timeMin,
+  timeMax,
+  timeStep,
 }) {
   const value = field.value ?? '';
   const { ref: fieldRef, onClick: fieldOnClick, ...fieldRest } = field;
@@ -128,7 +131,9 @@ function FormTextFieldTime({
         inputRef={handleInputRef}
         slotProps={{
           htmlInput: {
-            step: 300,
+            ...(timeStep != null ? { step: timeStep } : { step: 300 }),
+            ...(timeMin != null && timeMin !== '' ? { min: timeMin } : {}),
+            ...(timeMax != null && timeMax !== '' ? { max: timeMax } : {}),
             'aria-label': label,
           },
         }}
@@ -154,6 +159,9 @@ export default function FormTextField({
   minRows,
   colorPicker = false,
   type,
+  timeMin,
+  timeMax,
+  timeStep,
 }) {
   const theme = useTheme();
   const value = field.value ?? '';
@@ -210,6 +218,9 @@ export default function FormTextField({
         errorMessage={errorMessage}
         disabled={disabled}
         sx={sx}
+        timeMin={timeMin}
+        timeMax={timeMax}
+        timeStep={timeStep}
       />
     );
   }

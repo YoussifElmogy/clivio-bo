@@ -9,6 +9,9 @@ const BranchesPage = lazy(() => import('./pages/BranchesPage.jsx'));
 const BranchCreatePage = lazy(() => import('./pages/BranchCreatePage.jsx'));
 const BranchEditPage = lazy(() => import('./pages/BranchEditPage.jsx'));
 const ConfigurationPage = lazy(() => import('./pages/ConfigurationPage.jsx'));
+const DoctorsPage = lazy(() => import('./pages/DoctorsPage.jsx'));
+const DoctorCreatePage = lazy(() => import('./pages/DoctorCreatePage.jsx'));
+const DoctorEditPage = lazy(() => import('./pages/DoctorEditPage.jsx'));
 
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
 
@@ -46,6 +49,30 @@ const appRouter = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <BranchesPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'doctors/new',
+        element: (
+          <ProtectedRoute>
+            <DoctorCreatePage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'doctors/:id/edit',
+        element: (
+          <ProtectedRoute>
+            <DoctorEditPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'doctors',
+        element: (
+          <ProtectedRoute>
+            <DoctorsPage />
           </ProtectedRoute>
         ),
       },
