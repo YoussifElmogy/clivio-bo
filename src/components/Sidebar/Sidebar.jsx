@@ -9,6 +9,7 @@ import DashboardRounded from '@mui/icons-material/DashboardRounded';
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import AccountTreeOutlined from '@mui/icons-material/AccountTreeOutlined';
 import MedicalServicesOutlined from '@mui/icons-material/MedicalServicesOutlined';
+import GroupsOutlined from '@mui/icons-material/GroupsOutlined';
 import LocalHospitalRounded from '@mui/icons-material/LocalHospitalRounded';
 import { useTheme } from '@mui/material/styles';
 import { NavLink, useLocation } from 'react-router-dom';
@@ -17,6 +18,7 @@ const navItems = [
   { label: 'Overview', to: '/', Icon: DashboardRounded },
   { label: 'Branches', to: '/branches', Icon: AccountTreeOutlined },
   { label: 'Doctors', to: '/doctors', Icon: MedicalServicesOutlined },
+  { label: 'Assistants', to: '/assistants', Icon: GroupsOutlined },
   { label: 'Configurations', to: '/configuration', Icon: SettingsOutlined },
 ];
 
