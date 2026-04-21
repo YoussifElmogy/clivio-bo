@@ -8,15 +8,27 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
+import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
 import EditOutlined from '@mui/icons-material/EditOutlined';
 import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined';
+import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
 import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
 import PaginatedTable from '../components/PaginatedTable/PaginatedTable';
 import CustomLoader from '../components/CustomLoader/CustomLoader';
 import { useToast } from '../context/ToastContext';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
+import { formatTimeRangeAmPm } from '../utils/timeFormat';
+
+const DAY_LABELS = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+function formatDoctorDay(value) {
+  const day = Number(value);
+  if (Number.isNaN(day) || day < 0 || day > 6) return 'Unknown day';
+  return DAY_LABELS[day];
+}
 
 export default function DoctorsPage() {
   const navigate = useNavigate();
@@ -31,6 +43,7 @@ export default function DoctorsPage() {
   const [listVersion, setListVersion] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [viewTarget, setViewTarget] = useState(null);
 
   useEffect(() => {
     if (listMode === 'client') return;
@@ -123,6 +136,18 @@ export default function DoctorsPage() {
     [showInfo]
   );
 
+  const requestView = useCallback(
+    row => {
+      const doctorId = row.id ?? row.uuid;
+      if (doctorId == null) {
+        showInfo('This row has no id.');
+        return;
+      }
+      setViewTarget(row);
+    },
+    [showInfo]
+  );
+
   const columns = useMemo(
     () => [
       { id: 'name', label: 'Name', minWidth: 160 },
@@ -179,6 +204,16 @@ export default function DoctorsPage() {
                   <EditOutlined fontSize="small" />
                 </IconButton>
               </Tooltip>
+              <Tooltip title="View">
+                <IconButton
+                  size="small"
+                  color="info"
+                  aria-label="View doctor details"
+                  onClick={() => requestView(row)}
+                >
+                  <VisibilityOutlined fontSize="small" />
+                </IconButton>
+              </Tooltip>
               <Tooltip title="Delete">
                 <IconButton
                   size="small"
@@ -194,7 +229,7 @@ export default function DoctorsPage() {
         },
       },
     ],
-    [navigate, requestDelete, showInfo]
+    [navigate, requestDelete, requestView, showInfo]
   );
 
   return (
@@ -231,6 +266,71 @@ export default function DoctorsPage() {
             return '';
           }}
         />
+        <Dialog
+          open={viewTarget != null}
+          onClose={() => setViewTarget(null)}
+          aria-labelledby="view-doctor-dialog-title"
+          fullWidth
+          maxWidth="sm"
+        >
+          <DialogTitle id="view-doctor-dialog-title">Doctor details</DialogTitle>
+          <DialogContent dividers>
+            {viewTarget ? (
+              <Stack spacing={1.5}>
+                <Typography variant="body2">
+                  <strong>Name:</strong> {viewTarget.name || '—'}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Email:</strong> {viewTarget.email || '—'}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Phone:</strong> {viewTarget.phone || '—'}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Specialty:</strong> {viewTarget.specialty || viewTarget.speciality || '—'}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Status:</strong> {viewTarget.is_active ?? viewTarget.active ? 'Active' : 'Inactive'}
+                </Typography>
+
+                <Typography variant="subtitle2" sx={{ pt: 1 }}>
+                  Branch schedules
+                </Typography>
+                {Array.isArray(viewTarget.assigned_branches) && viewTarget.assigned_branches.length > 0 ? (
+                  <Stack spacing={1.25}>
+                    {viewTarget.assigned_branches.map((branch, idx) => (
+                      <Stack key={branch.id ?? `${branch.name}-${idx}`} spacing={0.5}>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                          {branch.name?.trim() || `Branch #${branch.id ?? idx + 1}`}
+                        </Typography>
+                        {Array.isArray(branch.schedule) && branch.schedule.length > 0 ? (
+                          <Stack spacing={0.25}>
+                            {branch.schedule.map((slot, slotIndex) => (
+                              <Typography key={`${branch.id ?? idx}-slot-${slotIndex}`} variant="body2" color="text.secondary">
+                                {formatDoctorDay(slot.day)}: {formatTimeRangeAmPm(slot.from_time, slot.to_time) || '—'}
+                              </Typography>
+                            ))}
+                          </Stack>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            No schedule slots.
+                          </Typography>
+                        )}
+                      </Stack>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No assigned branches.
+                  </Typography>
+                )}
+              </Stack>
+            ) : null}
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setViewTarget(null)}>Close</Button>
+          </DialogActions>
+        </Dialog>
         <Dialog
           open={deleteTarget != null}
           onClose={() => !deleteSubmitting && setDeleteTarget(null)}

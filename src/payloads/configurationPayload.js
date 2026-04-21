@@ -44,15 +44,27 @@ export function buildConfigurationFormData(values) {
   appendOptional('whatsapp_url', values.whatsapp_url);
   appendOptional('secondary_color', values.secondary_color);
 
+  const interval = Number(values.slot_interval);
+  if (!Number.isNaN(interval) && Number.isInteger(interval)) {
+    fd.append('slot_interval', String(interval));
+  }
+
   return fd;
 }
 
 export function mergeConfigFromApi(data) {
   if (!data || typeof data !== 'object') return { ...configurationDefaultValues };
-  return {
+  const merged = {
     ...configurationDefaultValues,
     ...Object.fromEntries(
       Object.entries(data).filter(([, v]) => v !== undefined && v !== null)
     ),
   };
+  if (merged.slot_interval != null && merged.slot_interval !== '') {
+    const n = Number(merged.slot_interval);
+    merged.slot_interval = Number.isNaN(n) ? '' : n;
+  } else {
+    merged.slot_interval = '';
+  }
+  return merged;
 }

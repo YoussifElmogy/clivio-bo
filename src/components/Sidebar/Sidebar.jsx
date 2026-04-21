@@ -5,6 +5,8 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import DashboardRounded from '@mui/icons-material/DashboardRounded';
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import AccountTreeOutlined from '@mui/icons-material/AccountTreeOutlined';
@@ -12,19 +14,38 @@ import MedicalServicesOutlined from '@mui/icons-material/MedicalServicesOutlined
 import GroupsOutlined from '@mui/icons-material/GroupsOutlined';
 import LocalHospitalRounded from '@mui/icons-material/LocalHospitalRounded';
 import { useTheme } from '@mui/material/styles';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import DropdownMenu from '../DropdownMenu/DropdownMenu';
+import { useAuth } from '../../context/AuthContext';
 
 const navItems = [
   { label: 'Overview', to: '/', Icon: DashboardRounded },
-  { label: 'Branches', to: '/branches', Icon: AccountTreeOutlined },
   { label: 'Doctors', to: '/doctors', Icon: MedicalServicesOutlined },
   { label: 'Assistants', to: '/assistants', Icon: GroupsOutlined },
+  { label: 'Branches', to: '/branches', Icon: AccountTreeOutlined },
   { label: 'Configurations', to: '/configuration', Icon: SettingsOutlined },
 ];
 
 export default function Sidebar({ sidebarWidth = '17.778rem', onNavigate }) {
   const theme = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout, user } = useAuth();
+
+  const accountMenuItems = [
+    {
+      label: 'Change password',
+      onClick: () => navigate('/change-password'),
+    },
+    {
+      label: 'Log out',
+      onClick: () => logout(),
+      sx: { color: 'error.main' },
+    },
+  ];
+
+  const displayName = user?.fullName || user?.username || 'Account';
+  const displayRole = user?.role || '';
 
   const clearDocumentsPreserve = () => {
     try {
@@ -172,20 +193,54 @@ export default function Sidebar({ sidebarWidth = '17.778rem', onNavigate }) {
       </List>
       <Box
         sx={{
-          px: '1.333rem',
+          px: '1rem',
           py: '0.889rem',
-          color: 'text.secondary',
-          fontSize: '0.8125rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 0.75,
           borderTop: '1px solid',
           borderColor: 'divider',
           mt: 'auto',
         }}
       >
-        <LocalHospitalRounded sx={{ fontSize: '1.1rem', opacity: 0.85 }} />
-        <span>Clivio Clinic Dashboard</span>
+        <DropdownMenu menuItems={accountMenuItems}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              cursor: 'pointer',
+              borderRadius: 2,
+              px: 0.75,
+              py: 0.75,
+              '&:hover': { bgcolor: 'action.hover' },
+            }}
+          >
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography
+                noWrap
+                sx={{
+                  fontWeight: 600,
+                  fontSize: '0.9375rem',
+                  color: 'text.primary',
+                  lineHeight: 1.25,
+                }}
+              >
+                {displayName}
+              </Typography>
+              {displayRole ? (
+                <Typography
+                  noWrap
+                  sx={{
+                    fontSize: '0.75rem',
+                    color: 'text.secondary',
+                    mt: 0.125,
+                  }}
+                >
+                  {displayRole}
+                </Typography>
+              ) : null}
+            </Box>
+            <KeyboardArrowDownIcon sx={{ fontSize: '1.35rem', color: 'text.secondary', flexShrink: 0 }} />
+          </Box>
+        </DropdownMenu>
       </Box>
     </Drawer>
   );

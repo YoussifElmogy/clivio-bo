@@ -162,6 +162,7 @@ export default function FormTextField({
   timeMin,
   timeMax,
   timeStep,
+  slotProps,
 }) {
   const theme = useTheme();
   const value = field.value ?? '';
@@ -244,6 +245,7 @@ export default function FormTextField({
         helperText={errorMessage}
         disabled={disabled}
         sx={sx}
+        slotProps={slotProps}
       />
     </Box>
   );

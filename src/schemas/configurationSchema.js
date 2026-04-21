@@ -38,6 +38,7 @@ export const configurationDefaultValues = {
   facebook_url: '',
   whatsapp_url: '',
   secondary_color: '',
+  slot_interval: '',
 };
 
 const optionalUrl = yup
@@ -83,4 +84,17 @@ export const configurationSchema = yup.object({
   facebook_url: optionalUrl,
   whatsapp_url: optionalUrl,
   secondary_color: optionalHex,
+  slot_interval: yup
+    .number()
+    .transform((_, originalValue) => {
+      if (originalValue === '' || originalValue === null || originalValue === undefined) {
+        return undefined;
+      }
+      return Number(originalValue);
+    })
+    .typeError('Enter a number')
+    .integer('Use a whole number (minutes)')
+    .min(1, 'At least 1 minute')
+    .max(1440, 'At most 1440 minutes (24 hours)')
+    .required('Slot interval is required'),
 });

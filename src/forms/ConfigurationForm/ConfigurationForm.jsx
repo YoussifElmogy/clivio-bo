@@ -113,25 +113,6 @@ export default function ConfigurationForm({
           />
         </Grid>
 
-        <Grid size={12}>
-          <Controller
-            name="footer_info"
-            control={control}
-            render={({ field }) => (
-              <FormTextField
-                field={field}
-                id="config-footer-info"
-                label="Footer info"
-                placeholder="e.g. © 2026 Clivio Dermatology. All rights reserved."
-                invalid={Boolean(errors.footer_info)}
-                errorMessage={errors.footer_info?.message}
-                disabled={isSubmitting}
-                multiline
-                minRows={2}
-              />
-            )}
-          />
-        </Grid>
 
         <Grid size={{ xs: 12, md: 6 }}>
           <Controller
@@ -232,6 +213,47 @@ export default function ConfigurationForm({
                 invalid={Boolean(errors.whatsapp_url)}
                 errorMessage={errors.whatsapp_url?.message}
                 disabled={isSubmitting}
+              />
+            )}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Controller
+            name="slot_interval"
+            control={control}
+            render={({ field }) => (
+              <FormTextField
+                field={field}
+                id="config-slot-interval"
+                label="Slot interval (minutes)"
+                required
+                type="number"
+                placeholder="30"
+                invalid={Boolean(errors.slot_interval)}
+                errorMessage={errors.slot_interval?.message}
+                disabled={isSubmitting}
+                slotProps={{ htmlInput: { min: 1, max: 1440, step: 1 } }}
+              />
+            )}
+          />
+        </Grid>
+
+        <Grid size={12}>
+          <Controller
+            name="footer_info"
+            control={control}
+            render={({ field }) => (
+              <FormTextField
+                field={field}
+                id="config-footer-info"
+                label="Footer info"
+                placeholder="e.g. © 2026 Clivio Dermatology. All rights reserved."
+                invalid={Boolean(errors.footer_info)}
+                errorMessage={errors.footer_info?.message}
+                disabled={isSubmitting}
+                multiline
+                minRows={2}
               />
             )}
           />

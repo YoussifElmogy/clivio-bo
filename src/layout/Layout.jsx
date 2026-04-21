@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Box from '@mui/material/Box';
+import IconButton from '@mui/material/IconButton';
+import MenuIcon from '@mui/icons-material/Menu';
 import { useTheme } from '@mui/material/styles';
 import Sidebar from '../components/Sidebar/Sidebar';
-import Topbar from '../components/Topbar/Topbar';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import Drawer from '@mui/material/Drawer';
 
@@ -13,6 +14,7 @@ export default function Layout() {
   const isTablet = useMediaQuery(theme.breakpoints.between('md', 'lg'));
   const [drawerOpen, setDrawerOpen] = useState(false);
   const sidebarWidth = isTablet ? '14.5rem' : '17.78rem';
+  const showMenuButton = isMobile || isTablet;
 
   return (
     <Box
@@ -116,37 +118,35 @@ export default function Layout() {
           transition: 'margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
-        <Box
-          sx={{
-            position: 'fixed',
-            left: isMobile
-              ? 0
-              : isTablet
-                ? drawerOpen
-                  ? sidebarWidth
-                  : 0
-                : sidebarWidth,
-            right: 0,
-            top: 0,
-            zIndex: 1100,
-            width: isMobile
-              ? '100%'
-              : isTablet
-                ? `calc(100% - ${drawerOpen ? sidebarWidth : 0})`
-                : `calc(100% - ${sidebarWidth})`,
-          }}
-        >
-          <Topbar onMenuClick={() => setDrawerOpen(true)} />
-        </Box>
+        {showMenuButton ? (
+          <IconButton
+            color="primary"
+            aria-label="Open navigation menu"
+            onClick={() => setDrawerOpen(true)}
+            sx={{
+              position: 'fixed',
+              top: 12,
+              left: 12,
+              zIndex: 1250,
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
+              boxShadow: 1,
+              '&:hover': { bgcolor: 'action.hover' },
+            }}
+          >
+            <MenuIcon />
+          </IconButton>
+        ) : null}
         <Box
           component="main"
           sx={{
             flex: 1,
-            mt: '4.556rem',
-            p: { xs: 2, sm: '1.778rem' },
+            minHeight: 0,
+            px: { xs: 2, sm: '1.778rem' },
             pb: '5rem',
+            pt: showMenuButton ? { xs: 8, sm: 8, md: 8 } : { xs: 2, sm: '1.778rem' },
             overflowY: 'auto',
-            height: 'calc(100dvh - 4.556rem)',
             bgcolor: 'background.default',
           }}
         >
