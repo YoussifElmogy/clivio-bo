@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   fetchBranches,
   fetchDoctorsForBranch,
@@ -63,21 +63,31 @@ export function useAppointmentCatalog(branchId, doctorId, appointmentDay) {
     };
   }, [branchId]);
 
-  const loadSlotDays = useCallback(
-    docId => {
-      setLoadingSlots(true);
-      fetchSlotDaysForDoctor(docId, branchId, doctors)
-        .then(days => setSlotDays(days))
-        .catch(() => setSlotDays([]))
-        .finally(() => setLoadingSlots(false));
-    },
-    [branchId, doctors]
-  );
-
+  /** Slot-day fetch must cancel in-flight work when branch/doctor/doctors list changes (avoids races). */
   useEffect(() => {
-    const id = doctorId?.trim() ?? '';
-    loadSlotDays(id);
-  }, [doctorId, branchId, doctors, loadSlotDays]);
+    const bid = branchId?.trim?.() ?? String(branchId ?? '').trim();
+    if (!bid) {
+      setSlotDays([]);
+      setLoadingSlots(false);
+      return;
+    }
+    let cancelled = false;
+    setLoadingSlots(true);
+    const docId = doctorId?.trim() ?? '';
+    fetchSlotDaysForDoctor(docId, branchId, doctors)
+      .then(days => {
+        if (!cancelled) setSlotDays(days);
+      })
+      .catch(() => {
+        if (!cancelled) setSlotDays([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSlots(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [doctorId, branchId, doctors]);
 
   useEffect(() => {
     const id = doctorId?.trim();

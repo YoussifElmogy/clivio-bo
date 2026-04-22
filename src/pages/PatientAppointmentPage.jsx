@@ -2,60 +2,22 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
-import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
 import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
 import BranchSelectField from '../components/PatientAppointment/BranchSelectField';
 import DoctorSelectField from '../components/PatientAppointment/DoctorSelectField';
 import SlotDayField from '../components/PatientAppointment/SlotDayField';
 import SlotTimeField from '../components/PatientAppointment/SlotTimeField';
+import {
+  AppointmentFormSkeleton,
+  FormSection,
+  SectionDivider,
+} from '../components/PatientAppointment/appointmentFormLayout';
 import { useToast } from '../context/ToastContext';
 import { useAppointmentCatalog } from '../hooks/useAppointmentCatalog';
 import { usePatientAppointmentForm } from '../hooks/usePatientAppointmentForm';
 import { patientAppointmentDefaultValues } from '../schemas/patientAppointmentSchema';
-
-function FormSection({ number, title, children }) {
-  return (
-    <Box sx={{ py: 2.5 }}>
-      <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2.25 }}>
-        <Box
-          sx={{
-            width: 28,
-            height: 28,
-            borderRadius: '50%',
-            backgroundColor: 'primary.main',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <Typography
-            sx={{
-              color: '#fff',
-              fontWeight: 700,
-              fontSize: '0.8rem',
-              lineHeight: 1,
-            }}
-          >
-            {number}
-          </Typography>
-        </Box>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, letterSpacing: '-0.01em' }}>
-          {title}
-        </Typography>
-      </Stack>
-      {children}
-    </Box>
-  );
-}
-
-function SectionDivider() {
-  return <Divider flexItem sx={{ borderStyle: 'dashed', opacity: 0.85 }} />;
-}
 
 function patientDisplayName(data) {
   if (!data) return '';
@@ -64,64 +26,6 @@ function patientDisplayName(data) {
   if (a || b) return [a, b].filter(Boolean).join(' ');
   const n = data.name;
   return typeof n === 'string' && n.trim() ? n.trim() : '';
-}
-
-function AppointmentFormSkeleton() {
-  return (
-    <Box aria-busy aria-label="Loading appointment form">
-      <Box sx={{ py: 2.5 }}>
-        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2.25 }}>
-          <Skeleton variant="circular" width={28} height={28} />
-          <Skeleton variant="text" width={220} height={28} />
-        </Stack>
-        <Stack spacing={3.25}>
-          <Stack spacing={1.25}>
-            <Skeleton variant="text" width={120} height={24} />
-            <Skeleton variant="text" width="100%" height={20} />
-            <Skeleton variant="rounded" width="100%" height={56} sx={{ borderRadius: 2 }} />
-          </Stack>
-          <Stack spacing={1.25}>
-            <Skeleton variant="text" width={100} height={24} />
-            <Skeleton variant="text" width="100%" height={20} />
-            <Skeleton variant="rounded" width="100%" height={56} sx={{ borderRadius: 2 }} />
-          </Stack>
-        </Stack>
-      </Box>
-      <SectionDivider />
-      <Box sx={{ py: 2.5 }}>
-        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2.25 }}>
-          <Skeleton variant="circular" width={28} height={28} />
-          <Skeleton variant="text" width={260} height={28} />
-        </Stack>
-        <Stack spacing={3.25}>
-          <Stack spacing={1.25}>
-            <Skeleton variant="text" width={140} height={24} />
-            <Skeleton variant="text" width="100%" height={20} />
-            <Skeleton variant="rounded" width="100%" height={120} sx={{ borderRadius: 3 }} />
-          </Stack>
-          <Stack spacing={1.25}>
-            <Skeleton variant="text" width={160} height={24} />
-            <Skeleton variant="text" width="100%" height={20} />
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)' },
-                gap: 1.25,
-              }}
-            >
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} variant="rounded" height={72} sx={{ borderRadius: 2 }} />
-              ))}
-            </Box>
-          </Stack>
-        </Stack>
-      </Box>
-      <Stack direction="row" spacing={1.5} justifyContent="flex-end" sx={{ mt: 2 }}>
-        <Skeleton variant="rounded" width={96} height={40} sx={{ borderRadius: 2 }} />
-        <Skeleton variant="rounded" width={160} height={40} sx={{ borderRadius: 2 }} />
-      </Stack>
-    </Box>
-  );
 }
 
 export default function PatientAppointmentPage() {

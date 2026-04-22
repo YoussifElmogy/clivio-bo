@@ -83,7 +83,22 @@ export default function SlotTimeField({ control, timeSlots, loading, appointment
       <Controller
         name="appointmentTime"
         control={control}
-        render={({ field, fieldState }) => (
+        render={({ field, fieldState }) => {
+          const fvNorm = String(field.value ?? '').trim().slice(0, 5);
+          const rawSlots = timeSlots || [];
+          let rows = rawSlots;
+          if (fvNorm && hasDay && !loading) {
+            if (rawSlots.length > 0) {
+              const exists = rawSlots.some(s => normalizeTimeSlot(s).time === fvNorm);
+              if (!exists) {
+                rows = [{ time: fvNorm, available: true }, ...rawSlots];
+              }
+            } else {
+              rows = [{ time: fvNorm, available: true }];
+            }
+          }
+
+          return (
           <Box sx={{ width: '100%', minWidth: 0, maxWidth: '100%' }}>
             {!hasDay ? (
               <Box
@@ -119,7 +134,7 @@ export default function SlotTimeField({ control, timeSlots, loading, appointment
                   Loading schedule…
                 </Typography>
               </Box>
-            ) : timeSlots.length === 0 ? (
+            ) : rows.length === 0 ? (
               <Box
                 sx={{
                   py: 3,
@@ -146,20 +161,21 @@ export default function SlotTimeField({ control, timeSlots, loading, appointment
                   width: '100%',
                 }}
               >
-                {timeSlots.map(raw => {
+                {rows.map(raw => {
                   const { time: t, available } = normalizeTimeSlot(raw);
                   if (!t) return null;
-                  const fv = String(field.value ?? '').trim().slice(0, 5);
-                  const selected = available && fv === t;
+                  const selected = fvNorm === t;
+                  const isCurrentChoice = fvNorm === t;
+                  const disabled = !available && !isCurrentChoice;
                   const main = formatTimeMain(t);
                   return (
                     <Box
                       key={t}
                       component="button"
                       type="button"
-                      disabled={!available}
-                      onClick={() => field.onChange(t)}
-                      aria-disabled={!available}
+                      disabled={disabled}
+                      onClick={() => !disabled && field.onChange(t)}
+                      aria-disabled={disabled}
                       aria-pressed={selected}
                       sx={theme => ({
                         border: '1px solid',
@@ -167,18 +183,18 @@ export default function SlotTimeField({ control, timeSlots, loading, appointment
                         borderRadius: 2,
                         py: 1.75,
                         px: 1.5,
-                        cursor: available ? 'pointer' : 'not-allowed',
+                        cursor: disabled ? 'not-allowed' : 'pointer',
                         background: selected
                           ? `linear-gradient(145deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 70%)`
-                          : available
+                          : available || isCurrentChoice
                             ? alpha(theme.palette.background.paper, 0.9)
                             : alpha(theme.palette.action.disabledBackground, 0.35),
                         color: selected
                           ? theme.palette.primary.contrastText
-                          : available
+                          : available || isCurrentChoice
                             ? theme.palette.text.primary
                             : theme.palette.text.disabled,
-                        opacity: available ? 1 : 0.55,
+                        opacity: disabled ? 0.55 : 1,
                         boxShadow: selected
                           ? `0 8px 20px ${alpha(theme.palette.primary.main, 0.28)}`
                           : `0 1px 4px ${alpha(theme.palette.common.black, 0.05)}`,
@@ -186,7 +202,7 @@ export default function SlotTimeField({ control, timeSlots, loading, appointment
                           ['box-shadow', 'transform', 'border-color', 'opacity'],
                           { duration: theme.transitions.duration.shorter }
                         ),
-                        ...(available
+                        ...(!disabled
                           ? {
                               '&:hover': {
                                 borderColor: selected ? 'transparent' : alpha(theme.palette.primary.main, 0.4),
@@ -217,7 +233,8 @@ export default function SlotTimeField({ control, timeSlots, loading, appointment
               </Typography>
             ) : null}
           </Box>
-        )}
+          );
+        }}
       />
     </Stack>
   );

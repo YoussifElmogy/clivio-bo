@@ -179,8 +179,9 @@ export async function fetchTimeSlotsForDoctorDay(doctorId, isoDay, branchId) {
   const byTime = new Map();
   for (const s of items) {
     if (!s?.time) continue;
-    const time = String(s.time).trim();
-    if (!time) continue;
+    const rawT = String(s.time).trim();
+    if (!rawT) continue;
+    const time = rawT.length >= 5 ? rawT.slice(0, 5) : rawT;
     byTime.set(time, { time, available: Boolean(s.available) });
   }
   return [...byTime.values()].sort((a, b) => a.time.localeCompare(b.time));

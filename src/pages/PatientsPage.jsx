@@ -194,7 +194,6 @@ export default function PatientsPage() {
       { id: 'name', label: 'Name', minWidth: 180 },
       { id: 'mobile', label: 'Mobile', minWidth: 140 },
       { id: 'dob', label: 'Date of birth', minWidth: 120 },
-      { id: 'notes', label: 'Notes', minWidth: 200 },
       {
         id: 'actions',
         label: 'Actions',
@@ -252,12 +251,6 @@ export default function PatientsPage() {
     if (col.id === 'name') return patientFullName(row) ?? '—';
     if (col.id === 'mobile') return patientMobile(row) ?? '—';
     if (col.id === 'dob') return formatDob(row.date_of_birth);
-    if (col.id === 'notes') {
-      const n = row.medical_notes;
-      if (n == null || String(n).trim() === '') return '—';
-      const s = String(n).trim();
-      return s.length > 80 ? `${s.slice(0, 80)}…` : s;
-    }
     return '';
   }, []);
 
