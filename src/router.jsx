@@ -22,6 +22,14 @@ const PatientAppointmentPage = lazy(() => import('./pages/PatientAppointmentPage
 const ReservationsPage = lazy(() => import('./pages/ReservationsPage.jsx'));
 const ReservationEditPage = lazy(() => import('./pages/ReservationEditPage.jsx'));
 const SchedulesPage = lazy(() => import('./pages/SchedulesPage.jsx'));
+const ServicesPage = lazy(() => import('./pages/ServicesPage.jsx'));
+const ServiceCreatePage = lazy(() => import('./pages/ServiceCreatePage.jsx'));
+const ServiceEditPage = lazy(() => import('./pages/ServiceEditPage.jsx'));
+const InventoryPage = lazy(() => import('./pages/InventoryPage.jsx'));
+const ProductCreatePage = lazy(() => import('./pages/ProductCreatePage.jsx'));
+const ProductEditPage = lazy(() => import('./pages/ProductEditPage.jsx'));
+const MachineCreatePage = lazy(() => import('./pages/MachineCreatePage.jsx'));
+const MachineEditPage = lazy(() => import('./pages/MachineEditPage.jsx'));
 
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
 
@@ -155,6 +163,70 @@ const appRouter = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <ReservationsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'services/new',
+        element: (
+          <ProtectedRoute>
+            <ServiceCreatePage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'services/:id/edit',
+        element: (
+          <ProtectedRoute>
+            <ServiceEditPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'services',
+        element: (
+          <ProtectedRoute>
+            <ServicesPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'inventory/machines/new',
+        element: (
+          <ProtectedRoute>
+            <MachineCreatePage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'inventory/machines/:id/edit',
+        element: (
+          <ProtectedRoute>
+            <MachineEditPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'inventory/new',
+        element: (
+          <ProtectedRoute>
+            <ProductCreatePage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'inventory/:id/edit',
+        element: (
+          <ProtectedRoute>
+            <ProductEditPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'inventory',
+        element: (
+          <ProtectedRoute>
+            <InventoryPage />
           </ProtectedRoute>
         ),
       },
