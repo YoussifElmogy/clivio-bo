@@ -21,6 +21,7 @@ const PatientEditPage = lazy(() => import('./pages/PatientEditPage.jsx'));
 const PatientAppointmentPage = lazy(() => import('./pages/PatientAppointmentPage.jsx'));
 const ReservationsPage = lazy(() => import('./pages/ReservationsPage.jsx'));
 const ReservationEditPage = lazy(() => import('./pages/ReservationEditPage.jsx'));
+const SchedulesPage = lazy(() => import('./pages/SchedulesPage.jsx'));
 
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
 
@@ -154,6 +155,14 @@ const appRouter = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <ReservationsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'schedules',
+        element: (
+          <ProtectedRoute>
+            <SchedulesPage />
           </ProtectedRoute>
         ),
       },
