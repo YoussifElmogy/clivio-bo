@@ -90,6 +90,7 @@ export function mergeDoctorFromApi(data) {
     email: typeof row.email === 'string' ? row.email : '',
     phone: typeof row.phone === 'string' ? row.phone : '',
     specialty,
+    password: '',
     active,
     branch_schedules,
   };
@@ -114,7 +115,7 @@ export function buildDoctorCreatePayload(values) {
 
   const specialty = typeof values.specialty === 'string' ? values.specialty.trim() : '';
 
-  return {
+  const payload = {
     name: values.name.trim(),
     email: values.email.trim(),
     phone: values.phone.trim(),
@@ -122,6 +123,9 @@ export function buildDoctorCreatePayload(values) {
     is_active: values.active === undefined ? true : Boolean(values.active),
     branch_schedules,
   };
+  const pw = typeof values.password === 'string' ? values.password.trim() : '';
+  if (pw) payload.password = pw;
+  return payload;
 }
 
 /** PATCH /doctors/:id — same shape as create. */

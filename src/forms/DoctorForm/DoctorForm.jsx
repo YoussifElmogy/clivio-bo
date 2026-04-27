@@ -17,6 +17,7 @@ export default function DoctorForm({
   branches,
   isLoading = false,
   isEdit = false,
+  showPasswordField = false,
   onSubmit,
   submitLabel = 'Create doctor',
 }) {
@@ -128,6 +129,28 @@ export default function DoctorForm({
             )}
           />
         </Grid>
+        {showPasswordField && !isEdit ? (
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <Controller
+              name="password"
+              control={control}
+              render={({ field }) => (
+                <FormTextField
+                  field={field}
+                  id="doctor-password"
+                  label="Password"
+                  required
+                  type="password"
+                  placeholder="At least 8 characters"
+                  autoComplete="new-password"
+                  invalid={Boolean(errors.password)}
+                  errorMessage={errors.password?.message}
+                  disabled={isSubmitting}
+                />
+              )}
+            />
+          </Grid>
+        ) : null}
         <Grid size={12}>
           <Controller
             name="active"

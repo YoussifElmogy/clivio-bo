@@ -2,6 +2,7 @@ import React, { lazy } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import Layout from './layout/Layout.jsx';
 import ProtectedRoute from './context/ProtectedRoute.jsx';
+import { REQUIRED_PASSWORD_CHANGE_PATH } from './constants/authRoutes.js';
 
 // Lazy load page components for code splitting
 const Overview = lazy(() => import('./pages/Overview.jsx'));
@@ -32,6 +33,8 @@ const MachineCreatePage = lazy(() => import('./pages/MachineCreatePage.jsx'));
 const MachineEditPage = lazy(() => import('./pages/MachineEditPage.jsx'));
 
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
+const RequiredPasswordChangePage = lazy(() => import('./pages/RequiredPasswordChangePage.jsx'));
+const ChangePasswordPage = lazy(() => import('./pages/ChangePasswordPage.jsx'));
 
 const appRouter = createBrowserRouter([
   {
@@ -43,6 +46,14 @@ const appRouter = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <Overview />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'change-password',
+        element: (
+          <ProtectedRoute>
+            <ChangePasswordPage />
           </ProtectedRoute>
         ),
       },
@@ -252,7 +263,10 @@ const appRouter = createBrowserRouter([
     path: '/login',
     element: <LoginPage />,
   },
- 
+  {
+    path: REQUIRED_PASSWORD_CHANGE_PATH,
+    element: <RequiredPasswordChangePage />,
+  },
 ]);
 
 export default appRouter;

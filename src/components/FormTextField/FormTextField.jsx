@@ -1,7 +1,10 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
+import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useTheme } from '@mui/material/styles';
 import { useForkRef } from '@mui/material/utils';
 import FormFieldLabel from '../FormFieldLabel/FormFieldLabel';
@@ -163,10 +166,20 @@ export default function FormTextField({
   timeMax,
   timeStep,
   slotProps,
+  /** When `type` is `password`, show eye toggle unless set to `false`. */
+  passwordVisibilityToggle,
 }) {
   const theme = useTheme();
   const value = field.value ?? '';
   const sx = placeholderSx(theme);
+
+  const passwordToggleDefault =
+    passwordVisibilityToggle !== undefined ? passwordVisibilityToggle : type === 'password';
+  const usePasswordToggle =
+    type === 'password' && passwordToggleDefault !== false && !disabled;
+  const [passwordShown, setPasswordShown] = useState(false);
+  const resolvedInputType =
+    usePasswordToggle && passwordShown ? 'text' : type === 'password' ? 'password' : type;
 
   if (colorPicker) {
     const emptyFallback = colorPicker.emptyFallback ?? '#000000';
@@ -226,6 +239,32 @@ export default function FormTextField({
     );
   }
 
+  const baseInputSlot = slotProps?.input && typeof slotProps.input === 'object' ? slotProps.input : {};
+  const mergedSlotProps = usePasswordToggle
+    ? {
+          ...slotProps,
+          input: {
+            ...baseInputSlot,
+            endAdornment: (
+              <>
+                {baseInputSlot.endAdornment}
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label={passwordShown ? 'Hide password' : 'Show password'}
+                    onClick={() => setPasswordShown(v => !v)}
+                    onMouseDown={e => e.preventDefault()}
+                    edge="end"
+                    size="small"
+                  >
+                    {passwordShown ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              </>
+            ),
+          },
+      }
+    : slotProps;
+
   return (
     <Box>
       <FormFieldLabel htmlFor={id} required={required}>
@@ -237,7 +276,7 @@ export default function FormTextField({
         id={id}
         hiddenLabel
         fullWidth
-        type={type}
+        type={resolvedInputType}
         placeholder={placeholder}
         multiline={multiline}
         minRows={minRows}
@@ -245,7 +284,7 @@ export default function FormTextField({
         helperText={errorMessage}
         disabled={disabled}
         sx={sx}
-        slotProps={slotProps}
+        slotProps={mergedSlotProps}
       />
     </Box>
   );

@@ -1,50 +1,71 @@
-import React from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import LocalHospitalRounded from '@mui/icons-material/LocalHospitalRounded';
-import LoginForm from '../forms/LoginForm/LoginForm';
+import LockResetOutlined from '@mui/icons-material/LockResetOutlined';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import useApi from '../configs/useApi';
 import { REQUIRED_PASSWORD_CHANGE_PATH } from '../constants/authRoutes';
+import ChangePasswordForm from '../forms/ChangePasswordForm/ChangePasswordForm';
 
-export default function LoginPage() {
+export default function RequiredPasswordChangePage() {
   const theme = useTheme();
   const isWide = useMediaQuery(theme.breakpoints.up('md'));
   const navigate = useNavigate();
-  const location = useLocation();
-  const from = location.state?.from?.pathname || '/';
-  const { login, isAuthenticated, user } = useAuth();
-  const { showError } = useToast();
+  const { isAuthenticated, mustChangePassword, user, updateUser } = useAuth();
+  const { post } = useApi();
+  const { showError, showSuccess } = useToast();
 
-  React.useEffect(() => {
-    if (isAuthenticated !== true) return;
-    if (user?.mustChangePassword) {
-      navigate(REQUIRED_PASSWORD_CHANGE_PATH, { replace: true });
+  useEffect(() => {
+    if (isAuthenticated === null) return;
+    if (!isAuthenticated) {
+      navigate('/login', { replace: true, state: { from: { pathname: REQUIRED_PASSWORD_CHANGE_PATH } } });
       return;
     }
-    navigate(from, { replace: true });
-  }, [isAuthenticated, user?.mustChangePassword, from, navigate, user]);
+    if (!mustChangePassword) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, mustChangePassword, navigate]);
 
-  const handleLogin = async values => {
+  const onSubmit = async values => {
     try {
-      await login({
-        username: values.username,
-        password: values.password,
+      await post('/auth/change-password', {
+        password: values.password.trim(),
+        confirm_password: values.confirm_password.trim(),
       });
+      updateUser({ mustChangePassword: false });
+      showSuccess('Password updated. You can continue.');
+      navigate('/', { replace: true });
     } catch (err) {
       const msg =
         (typeof err === 'object' && err !== null && err.error) ||
-        err?.response?.data?.error ||
+        err?.response?.data?.detail ||
         err?.response?.data?.message ||
         err?.message ||
-        'Unable to sign in. Check your credentials and try again.';
-      showError(typeof msg === 'string' ? msg : 'Sign in failed.');
+        'Could not update password.';
+      showError(typeof msg === 'string' ? msg : 'Could not update password.');
     }
   };
+
+  if (isAuthenticated === null) {
+    return (
+      <Box sx={{ display: 'flex', minHeight: '100dvh', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!isAuthenticated || !mustChangePassword) {
+    return null;
+  }
+
+  const displayName = user?.fullName?.trim() || user?.username || user?.email || '';
 
   return (
     <Box
@@ -58,7 +79,7 @@ export default function LoginPage() {
       <Box
         sx={{
           flex: isWide ? '0 0 42%' : 'none',
-          minHeight: isWide ? '100dvh' : '38vh',
+          minHeight: isWide ? '100dvh' : '32vh',
           background: `linear-gradient(145deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 42%, ${theme.palette.primary.light} 100%)`,
           color: 'primary.contrastText',
           display: 'flex',
@@ -80,9 +101,9 @@ export default function LoginPage() {
               radial-gradient(circle at 80% 70%, white 0%, transparent 40%)`,
           }}
         />
-        <LocalHospitalRounded
+        <LockResetOutlined
           sx={{
-            fontSize: isWide ? 72 : 56,
+            fontSize: isWide ? 72 : 52,
             mb: 2,
             position: 'relative',
             filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.2))',
@@ -94,7 +115,7 @@ export default function LoginPage() {
           align="center"
           sx={{ position: 'relative', fontWeight: 700, mb: 1 }}
         >
-          Clivio Clinic
+          Password update required
         </Typography>
         <Typography
           variant="body1"
@@ -106,8 +127,7 @@ export default function LoginPage() {
             lineHeight: 1.6,
           }}
         >
-          A calm, focused workspace for your team — appointments, records, and
-          care in one place.
+          For security, set a new password before using Clivio. You’ll reach the dashboard right after.
         </Typography>
       </Box>
 
@@ -124,26 +144,33 @@ export default function LoginPage() {
           elevation={0}
           sx={{
             width: '100%',
-            maxWidth: 600,
-            minHeight: { xs: 520, sm: 560 },
+            maxWidth: 560,
             p: { xs: 4, sm: 5 },
             borderRadius: 3,
             border: '1px solid',
             borderColor: 'divider',
             boxShadow: '0 24px 48px rgba(15, 118, 110, 0.08)',
             backgroundColor: 'background.paper',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
           }}
         >
-          <Typography variant="h4" component="h2" sx={{ fontWeight: 700, mb: 1 }}>
-            Welcome back
-          </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-            Sign in with your clinic credentials to open the dashboard.
-          </Typography>
-          <LoginForm onSubmit={handleLogin} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+            <LocalHospitalRounded color="primary" sx={{ fontSize: 36 }} />
+            <Typography variant="h5" sx={{ fontWeight: 700 }}>
+              Set new password
+            </Typography>
+          </Box>
+
+          {displayName ? (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Signed in as <strong>{displayName}</strong>
+            </Typography>
+          ) : (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Choose a strong password you haven’t used elsewhere.
+            </Typography>
+          )}
+
+          <ChangePasswordForm onSubmit={onSubmit} submitLabel="Save password & continue" />
         </Paper>
       </Box>
     </Box>

@@ -2,8 +2,6 @@ import React from 'react';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Skeleton from '@mui/material/Skeleton';
-import Stack from '@mui/material/Stack';
-
 function FieldSkeleton({ w = 80 }) {
   return (
     <Box sx={{ width: '100%' }}>
@@ -28,12 +26,6 @@ export default function AssistantFormSkeleton() {
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>
           <FieldSkeleton w={72} />
-        </Grid>
-        <Grid size={12}>
-          <Stack direction="row" spacing={1.5} sx={{ pt: 0.5 }}>
-            <Skeleton variant="rounded" width={42} height={42} sx={{ borderRadius: 1 }} />
-            <Skeleton variant="text" width={72} height={28} />
-          </Stack>
         </Grid>
       </Grid>
       <Box sx={{ mt: 3 }}>

@@ -53,12 +53,7 @@ export function mergeAssistantFromApi(data) {
     email: typeof row.email === 'string' ? row.email : '',
     phone: typeof row.phone === 'string' ? row.phone : '',
     branch_id,
-    active:
-      row.is_active !== undefined
-        ? Boolean(row.is_active)
-        : row.active !== undefined
-          ? Boolean(row.active)
-          : true,
+    password: '',
     role_ids,
   };
 }
@@ -72,14 +67,16 @@ export function buildAssistantCreatePayload(values) {
     .filter(n => !Number.isNaN(n))
     .sort((a, b) => a - b);
 
-  return {
+  const payload = {
     name: values.name.trim(),
     email: values.email.trim(),
     phone: values.phone.trim(),
     branch_id: Number(values.branch_id),
-    is_active: values.active === undefined ? true : Boolean(values.active),
     role_ids,
   };
+  const pw = typeof values.password === 'string' ? values.password.trim() : '';
+  if (pw) payload.password = pw;
+  return payload;
 }
 
 /** PATCH /assistants/:id — same shape as create. */

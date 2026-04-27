@@ -14,6 +14,10 @@ import {
 
 const AuthContext = createContext();
 
+function normalizeMustChangePassword(flag) {
+  return flag === true || flag === 'true' || flag === 1;
+}
+
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
   const [user, setUser] = useState({});
@@ -36,11 +40,19 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true);
       try {
         const userData = JSON.parse(storedUserData);
-        setUser(userData);
+        const normalized = {
+          ...userData,
+          mustChangePassword: normalizeMustChangePassword(userData.mustChangePassword),
+        };
+        setUser(normalized);
+        Cookies.set('userData', JSON.stringify(normalized), {
+          expires: 7,
+          sameSite: 'lax',
+        });
       } catch {
         const userInfoFromToken = decodeUserFromToken(accessToken);
-        setUser(userInfoFromToken);
-        Cookies.set('userData', JSON.stringify(userInfoFromToken), {
+        setUser({ ...userInfoFromToken, mustChangePassword: false });
+        Cookies.set('userData', JSON.stringify({ ...userInfoFromToken, mustChangePassword: false }), {
           expires: 7,
           sameSite: 'lax',
         });
@@ -48,8 +60,8 @@ export const AuthProvider = ({ children }) => {
     } else if (accessToken) {
       setIsAuthenticated(true);
       const userInfoFromToken = decodeUserFromToken(accessToken);
-      setUser(userInfoFromToken);
-      Cookies.set('userData', JSON.stringify(userInfoFromToken), {
+      setUser({ ...userInfoFromToken, mustChangePassword: false });
+      Cookies.set('userData', JSON.stringify({ ...userInfoFromToken, mustChangePassword: false }), {
         expires: 7,
         sameSite: 'lax',
       });
@@ -92,6 +104,10 @@ export const AuthProvider = ({ children }) => {
 
       const fromToken = decodeUserFromToken(accessToken);
 
+      const mustFromResponse = normalizeMustChangePassword(
+        res.must_change_password ?? res.mustChangePassword ?? res.user?.must_change_password ?? res.user?.mustChangePassword
+      );
+
       let userInfo;
       if (res.user && typeof res.user === 'object') {
         userInfo = {
@@ -106,6 +122,7 @@ export const AuthProvider = ({ children }) => {
             fromToken.username ||
             username,
           email: res.user.email || username,
+          mustChangePassword: mustFromResponse,
         };
       } else {
         userInfo = {
@@ -113,6 +130,7 @@ export const AuthProvider = ({ children }) => {
           role: res.role || fromToken.role,
           username: fromToken.username || username,
           email: res.email || fromToken.username || username,
+          mustChangePassword: mustFromResponse,
         };
       }
 
@@ -121,6 +139,7 @@ export const AuthProvider = ({ children }) => {
         expires: 7,
         sameSite: 'lax',
       });
+      return { mustChangePassword: userInfo.mustChangePassword === true };
     } catch (err) {
       setIsAuthenticated(false);
       throw err;
@@ -145,6 +164,9 @@ export const AuthProvider = ({ children }) => {
       ...user,
       ...updatedUserData,
     };
+    if (updatedUserData.mustChangePassword !== undefined) {
+      newUserData.mustChangePassword = normalizeMustChangePassword(updatedUserData.mustChangePassword);
+    }
     setUser(newUserData);
     Cookies.set('userData', JSON.stringify(newUserData), {
       expires: 7,
@@ -152,11 +174,14 @@ export const AuthProvider = ({ children }) => {
     });
   };
 
+  const mustChangePassword = user?.mustChangePassword === true;
+
   return (
     <AuthContext.Provider
       value={{
         isAuthenticated,
         user,
+        mustChangePassword,
         login,
         logout,
         updateUser,

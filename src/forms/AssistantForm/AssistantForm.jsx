@@ -24,6 +24,7 @@ export default function AssistantForm({
   roles,
   isLoading = false,
   isEdit = false,
+  showPasswordField = false,
   onSubmit,
   submitLabel = 'Create assistant',
 }) {
@@ -177,24 +178,28 @@ export default function AssistantForm({
             )}
           />
         </Grid>
-        <Grid size={12}>
-          <Controller
-            name="active"
-            control={control}
-            render={({ field }) => (
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={Boolean(field.value)}
-                    onChange={e => field.onChange(e.target.checked)}
-                    disabled={isSubmitting}
-                  />
-                }
-                label="Active"
-              />
-            )}
-          />
-        </Grid>
+        {showPasswordField && !isEdit ? (
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <Controller
+              name="password"
+              control={control}
+              render={({ field }) => (
+                <FormTextField
+                  field={field}
+                  id="assistant-password"
+                  label="Password"
+                  required
+                  type="password"
+                  placeholder="At least 8 characters"
+                  autoComplete="new-password"
+                  invalid={Boolean(errors.password)}
+                  errorMessage={errors.password?.message}
+                  disabled={isSubmitting}
+                />
+              )}
+            />
+          </Grid>
+        ) : null}
       </Grid>
 
       <Paper

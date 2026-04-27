@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
 import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -128,34 +127,6 @@ export default function AssistantsPage() {
       { id: 'email', label: 'Email', minWidth: 200 },
       { id: 'phone', label: 'Phone', minWidth: 130 },
       { id: 'branch', label: 'Branch', minWidth: 160 },
-      {
-        id: 'is_active',
-        label: 'Active',
-        align: 'center',
-        minWidth: 90,
-        render: row => {
-          const on = row.is_active ?? row.active;
-          return (
-            <Checkbox
-              checked={Boolean(on)}
-              disabled
-              size="small"
-              color="success"
-              sx={{
-                p: 0.5,
-                '&.Mui-disabled': { opacity: 1 },
-                '&.Mui-disabled.Mui-checked': {
-                  color: theme => theme.palette.success.main,
-                },
-                '&.Mui-disabled:not(.Mui-checked)': {
-                  color: theme => theme.palette.action.disabled,
-                },
-              }}
-              inputProps={{ 'aria-label': 'Active' }}
-            />
-          );
-        },
-      },
       {
         id: 'actions',
         label: 'Actions',

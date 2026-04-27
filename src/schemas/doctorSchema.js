@@ -1,5 +1,6 @@
 import * as yup from 'yup';
 import { formatHhmmToAmPm } from '../utils/timeFormat';
+import { optionalUserPasswordYup, requiredUserPasswordYup } from './userPasswordSchema';
 
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -46,7 +47,7 @@ function getBranchWindow(branches, branchId) {
 /**
  * @param {unknown[]} branches - loaded branch list (from_time / to_time as HH:mm or strings)
  */
-export function createDoctorCreateSchema(branches = []) {
+export function createDoctorCreateSchema(branches = [], { requirePassword = false } = {}) {
   const slotSchema = yup.object({
     from_time: yup
       .string()
@@ -115,6 +116,7 @@ export function createDoctorCreateSchema(branches = []) {
     email: yup.string().trim().email('Valid email required').required('Email is required'),
     phone: yup.string().trim().required('Phone is required'),
     specialty: yup.string().trim().optional(),
+    password: requirePassword ? requiredUserPasswordYup() : optionalUserPasswordYup(),
     active: yup.boolean().optional(),
     branch_schedules: yup.array().of(branchScheduleSchema).optional(),
   });
@@ -132,6 +134,7 @@ export const doctorCreateDefaultValues = {
   email: '',
   phone: '',
   specialty: '',
+  password: '',
   active: true,
   branch_schedules: [],
 };

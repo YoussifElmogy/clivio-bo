@@ -14,7 +14,7 @@ import FormPageShell from '../components/FormPageShell/FormPageShell';
 import CustomLoader from '../components/CustomLoader/CustomLoader';
 import AssistantForm from '../forms/AssistantForm/AssistantForm';
 import { useToast } from '../context/ToastContext';
-import { assistantCreateSchema, assistantCreateDefaultValues } from '../schemas/assistantSchema';
+import { createAssistantSchema, assistantCreateDefaultValues } from '../schemas/assistantSchema';
 import {
   buildAssistantUpdatePayload,
   mergeAssistantFromApi,
@@ -36,7 +36,7 @@ export default function AssistantEditPage() {
 
   const resolver = useMemo(
     () => (values, context, options) =>
-      yupResolver(assistantCreateSchema)(values, context, options),
+      yupResolver(createAssistantSchema({ requirePassword: false }))(values, context, options),
     []
   );
 
