@@ -15,12 +15,18 @@ import FormPageShell from '../components/FormPageShell/FormPageShell';
 import PaginatedTable from '../components/PaginatedTable/PaginatedTable';
 import CustomLoader from '../components/CustomLoader/CustomLoader';
 import { useToast } from '../context/ToastContext';
+import usePermissions from '../hooks/usePermissions';
+import { PERM } from '../config/permissions';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 
 export default function AssistantsPage() {
   const navigate = useNavigate();
   const { get, del } = useApi();
   const { showError, showInfo, showSuccess } = useToast();
+  const { can } = usePermissions();
+  const canAddAssistant = can(PERM.ADD_ASSISTANT);
+  const canEditAssistant = can(PERM.EDIT_ASSISTANT);
+  const canDeleteAssistant = can(PERM.DELETE_ASSISTANT);
   const [rows, setRows] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [listMode, setListMode] = useState(null);
@@ -136,35 +142,41 @@ export default function AssistantsPage() {
           const assistantId = row.id ?? row.uuid;
           return (
             <>
-              <Tooltip title="Edit">
-                <IconButton
-                  size="small"
-                  color="primary"
-                  aria-label="Edit assistant"
-                  onClick={() => {
-                    if (assistantId != null) navigate(`/assistants/${assistantId}/edit`);
-                    else showInfo('This row has no id.');
-                  }}
-                >
-                  <EditOutlined fontSize="small" />
-                </IconButton>
+              <Tooltip title={canEditAssistant ? 'Edit' : 'No permission'}>
+                <span>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    aria-label="Edit assistant"
+                    onClick={() => {
+                      if (assistantId != null) navigate(`/assistants/${assistantId}/edit`);
+                      else showInfo('This row has no id.');
+                    }}
+                    disabled={!canEditAssistant}
+                  >
+                    <EditOutlined fontSize="small" />
+                  </IconButton>
+                </span>
               </Tooltip>
-              <Tooltip title="Delete">
-                <IconButton
-                  size="small"
-                  color="error"
-                  aria-label="Delete assistant"
-                  onClick={() => requestDelete(row)}
-                >
-                  <DeleteOutlineOutlined fontSize="small" />
-                </IconButton>
+              <Tooltip title={canDeleteAssistant ? 'Delete' : 'No permission'}>
+                <span>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    aria-label="Delete assistant"
+                    onClick={() => requestDelete(row)}
+                    disabled={!canDeleteAssistant}
+                  >
+                    <DeleteOutlineOutlined fontSize="small" />
+                  </IconButton>
+                </span>
               </Tooltip>
             </>
           );
         },
       },
     ],
-    [navigate, requestDelete, showInfo]
+    [navigate, requestDelete, showInfo, canEditAssistant, canDeleteAssistant]
   );
 
   const getCellValue = useCallback((row, col) => {
@@ -188,9 +200,18 @@ export default function AssistantsPage() {
       <FormPageShell
         title={`Assistants (${count})`}
         headerAction={
-          <Button variant="contained" onClick={() => navigate('/assistants/new')} sx={{ borderRadius: 2 }}>
-            Add assistant
-          </Button>
+          <Tooltip title={canAddAssistant ? 'Add assistant' : 'No permission'}>
+            <span>
+              <Button
+                variant="contained"
+                onClick={() => navigate('/assistants/new')}
+                sx={{ borderRadius: 2 }}
+                disabled={!canAddAssistant}
+              >
+                Add assistant
+              </Button>
+            </span>
+          </Tooltip>
         }
         paperSx={{ p: { xs: 2, sm: 3 } }}
       >

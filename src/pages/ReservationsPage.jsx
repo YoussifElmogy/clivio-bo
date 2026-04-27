@@ -14,6 +14,8 @@ import EditOutlined from '@mui/icons-material/EditOutlined';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import { useToast } from '../context/ToastContext';
+import usePermissions from '../hooks/usePermissions';
+import { PERM } from '../config/permissions';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import {
   RESERVATION_STATUS_OPTIONS,
@@ -65,6 +67,8 @@ export default function ReservationsPage() {
   const navigate = useNavigate();
   const { get } = useApi();
   const { showError } = useToast();
+  const { can } = usePermissions();
+  const canEditAppointment = can(PERM.EDIT_APPOINTMENT);
   const [rows, setRows] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [listMode, setListMode] = useState(null);
@@ -155,23 +159,26 @@ export default function ReservationsPage() {
         render: row => {
           const rid = row.id ?? row.uuid;
           return (
-            <Tooltip title="Edit">
-              <IconButton
-                size="small"
-                color="primary"
-                aria-label="Edit appointment"
-                onClick={() => {
-                  if (rid != null) navigate(`/appointments/${encodeURIComponent(rid)}/edit`);
-                }}
-              >
-                <EditOutlined fontSize="small" />
-              </IconButton>
+            <Tooltip title={canEditAppointment ? 'Edit' : 'No permission'}>
+              <span>
+                <IconButton
+                  size="small"
+                  color="primary"
+                  aria-label="Edit appointment"
+                  onClick={() => {
+                    if (rid != null) navigate(`/appointments/${encodeURIComponent(rid)}/edit`);
+                  }}
+                  disabled={!canEditAppointment}
+                >
+                  <EditOutlined fontSize="small" />
+                </IconButton>
+              </span>
             </Tooltip>
           );
         },
       },
     ],
-    [navigate]
+    [navigate, canEditAppointment]
   );
 
   const getCellValue = useCallback((row, col) => {

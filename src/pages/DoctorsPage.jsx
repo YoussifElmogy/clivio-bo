@@ -19,6 +19,8 @@ import FormPageShell from '../components/FormPageShell/FormPageShell';
 import PaginatedTable from '../components/PaginatedTable/PaginatedTable';
 import CustomLoader from '../components/CustomLoader/CustomLoader';
 import { useToast } from '../context/ToastContext';
+import usePermissions from '../hooks/usePermissions';
+import { PERM } from '../config/permissions';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import { formatTimeRangeAmPm } from '../utils/timeFormat';
 
@@ -34,6 +36,10 @@ export default function DoctorsPage() {
   const navigate = useNavigate();
   const { get, del } = useApi();
   const { showError, showInfo, showSuccess } = useToast();
+  const { can } = usePermissions();
+  const canAddDoctor = can(PERM.ADD_DOCTOR);
+  const canEditDoctor = can(PERM.EDIT_DOCTOR);
+  const canDeleteDoctor = can(PERM.DELETE_DOCTOR);
   const [doctors, setDoctors] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [listMode, setListMode] = useState(null);
@@ -191,18 +197,21 @@ export default function DoctorsPage() {
           const doctorId = row.id ?? row.uuid;
           return (
             <>
-              <Tooltip title="Edit">
-                <IconButton
-                  size="small"
-                  color="primary"
-                  aria-label="Edit doctor"
-                  onClick={() => {
-                    if (doctorId != null) navigate(`/doctors/${doctorId}/edit`);
-                    else showInfo('This row has no id.');
-                  }}
-                >
-                  <EditOutlined fontSize="small" />
-                </IconButton>
+              <Tooltip title={canEditDoctor ? 'Edit' : 'No permission'}>
+                <span>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    aria-label="Edit doctor"
+                    onClick={() => {
+                      if (doctorId != null) navigate(`/doctors/${doctorId}/edit`);
+                      else showInfo('This row has no id.');
+                    }}
+                    disabled={!canEditDoctor}
+                  >
+                    <EditOutlined fontSize="small" />
+                  </IconButton>
+                </span>
               </Tooltip>
               <Tooltip title="View">
                 <IconButton
@@ -214,22 +223,25 @@ export default function DoctorsPage() {
                   <VisibilityOutlined fontSize="small" />
                 </IconButton>
               </Tooltip>
-              <Tooltip title="Delete">
-                <IconButton
-                  size="small"
-                  color="error"
-                  aria-label="Delete doctor"
-                  onClick={() => requestDelete(row)}
-                >
-                  <DeleteOutlineOutlined fontSize="small" />
-                </IconButton>
+              <Tooltip title={canDeleteDoctor ? 'Delete' : 'No permission'}>
+                <span>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    aria-label="Delete doctor"
+                    onClick={() => requestDelete(row)}
+                    disabled={!canDeleteDoctor}
+                  >
+                    <DeleteOutlineOutlined fontSize="small" />
+                  </IconButton>
+                </span>
               </Tooltip>
             </>
           );
         },
       },
     ],
-    [navigate, requestDelete, requestView, showInfo]
+    [navigate, requestDelete, requestView, showInfo, canEditDoctor, canDeleteDoctor]
   );
 
   return (
@@ -238,9 +250,18 @@ export default function DoctorsPage() {
       <FormPageShell
         title={`Doctors (${count})`}
         headerAction={
-          <Button variant="contained" onClick={() => navigate('/doctors/new')} sx={{ borderRadius: 2 }}>
-            Add doctor
-          </Button>
+          <Tooltip title={canAddDoctor ? 'Add doctor' : 'No permission'}>
+            <span>
+              <Button
+                variant="contained"
+                onClick={() => navigate('/doctors/new')}
+                sx={{ borderRadius: 2 }}
+                disabled={!canAddDoctor}
+              >
+                Add doctor
+              </Button>
+            </span>
+          </Tooltip>
         }
         paperSx={{ p: { xs: 2, sm: 3 } }}
       >

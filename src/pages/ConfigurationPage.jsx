@@ -14,9 +14,13 @@ import {
   buildConfigurationFormData,
   mergeConfigFromApi,
 } from '../payloads/configurationPayload';
+import usePermissions from '../hooks/usePermissions';
+import { PERM } from '../config/permissions';
 
 export default function ConfigurationPage() {
   const { get, patch } = useApi();
+  const { can } = usePermissions();
+  const canSaveConfig = can(PERM.EDIT_CONFIG);
   const { showSuccess, showError, showWarning } = useToast();
   const [loadingConfig, setLoadingConfig] = React.useState(true);
 
@@ -59,6 +63,7 @@ export default function ConfigurationPage() {
   }, []);
 
   const onSubmit = async values => {
+    if (!canSaveConfig) return;
     try {
       await patch('/configuration', buildConfigurationFormData(values));
       showSuccess('Configuration saved.');
@@ -88,6 +93,7 @@ export default function ConfigurationPage() {
           isSubmitting={isSubmitting}
           handleSubmit={handleSubmit}
           onSubmit={onSubmit}
+          canSave={canSaveConfig}
         />
       )}
     </FormPageShell>

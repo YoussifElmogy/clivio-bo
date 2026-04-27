@@ -11,6 +11,7 @@ import {
   getFullNameFromToken,
   getUsernameFromToken,
 } from '../utils/jwt';
+import { normalizeRolesFromAuth } from '../utils/permissions';
 
 const AuthContext = createContext();
 
@@ -43,6 +44,7 @@ export const AuthProvider = ({ children }) => {
         const normalized = {
           ...userData,
           mustChangePassword: normalizeMustChangePassword(userData.mustChangePassword),
+          roles: normalizeRolesFromAuth(userData.roles),
         };
         setUser(normalized);
         Cookies.set('userData', JSON.stringify(normalized), {
@@ -108,6 +110,8 @@ export const AuthProvider = ({ children }) => {
         res.must_change_password ?? res.mustChangePassword ?? res.user?.must_change_password ?? res.user?.mustChangePassword
       );
 
+      const rolesNormalized = normalizeRolesFromAuth(res.roles ?? res.user?.roles);
+
       let userInfo;
       if (res.user && typeof res.user === 'object') {
         userInfo = {
@@ -123,6 +127,7 @@ export const AuthProvider = ({ children }) => {
             username,
           email: res.user.email || username,
           mustChangePassword: mustFromResponse,
+          roles: rolesNormalized,
         };
       } else {
         userInfo = {
@@ -131,6 +136,7 @@ export const AuthProvider = ({ children }) => {
           username: fromToken.username || username,
           email: res.email || fromToken.username || username,
           mustChangePassword: mustFromResponse,
+          roles: rolesNormalized,
         };
       }
 
@@ -166,6 +172,9 @@ export const AuthProvider = ({ children }) => {
     };
     if (updatedUserData.mustChangePassword !== undefined) {
       newUserData.mustChangePassword = normalizeMustChangePassword(updatedUserData.mustChangePassword);
+    }
+    if (updatedUserData.roles !== undefined) {
+      newUserData.roles = normalizeRolesFromAuth(updatedUserData.roles);
     }
     setUser(newUserData);
     Cookies.set('userData', JSON.stringify(newUserData), {

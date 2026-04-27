@@ -13,7 +13,9 @@ export default function ConfigurationForm({
   isSubmitting,
   handleSubmit,
   onSubmit,
+  canSave = true,
 }) {
+  const fieldDisabled = isSubmitting || !canSave;
   return (
     <Box component="form" noValidate onSubmit={handleSubmit(onSubmit)}>
       <Grid container spacing={2.5} sx={{ mb: 1 }}>
@@ -30,7 +32,7 @@ export default function ConfigurationForm({
                 placeholder="e.g. Clivio Dermatology"
                 invalid={Boolean(errors.clinic_name)}
                 errorMessage={errors.clinic_name?.message}
-                disabled={isSubmitting}
+                disabled={fieldDisabled}
               />
             )}
           />
@@ -50,7 +52,7 @@ export default function ConfigurationForm({
                 onBlur={field.onBlur}
                 error={Boolean(errors.logo_url)}
                 helperText={errors.logo_url?.message}
-                disabled={isSubmitting}
+                disabled={fieldDisabled}
               />
             )}
           />
@@ -69,7 +71,7 @@ export default function ConfigurationForm({
                 onBlur={field.onBlur}
                 error={Boolean(errors.hero_image_url)}
                 helperText={errors.hero_image_url?.message}
-                disabled={isSubmitting}
+                disabled={fieldDisabled}
               />
             )}
           />
@@ -88,7 +90,7 @@ export default function ConfigurationForm({
                 placeholder="#1ABC9C"
                 invalid={Boolean(errors.primary_color)}
                 errorMessage={errors.primary_color?.message}
-                disabled={isSubmitting}
+                disabled={fieldDisabled}
                 colorPicker={{ emptyFallback: '#000000' }}
               />
             )}
@@ -106,7 +108,7 @@ export default function ConfigurationForm({
                 placeholder="#0F172A"
                 invalid={Boolean(errors.secondary_color)}
                 errorMessage={errors.secondary_color?.message}
-                disabled={isSubmitting}
+                disabled={fieldDisabled}
                 colorPicker={{ emptyFallback: '#FFFFFF' }}
               />
             )}
@@ -126,7 +128,7 @@ export default function ConfigurationForm({
                 placeholder="e.g. Your skin, our care"
                 invalid={Boolean(errors.slogan)}
                 errorMessage={errors.slogan?.message}
-                disabled={isSubmitting}
+                disabled={fieldDisabled}
               />
             )}
           />
@@ -143,7 +145,7 @@ export default function ConfigurationForm({
                 placeholder="e.g. Expert dermatology since 2015"
                 invalid={Boolean(errors.sub_slogan)}
                 errorMessage={errors.sub_slogan?.message}
-                disabled={isSubmitting}
+                disabled={fieldDisabled}
               />
             )}
           />
@@ -161,7 +163,7 @@ export default function ConfigurationForm({
                 placeholder="https://linkedin.com/company/…"
                 invalid={Boolean(errors.linkedin_url)}
                 errorMessage={errors.linkedin_url?.message}
-                disabled={isSubmitting}
+                disabled={fieldDisabled}
               />
             )}
           />
@@ -178,7 +180,7 @@ export default function ConfigurationForm({
                 placeholder="https://instagram.com/…"
                 invalid={Boolean(errors.instagram_url)}
                 errorMessage={errors.instagram_url?.message}
-                disabled={isSubmitting}
+                disabled={fieldDisabled}
               />
             )}
           />
@@ -195,7 +197,7 @@ export default function ConfigurationForm({
                 placeholder="https://facebook.com/…"
                 invalid={Boolean(errors.facebook_url)}
                 errorMessage={errors.facebook_url?.message}
-                disabled={isSubmitting}
+                disabled={fieldDisabled}
               />
             )}
           />
@@ -212,7 +214,7 @@ export default function ConfigurationForm({
                 placeholder="https://wa.me/201000000000"
                 invalid={Boolean(errors.whatsapp_url)}
                 errorMessage={errors.whatsapp_url?.message}
-                disabled={isSubmitting}
+                disabled={fieldDisabled}
               />
             )}
           />
@@ -232,7 +234,7 @@ export default function ConfigurationForm({
                 placeholder="30"
                 invalid={Boolean(errors.slot_interval)}
                 errorMessage={errors.slot_interval?.message}
-                disabled={isSubmitting}
+                disabled={fieldDisabled}
                 slotProps={{ htmlInput: { min: 1, max: 1440, step: 1 } }}
               />
             )}
@@ -251,7 +253,7 @@ export default function ConfigurationForm({
                 placeholder="e.g. © 2026 Clivio Dermatology. All rights reserved."
                 invalid={Boolean(errors.footer_info)}
                 errorMessage={errors.footer_info?.message}
-                disabled={isSubmitting}
+                disabled={fieldDisabled}
                 multiline
                 minRows={2}
               />
@@ -265,7 +267,7 @@ export default function ConfigurationForm({
           type="submit"
           variant="contained"
           size="large"
-          disabled={isSubmitting}
+          disabled={fieldDisabled}
           sx={{ minWidth: 160, py: 1.25 }}
         >
           {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Save'}

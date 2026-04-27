@@ -21,6 +21,8 @@ import FormPageShell from '../components/FormPageShell/FormPageShell';
 import PaginatedTable from '../components/PaginatedTable/PaginatedTable';
 import CustomLoader from '../components/CustomLoader/CustomLoader';
 import { useToast } from '../context/ToastContext';
+import usePermissions from '../hooks/usePermissions';
+import { PERM } from '../config/permissions';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import { SERVICE_CATEGORY_OPTIONS } from '../schemas/serviceSchema';
 
@@ -36,6 +38,10 @@ export default function ServicesPage() {
   const navigate = useNavigate();
   const { get, del } = useApi();
   const { showError, showInfo, showSuccess } = useToast();
+  const { can } = usePermissions();
+  const canAddService = can(PERM.ADD_INVENTORY);
+  const canEditService = can(PERM.EDIT_INVENTORY);
+  const canDeleteService = can(PERM.DELETE_INVENTORY);
   const [rows, setRows] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [listMode, setListMode] = useState(null);
@@ -159,35 +165,41 @@ export default function ServicesPage() {
           const serviceId = row.id ?? row.uuid;
           return (
             <>
-              <Tooltip title="Edit">
-                <IconButton
-                  size="small"
-                  color="primary"
-                  aria-label="Edit service"
-                  onClick={() => {
-                    if (serviceId != null) navigate(`/services/${serviceId}/edit`);
-                    else showInfo('This row has no id.');
-                  }}
-                >
-                  <EditOutlined fontSize="small" />
-                </IconButton>
+              <Tooltip title={canEditService ? 'Edit' : 'No permission'}>
+                <span>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    aria-label="Edit service"
+                    onClick={() => {
+                      if (serviceId != null) navigate(`/services/${serviceId}/edit`);
+                      else showInfo('This row has no id.');
+                    }}
+                    disabled={!canEditService}
+                  >
+                    <EditOutlined fontSize="small" />
+                  </IconButton>
+                </span>
               </Tooltip>
-              <Tooltip title="Delete">
-                <IconButton
-                  size="small"
-                  color="error"
-                  aria-label="Delete service"
-                  onClick={() => requestDelete(row)}
-                >
-                  <DeleteOutlineOutlined fontSize="small" />
-                </IconButton>
+              <Tooltip title={canDeleteService ? 'Delete' : 'No permission'}>
+                <span>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    aria-label="Delete service"
+                    onClick={() => requestDelete(row)}
+                    disabled={!canDeleteService}
+                  >
+                    <DeleteOutlineOutlined fontSize="small" />
+                  </IconButton>
+                </span>
               </Tooltip>
             </>
           );
         },
       },
     ],
-    [navigate, requestDelete, showInfo]
+    [navigate, requestDelete, showInfo, canEditService, canDeleteService]
   );
 
   const getCellValue = useCallback((row, col) => {
@@ -207,9 +219,18 @@ export default function ServicesPage() {
       <FormPageShell
         title={`Services (${count})`}
         headerAction={
-          <Button variant="contained" onClick={() => navigate('/services/new')} sx={{ borderRadius: 2 }}>
-            Add service
-          </Button>
+          <Tooltip title={canAddService ? 'Add service' : 'No permission'}>
+            <span>
+              <Button
+                variant="contained"
+                onClick={() => navigate('/services/new')}
+                sx={{ borderRadius: 2 }}
+                disabled={!canAddService}
+              >
+                Add service
+              </Button>
+            </span>
+          </Tooltip>
         }
         paperSx={{ p: { xs: 2, sm: 3 } }}
       >

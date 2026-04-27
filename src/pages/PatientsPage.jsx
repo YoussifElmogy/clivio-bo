@@ -22,6 +22,8 @@ import FormPageShell from '../components/FormPageShell/FormPageShell';
 import PaginatedTable from '../components/PaginatedTable/PaginatedTable';
 import CustomLoader from '../components/CustomLoader/CustomLoader';
 import { useToast } from '../context/ToastContext';
+import usePermissions from '../hooks/usePermissions';
+import { PERM } from '../config/permissions';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 
 function normalizePatientsList(data) {
@@ -74,6 +76,11 @@ export default function PatientsPage() {
   const navigate = useNavigate();
   const { get, del } = useApi();
   const { showError, showInfo, showSuccess } = useToast();
+  const { can } = usePermissions();
+  const canAddPatient = can(PERM.ADD_PATIENT);
+  const canEditPatient = can(PERM.EDIT_PATIENT);
+  const canDeletePatient = can(PERM.DELETE_PATIENT);
+  const canAddAppointment = can(PERM.ADD_APPOINTMENT);
   const [rows, setRows] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [listMode, setListMode] = useState(null);
@@ -203,48 +210,64 @@ export default function PatientsPage() {
           const patientId = row.id ?? row.uuid;
           return (
             <>
-              <Tooltip title="Add appointment">
-                <IconButton
-                  size="small"
-                  color="primary"
-                  aria-label="Add appointment"
-                  onClick={() => {
-                    if (patientId != null) navigate(`/patients/${patientId}/appointment`);
-                    else showInfo('This row has no id.');
-                  }}
-                >
-                  <EventAvailableOutlined fontSize="small" />
-                </IconButton>
+              <Tooltip title={canAddAppointment ? 'Add appointment' : 'No permission'}>
+                <span>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    aria-label="Add appointment"
+                    onClick={() => {
+                      if (patientId != null) navigate(`/patients/${patientId}/appointment`);
+                      else showInfo('This row has no id.');
+                    }}
+                    disabled={!canAddAppointment}
+                  >
+                    <EventAvailableOutlined fontSize="small" />
+                  </IconButton>
+                </span>
               </Tooltip>
-              <Tooltip title="Edit">
-                <IconButton
-                  size="small"
-                  color="primary"
-                  aria-label="Edit patient"
-                  onClick={() => {
-                    if (patientId != null) navigate(`/patients/${patientId}/edit`);
-                    else showInfo('This row has no id.');
-                  }}
-                >
-                  <EditOutlined fontSize="small" />
-                </IconButton>
+              <Tooltip title={canEditPatient ? 'Edit' : 'No permission'}>
+                <span>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    aria-label="Edit patient"
+                    onClick={() => {
+                      if (patientId != null) navigate(`/patients/${patientId}/edit`);
+                      else showInfo('This row has no id.');
+                    }}
+                    disabled={!canEditPatient}
+                  >
+                    <EditOutlined fontSize="small" />
+                  </IconButton>
+                </span>
               </Tooltip>
-              <Tooltip title="Delete">
-                <IconButton
-                  size="small"
-                  color="error"
-                  aria-label="Delete patient"
-                  onClick={() => requestDelete(row)}
-                >
-                  <DeleteOutlineOutlined fontSize="small" />
-                </IconButton>
+              <Tooltip title={canDeletePatient ? 'Delete' : 'No permission'}>
+                <span>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    aria-label="Delete patient"
+                    onClick={() => requestDelete(row)}
+                    disabled={!canDeletePatient}
+                  >
+                    <DeleteOutlineOutlined fontSize="small" />
+                  </IconButton>
+                </span>
               </Tooltip>
             </>
           );
         },
       },
     ],
-    [navigate, requestDelete, showInfo]
+    [
+      navigate,
+      requestDelete,
+      showInfo,
+      canAddAppointment,
+      canEditPatient,
+      canDeletePatient,
+    ]
   );
 
   const getCellValue = useCallback((row, col) => {
@@ -260,9 +283,18 @@ export default function PatientsPage() {
       <FormPageShell
         title={`Patients (${count})`}
         headerAction={
-          <Button variant="contained" onClick={() => navigate('/patients/new')} sx={{ borderRadius: 2 }}>
-            Add patient
-          </Button>
+          <Tooltip title={canAddPatient ? 'Add patient' : 'No permission'}>
+            <span>
+              <Button
+                variant="contained"
+                onClick={() => navigate('/patients/new')}
+                sx={{ borderRadius: 2 }}
+                disabled={!canAddPatient}
+              >
+                Add patient
+              </Button>
+            </span>
+          </Tooltip>
         }
         paperSx={{ p: { xs: 2, sm: 3 } }}
       >

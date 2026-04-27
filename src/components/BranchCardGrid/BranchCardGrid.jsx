@@ -126,6 +126,8 @@ export default function BranchCardGrid({
   onDelete,
   getRowId = row => row.id,
   skeletonCount: skeletonCountProp,
+  canEdit = true,
+  canDelete = true,
 }) {
   const skeletonCount = Math.min(
     skeletonCountProp ?? rowsPerPage ?? 8,
@@ -219,25 +221,31 @@ export default function BranchCardGrid({
                           {name}
                         </Typography>
                         <Stack direction="row" spacing={0.25} sx={{ flexShrink: 0, mt: -0.5 }}>
-                          <Tooltip title="Edit">
-                            <IconButton
-                              size="small"
-                              color="primary"
-                              aria-label={`Edit ${name}`}
-                              onClick={() => onEdit?.(row)}
-                            >
-                              <EditOutlined fontSize="small" />
-                            </IconButton>
+                          <Tooltip title={canEdit ? 'Edit' : 'No permission'}>
+                            <span>
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                aria-label={`Edit ${name}`}
+                                onClick={() => onEdit?.(row)}
+                                disabled={!canEdit}
+                              >
+                                <EditOutlined fontSize="small" />
+                              </IconButton>
+                            </span>
                           </Tooltip>
-                          <Tooltip title="Delete">
-                            <IconButton
-                              size="small"
-                              color="error"
-                              aria-label={`Delete ${name}`}
-                              onClick={() => onDelete?.(row)}
-                            >
-                              <DeleteOutlineOutlined fontSize="small" />
-                            </IconButton>
+                          <Tooltip title={canDelete ? 'Delete' : 'No permission'}>
+                            <span>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                aria-label={`Delete ${name}`}
+                                onClick={() => onDelete?.(row)}
+                                disabled={!canDelete}
+                              >
+                                <DeleteOutlineOutlined fontSize="small" />
+                              </IconButton>
+                            </span>
                           </Tooltip>
                         </Stack>
                       </Stack>

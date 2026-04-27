@@ -3,15 +3,20 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
+import Tooltip from '@mui/material/Tooltip';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
+import usePermissions from '../hooks/usePermissions';
+import { PERM } from '../config/permissions';
 import InjectablesInventoryPanel from './InjectablesInventoryPanel';
 import MachinesInventoryPanel from './MachinesInventoryPanel';
 
 export default function InventoryPage() {
   const navigate = useNavigate();
+  const { can } = usePermissions();
+  const canAddInventory = can(PERM.ADD_INVENTORY);
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab') === 'machines' ? 1 : 0;
   const [tab, setTab] = useState(tabFromUrl);
@@ -47,9 +52,18 @@ export default function InventoryPage() {
       {tab === 0 ? (
         <div role="tabpanel" id="inventory-panel-injectables" aria-labelledby="inventory-tab-injectables">
           <Stack direction="row"  spacing={3} sx={{ mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Button variant="contained" onClick={() => navigate('/inventory/new')} sx={{ borderRadius: 2 }}>
-              Add injectable
-            </Button>
+            <Tooltip title={canAddInventory ? 'Add injectable' : 'No permission'}>
+              <span>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate('/inventory/new')}
+                  sx={{ borderRadius: 2 }}
+                  disabled={!canAddInventory}
+                >
+                  Add injectable
+                </Button>
+              </span>
+            </Tooltip>
             {injectablesTotal != null ? (
               <Typography sx={{ fontWeight: 600 ,color: 'text.secondary',fontSize: '1.15rem'}}>
                 Total({injectablesTotal})
@@ -61,9 +75,18 @@ export default function InventoryPage() {
       ) : (
         <div role="tabpanel" id="inventory-panel-machines" aria-labelledby="inventory-tab-machines">
           <Stack direction="row" spacing={3} sx={{ mb: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Button variant="contained" onClick={() => navigate('/inventory/machines/new')} sx={{ borderRadius: 2 }}>
-              Add machine
-            </Button>
+            <Tooltip title={canAddInventory ? 'Add machine' : 'No permission'}>
+              <span>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate('/inventory/machines/new')}
+                  sx={{ borderRadius: 2 }}
+                  disabled={!canAddInventory}
+                >
+                  Add machine
+                </Button>
+              </span>
+            </Tooltip>
             {machinesTotal != null ? (
               <Typography sx={{ fontWeight: 600 ,color: 'text.secondary',fontSize: '1.15rem'}}>
                 Total({machinesTotal})

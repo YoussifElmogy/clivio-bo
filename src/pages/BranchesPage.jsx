@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
+import Tooltip from '@mui/material/Tooltip';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -11,6 +12,8 @@ import FormPageShell from '../components/FormPageShell/FormPageShell';
 import BranchCardGrid from '../components/BranchCardGrid/BranchCardGrid';
 import CustomLoader from '../components/CustomLoader/CustomLoader';
 import { useToast } from '../context/ToastContext';
+import usePermissions from '../hooks/usePermissions';
+import { PERM } from '../config/permissions';
 
 /**
  * @returns {{ mode: 'server' | 'client', rows: unknown[], total: number }}
@@ -43,6 +46,10 @@ export default function BranchesPage() {
   const navigate = useNavigate();
   const { get, del } = useApi();
   const { showError, showInfo, showSuccess } = useToast();
+  const { can } = usePermissions();
+  const canAddBranch = can(PERM.ADD_BRANCH);
+  const canEditBranch = can(PERM.EDIT_BRANCH);
+  const canDeleteBranch = can(PERM.DELETE_BRANCH);
   const [branches, setBranches] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   /** null until first successful parse — then 'server' (API pagination) or 'client' (slice locally). */
@@ -173,9 +180,18 @@ export default function BranchesPage() {
       <FormPageShell
         title={`Branches (${count})`}
         headerAction={
-          <Button variant="contained" onClick={() => navigate('/branches/new')} sx={{ borderRadius: 2 }}>
-            Add branches
-          </Button>
+          <Tooltip title={canAddBranch ? 'Add branch' : 'No permission'}>
+            <span>
+              <Button
+                variant="contained"
+                onClick={() => navigate('/branches/new')}
+                sx={{ borderRadius: 2 }}
+                disabled={!canAddBranch}
+              >
+                Add branches
+              </Button>
+            </span>
+          </Tooltip>
         }
         paperSx={{ p: { xs: 2, sm: 3 } }}
       >
@@ -191,6 +207,8 @@ export default function BranchesPage() {
           getRowId={row => row.id ?? row.uuid ?? JSON.stringify(row)}
           onEdit={handleEdit}
           onDelete={requestDelete}
+          canEdit={canEditBranch}
+          canDelete={canDeleteBranch}
         />
         <Dialog
           open={deleteTarget != null}

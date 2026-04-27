@@ -22,18 +22,65 @@ import { useTheme } from '@mui/material/styles';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import DropdownMenu from '../DropdownMenu/DropdownMenu';
 import { useAuth } from '../../context/AuthContext';
+import usePermissions from '../../hooks/usePermissions';
+import { PERM } from '../../config/permissions';
 
 const navItems = [
   { label: 'Overview', to: '/', Icon: DashboardRounded },
-  { label: 'Doctors', to: '/doctors', Icon: MedicalServicesOutlined },
-  { label: 'Assistants', to: '/assistants', Icon: GroupsOutlined },
-  { label: 'Patients', to: '/patients', Icon: PersonOutlineOutlined },
-  { label: 'Appointments', to: '/appointments', Icon: EventAvailableOutlined },
-  { label: 'Services', to: '/services', Icon: MedicalInformationOutlined },
-  { label: 'Inventory', to: '/inventory', Icon: Inventory2Outlined },
-  { label: 'Schedules', to: '/schedules', Icon: CalendarMonthOutlined },
-  { label: 'Branches', to: '/branches', Icon: AccountTreeOutlined },
-  { label: 'Configurations', to: '/configuration', Icon: SettingsOutlined },
+  {
+    label: 'Doctors',
+    to: '/doctors',
+    Icon: MedicalServicesOutlined,
+    requiresPermission: PERM.VIEW_DOCTOR,
+  },
+  {
+    label: 'Assistants',
+    to: '/assistants',
+    Icon: GroupsOutlined,
+    requiresPermission: PERM.VIEW_ASSISTANT,
+  },
+  {
+    label: 'Patients',
+    to: '/patients',
+    Icon: PersonOutlineOutlined,
+    requiresPermission: PERM.VIEW_PATIENT,
+  },
+  {
+    label: 'Appointments',
+    to: '/appointments',
+    Icon: EventAvailableOutlined,
+    requiresPermission: PERM.VIEW_APPOINTMENT,
+  },
+  {
+    label: 'Schedules',
+    to: '/schedules',
+    Icon: CalendarMonthOutlined,
+    requiresPermission: PERM.VIEW_APPOINTMENT,
+  },
+  {
+    label: 'Branches',
+    to: '/branches',
+    Icon: AccountTreeOutlined,
+    requiresPermission: PERM.VIEW_BRANCH,
+  },
+  {
+    label: 'Services',
+    to: '/services',
+    Icon: MedicalInformationOutlined,
+    requiresPermission: PERM.VIEW_INVENTORY,
+  },
+  {
+    label: 'Inventory',
+    to: '/inventory',
+    Icon: Inventory2Outlined,
+    requiresPermission: PERM.VIEW_INVENTORY,
+  },
+  {
+    label: 'Configurations',
+    to: '/configuration',
+    Icon: SettingsOutlined,
+    requiresPermission: PERM.VIEW_CONFIG,
+  },
 ];
 
 export default function Sidebar({ sidebarWidth = '17.778rem', onNavigate }) {
@@ -41,6 +88,12 @@ export default function Sidebar({ sidebarWidth = '17.778rem', onNavigate }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user } = useAuth();
+  const { can } = usePermissions();
+
+  const visibleNavItems = navItems.filter(item => {
+    if (!item.requiresPermission) return true;
+    return can(item.requiresPermission);
+  });
 
   const accountMenuItems = [
     {
@@ -149,7 +202,7 @@ export default function Sidebar({ sidebarWidth = '17.778rem', onNavigate }) {
         </Box>
       </NavLink>
       <List sx={{ flex: 1, pt: 0 }}>
-        {navItems.map(item => {
+        {visibleNavItems.map(item => {
           const isActive =
             item.to === '/'
               ? location.pathname === '/'

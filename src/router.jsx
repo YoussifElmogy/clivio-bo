@@ -3,6 +3,7 @@ import { createBrowserRouter } from 'react-router-dom';
 import Layout from './layout/Layout.jsx';
 import ProtectedRoute from './context/ProtectedRoute.jsx';
 import { REQUIRED_PASSWORD_CHANGE_PATH } from './constants/authRoutes.js';
+import { PERM } from './config/permissions.js';
 
 // Lazy load page components for code splitting
 const Overview = lazy(() => import('./pages/Overview.jsx'));
@@ -60,7 +61,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'branches/new',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.ADD_BRANCH}>
             <BranchCreatePage />
           </ProtectedRoute>
         ),
@@ -68,7 +69,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'branches/:id/edit',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.EDIT_BRANCH}>
             <BranchEditPage />
           </ProtectedRoute>
         ),
@@ -76,7 +77,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'branches',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.VIEW_BRANCH}>
             <BranchesPage />
           </ProtectedRoute>
         ),
@@ -84,7 +85,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'doctors/new',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.ADD_DOCTOR}>
             <DoctorCreatePage />
           </ProtectedRoute>
         ),
@@ -92,7 +93,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'doctors/:id/edit',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.EDIT_DOCTOR}>
             <DoctorEditPage />
           </ProtectedRoute>
         ),
@@ -100,7 +101,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'doctors',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.VIEW_DOCTOR}>
             <DoctorsPage />
           </ProtectedRoute>
         ),
@@ -108,7 +109,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'assistants/new',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.ADD_ASSISTANT}>
             <AssistantCreatePage />
           </ProtectedRoute>
         ),
@@ -116,7 +117,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'assistants/:id/edit',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.EDIT_ASSISTANT}>
             <AssistantEditPage />
           </ProtectedRoute>
         ),
@@ -124,7 +125,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'assistants',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.VIEW_ASSISTANT}>
             <AssistantsPage />
           </ProtectedRoute>
         ),
@@ -132,7 +133,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'patients/new',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.ADD_PATIENT}>
             <PatientCreatePage />
           </ProtectedRoute>
         ),
@@ -140,7 +141,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'patients/:id/edit',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.EDIT_PATIENT}>
             <PatientEditPage />
           </ProtectedRoute>
         ),
@@ -148,7 +149,9 @@ const appRouter = createBrowserRouter([
       {
         path: 'patients/:id/appointment',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute
+            requiresPermission={[PERM.VIEW_PATIENT, PERM.ADD_APPOINTMENT]}
+          >
             <PatientAppointmentPage />
           </ProtectedRoute>
         ),
@@ -156,7 +159,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'patients',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.VIEW_PATIENT}>
             <PatientsPage />
           </ProtectedRoute>
         ),
@@ -164,7 +167,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'appointments/:id/edit',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.EDIT_APPOINTMENT}>
             <ReservationEditPage />
           </ProtectedRoute>
         ),
@@ -172,7 +175,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'appointments',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.VIEW_APPOINTMENT}>
             <ReservationsPage />
           </ProtectedRoute>
         ),
@@ -180,7 +183,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'services/new',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.ADD_INVENTORY}>
             <ServiceCreatePage />
           </ProtectedRoute>
         ),
@@ -188,7 +191,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'services/:id/edit',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.EDIT_INVENTORY}>
             <ServiceEditPage />
           </ProtectedRoute>
         ),
@@ -196,7 +199,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'services',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.VIEW_INVENTORY}>
             <ServicesPage />
           </ProtectedRoute>
         ),
@@ -204,7 +207,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'inventory/machines/new',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.ADD_INVENTORY}>
             <MachineCreatePage />
           </ProtectedRoute>
         ),
@@ -212,7 +215,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'inventory/machines/:id/edit',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.EDIT_INVENTORY}>
             <MachineEditPage />
           </ProtectedRoute>
         ),
@@ -220,7 +223,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'inventory/new',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.ADD_INVENTORY}>
             <ProductCreatePage />
           </ProtectedRoute>
         ),
@@ -228,7 +231,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'inventory/:id/edit',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.EDIT_INVENTORY}>
             <ProductEditPage />
           </ProtectedRoute>
         ),
@@ -236,7 +239,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'inventory',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.VIEW_INVENTORY}>
             <InventoryPage />
           </ProtectedRoute>
         ),
@@ -244,7 +247,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'schedules',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.VIEW_APPOINTMENT}>
             <SchedulesPage />
           </ProtectedRoute>
         ),
@@ -252,7 +255,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'configuration',
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute requiresPermission={PERM.VIEW_CONFIG}>
             <ConfigurationPage />
           </ProtectedRoute>
         ),

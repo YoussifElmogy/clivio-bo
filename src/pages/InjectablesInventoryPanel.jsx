@@ -24,6 +24,8 @@ import useApi from '../configs/useApi';
 import PaginatedTable from '../components/PaginatedTable/PaginatedTable';
 import CustomLoader from '../components/CustomLoader/CustomLoader';
 import { useToast } from '../context/ToastContext';
+import usePermissions from '../hooks/usePermissions';
+import { PERM } from '../config/permissions';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import { servicesCatalogUrl } from '../utils/servicesCatalogUrl';
 
@@ -43,6 +45,9 @@ export default function InjectablesInventoryPanel({ onListCountChange } = {}) {
   const navigate = useNavigate();
   const { get, del } = useApi();
   const { showError, showInfo, showSuccess } = useToast();
+  const { can } = usePermissions();
+  const canEditInventory = can(PERM.EDIT_INVENTORY);
+  const canDeleteInventory = can(PERM.DELETE_INVENTORY);
   const [rows, setRows] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [listMode, setListMode] = useState(null);
@@ -196,35 +201,41 @@ export default function InjectablesInventoryPanel({ onListCountChange } = {}) {
           const productId = row.id ?? row.uuid;
           return (
             <>
-              <Tooltip title="Edit">
-                <IconButton
-                  size="small"
-                  color="primary"
-                  aria-label="Edit injectable"
-                  onClick={() => {
-                    if (productId != null) navigate(`/inventory/${productId}/edit`);
-                    else showInfo('This row has no id.');
-                  }}
-                >
-                  <EditOutlined fontSize="small" />
-                </IconButton>
+              <Tooltip title={canEditInventory ? 'Edit' : 'No permission'}>
+                <span>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    aria-label="Edit injectable"
+                    onClick={() => {
+                      if (productId != null) navigate(`/inventory/${productId}/edit`);
+                      else showInfo('This row has no id.');
+                    }}
+                    disabled={!canEditInventory}
+                  >
+                    <EditOutlined fontSize="small" />
+                  </IconButton>
+                </span>
               </Tooltip>
-              <Tooltip title="Delete">
-                <IconButton
-                  size="small"
-                  color="error"
-                  aria-label="Delete injectable"
-                  onClick={() => requestDelete(row)}
-                >
-                  <DeleteOutlineOutlined fontSize="small" />
-                </IconButton>
+              <Tooltip title={canDeleteInventory ? 'Delete' : 'No permission'}>
+                <span>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    aria-label="Delete injectable"
+                    onClick={() => requestDelete(row)}
+                    disabled={!canDeleteInventory}
+                  >
+                    <DeleteOutlineOutlined fontSize="small" />
+                  </IconButton>
+                </span>
               </Tooltip>
             </>
           );
         },
       },
     ],
-    [navigate, requestDelete, showInfo]
+    [navigate, requestDelete, showInfo, canEditInventory, canDeleteInventory]
   );
 
   const getCellValue = useCallback((row, col) => {
