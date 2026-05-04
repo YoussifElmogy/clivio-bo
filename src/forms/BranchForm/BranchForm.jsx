@@ -11,6 +11,7 @@ import Checkbox from '@mui/material/Checkbox';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import CircularProgress from '@mui/material/CircularProgress';
 import FormTextField from '../../components/FormTextField/FormTextField';
+import PhoneNumberField from '../../components/PhoneNumberField/PhoneNumberField';
 import { VACATION_DAY_OPTIONS } from '../../schemas/branchSchema';
 
 const BRANCH_TIME_FIELDS = ['from_time', 'to_time'];
@@ -65,21 +66,17 @@ export default function BranchForm({
           />
         </Grid>
         <Grid size={12}>
-          <Controller
-            name="phone"
+          <PhoneNumberField
             control={control}
-            render={({ field }) => (
-              <FormTextField
-                field={field}
-                id="branch-phone"
-                label="Phone"
-                required
-                placeholder="+20 …"
-                invalid={Boolean(errors.phone)}
-                errorMessage={errors.phone?.message}
-                disabled={isSubmitting}
-              />
-            )}
+            countryCodeName="phone_country_code"
+            numberName="phone"
+            id="branch-phone"
+            label="Phone"
+            required
+            placeholder="100 111 2233"
+            disabled={isSubmitting}
+            countryError={errors.phone_country_code}
+            numberError={errors.phone}
           />
         </Grid>
         <Grid size={12}>

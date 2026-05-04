@@ -1,4 +1,8 @@
 import { assistantCreateDefaultValues } from '../schemas/assistantSchema';
+import {
+  buildInternationalPhone,
+  splitPhoneNumber,
+} from '../utils/phoneNumber';
 
 /**
  * Normalizes GET /assistant-roles (or similar) to an array of role objects.
@@ -48,10 +52,13 @@ export function mergeAssistantFromApi(data) {
       ? Number(branchRaw)
       : '';
 
+  const phoneParts = splitPhoneNumber(row.phone);
+
   return {
     name: typeof row.name === 'string' ? row.name : '',
     email: typeof row.email === 'string' ? row.email : '',
-    phone: typeof row.phone === 'string' ? row.phone : '',
+    phone_country_code: phoneParts.countryCode,
+    phone: phoneParts.nationalNumber,
     branch_id,
     password: '',
     role_ids,
@@ -70,7 +77,7 @@ export function buildAssistantCreatePayload(values) {
   const payload = {
     name: values.name.trim(),
     email: values.email.trim(),
-    phone: values.phone.trim(),
+    phone: buildInternationalPhone(values.phone_country_code, values.phone),
     branch_id: Number(values.branch_id),
     role_ids,
   };

@@ -1,4 +1,8 @@
 import { branchDefaultValues } from '../schemas/branchSchema';
+import {
+  buildInternationalPhone,
+  splitPhoneNumber,
+} from '../utils/phoneNumber';
 
 function normalizeTime(value) {
   if (value == null || typeof value !== 'string') return '';
@@ -15,7 +19,7 @@ export function buildBranchPayload(values) {
 
   return {
     name: values.name.trim(),
-    phone: values.phone.trim(),
+    phone: buildInternationalPhone(values.phone_country_code, values.phone),
     address: values.address.trim(),
     is_active: Boolean(values.active),
     from_time: normalizeTime(values.from_time),
@@ -34,10 +38,12 @@ export function mergeBranchFromApi(data) {
 
   const from = normalizeTime(data.from_time ?? '');
   const to = normalizeTime(data.to_time ?? '');
+  const phoneParts = splitPhoneNumber(data.phone ?? '');
 
   return {
     name: data.name ?? '',
-    phone: data.phone ?? '',
+    phone_country_code: phoneParts.countryCode,
+    phone: phoneParts.nationalNumber,
     address: data.address ?? '',
     active: Boolean(data.is_active ?? data.active ?? true),
     from_time: from || branchDefaultValues.from_time,

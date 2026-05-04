@@ -16,6 +16,7 @@ import Typography from '@mui/material/Typography';
 import SecurityOutlined from '@mui/icons-material/SecurityOutlined';
 import FormFieldLabel from '../../components/FormFieldLabel/FormFieldLabel';
 import FormTextField from '../../components/FormTextField/FormTextField';
+import PhoneNumberField from '../../components/PhoneNumberField/PhoneNumberField';
 import AssistantFormSkeleton from './AssistantFormSkeleton';
 import { useToast } from '../../context/ToastContext';
 
@@ -109,21 +110,17 @@ export default function AssistantForm({
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>
-          <Controller
-            name="phone"
+          <PhoneNumberField
             control={control}
-            render={({ field }) => (
-              <FormTextField
-                field={field}
-                id="assistant-phone"
-                label="Phone"
-                required
-                placeholder="+20 …"
-                invalid={Boolean(errors.phone)}
-                errorMessage={errors.phone?.message}
-                disabled={isSubmitting}
-              />
-            )}
+            countryCodeName="phone_country_code"
+            numberName="phone"
+            id="assistant-phone"
+            label="Phone"
+            required
+            placeholder="100 111 2233"
+            disabled={isSubmitting}
+            countryError={errors.phone_country_code}
+            numberError={errors.phone}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>

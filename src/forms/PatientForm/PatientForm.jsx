@@ -16,6 +16,7 @@ import PersonAddAltOutlined from '@mui/icons-material/PersonAddAltOutlined';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 import FormTextField from '../../components/FormTextField/FormTextField';
+import PhoneNumberField from '../../components/PhoneNumberField/PhoneNumberField';
 import PatientFormSkeleton from './PatientFormSkeleton';
 import { useToast } from '../../context/ToastContext';
 
@@ -289,21 +290,17 @@ export default function PatientForm({
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>
-          <Controller
-            name="mobile_number"
+          <PhoneNumberField
             control={control}
-            render={({ field }) => (
-              <FormTextField
-                field={field}
-                id="patient-mobile"
-                label="Mobile number"
-                required
-                placeholder="+20 100 111 2233"
-                invalid={Boolean(errors.mobile_number)}
-                errorMessage={errors.mobile_number?.message}
-                disabled={isSubmitting}
-              />
-            )}
+            countryCodeName="mobile_country_code"
+            numberName="mobile_number"
+            id="patient-mobile"
+            label="Mobile number"
+            required
+            placeholder="100 111 2233"
+            disabled={isSubmitting}
+            countryError={errors.mobile_country_code}
+            numberError={errors.mobile_number}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>

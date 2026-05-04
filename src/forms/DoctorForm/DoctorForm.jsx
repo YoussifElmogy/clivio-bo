@@ -9,6 +9,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import FormHelperText from '@mui/material/FormHelperText';
 import Grid from '@mui/material/Grid';
 import FormTextField from '../../components/FormTextField/FormTextField';
+import PhoneNumberField from '../../components/PhoneNumberField/PhoneNumberField';
 import DoctorBranchSchedules from './DoctorBranchSchedules';
 import DoctorFormSkeleton from './DoctorFormSkeleton';
 import { useToast } from '../../context/ToastContext';
@@ -95,21 +96,17 @@ export default function DoctorForm({
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>
-          <Controller
-            name="phone"
+          <PhoneNumberField
             control={control}
-            render={({ field }) => (
-              <FormTextField
-                field={field}
-                id="doctor-phone"
-                label="Phone"
-                required
-                placeholder="+20 …"
-                invalid={Boolean(errors.phone)}
-                errorMessage={errors.phone?.message}
-                disabled={isSubmitting}
-              />
-            )}
+            countryCodeName="phone_country_code"
+            numberName="phone"
+            id="doctor-phone"
+            label="Phone"
+            required
+            placeholder="100 111 2233"
+            disabled={isSubmitting}
+            countryError={errors.phone_country_code}
+            numberError={errors.phone}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>

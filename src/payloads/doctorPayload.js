@@ -1,4 +1,8 @@
 import { doctorCreateDefaultValues } from '../schemas/doctorSchema';
+import {
+  buildInternationalPhone,
+  splitPhoneNumber,
+} from '../utils/phoneNumber';
 
 function normalizeTime(value) {
   if (value == null || typeof value !== 'string') return '';
@@ -85,10 +89,13 @@ export function mergeDoctorFromApi(data) {
         ? Boolean(row.active)
         : true;
 
+  const phoneParts = splitPhoneNumber(row.phone);
+
   return {
     name: typeof row.name === 'string' ? row.name : '',
     email: typeof row.email === 'string' ? row.email : '',
-    phone: typeof row.phone === 'string' ? row.phone : '',
+    phone_country_code: phoneParts.countryCode,
+    phone: phoneParts.nationalNumber,
     specialty,
     password: '',
     active,
@@ -118,7 +125,7 @@ export function buildDoctorCreatePayload(values) {
   const payload = {
     name: values.name.trim(),
     email: values.email.trim(),
-    phone: values.phone.trim(),
+    phone: buildInternationalPhone(values.phone_country_code, values.phone),
     specialty,
     is_active: values.active === undefined ? true : Boolean(values.active),
     branch_schedules,
