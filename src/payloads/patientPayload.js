@@ -19,6 +19,7 @@ export function mergePatientFromApi(data) {
   }
 
   return {
+    is_for_self: typeof row.is_for_self === 'boolean' ? row.is_for_self : true,
     first_name: typeof row.first_name === 'string' ? row.first_name : '',
     last_name: typeof row.last_name === 'string' ? row.last_name : '',
     mobile_number:
@@ -39,6 +40,7 @@ export function buildPatientCreatePayload(values) {
     last_name: values.last_name.trim(),
     mobile_number: values.mobile_number.trim(),
     date_of_birth: values.date_of_birth.trim(),
+    is_for_self: Boolean(values.is_for_self),
   };
   const notes = (values.medical_notes ?? '').trim();
   if (notes) body.medical_notes = notes;

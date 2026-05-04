@@ -54,7 +54,7 @@ export default function PatientCreatePage() {
       maxWidth="md"
     >
       <FormProvider {...methods}>
-        <PatientForm onSubmit={onSubmit} submitLabel="Create patient" />
+        <PatientForm showBookingContext onSubmit={onSubmit} submitLabel="Create patient" />
       </FormProvider>
     </FormPageShell>
   );

@@ -3,6 +3,7 @@ import * as yup from 'yup';
 const dobRegex = /^\d{4}-\d{2}-\d{2}$/;
 
 export const patientDefaultValues = {
+  is_for_self: true,
   first_name: '',
   last_name: '',
   mobile_number: '',
@@ -11,6 +12,7 @@ export const patientDefaultValues = {
 };
 
 export const patientSchema = yup.object({
+  is_for_self: yup.boolean().oneOf([true, false]).required(),
   first_name: yup.string().trim().required('First name is required'),
   last_name: yup.string().trim().required('Last name is required'),
   mobile_number: yup.string().trim().required('Mobile number is required'),
