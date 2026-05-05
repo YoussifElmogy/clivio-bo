@@ -18,6 +18,7 @@ import dayjs from 'dayjs';
 import FormTextField from '../../components/FormTextField/FormTextField';
 import PhoneNumberField from '../../components/PhoneNumberField/PhoneNumberField';
 import PatientFormSkeleton from './PatientFormSkeleton';
+import PatientLaserPackagesSection from './PatientLaserPackagesSection';
 import { useToast } from '../../context/ToastContext';
 
 const DOB_FIELD_ID = 'patient-dob';
@@ -325,6 +326,7 @@ export default function PatientForm({
             )}
           />
         </Grid>
+        <PatientLaserPackagesSection disabled={isSubmitting} />
       </Grid>
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 2 }}>

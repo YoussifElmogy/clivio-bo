@@ -12,6 +12,10 @@ export const patientDefaultValues = {
   mobile_number: '',
   date_of_birth: '',
   medical_notes: '',
+  /** Numeric ids for POST/PATCH `packages` with type 1 (pulse). */
+  pulse_package_ids: [],
+  /** Numeric ids for POST/PATCH `packages` with type 2 (area). */
+  area_package_ids: [],
 };
 
 export const patientSchema = yup.object({
@@ -35,4 +39,14 @@ export const patientSchema = yup.object({
     .required('Date of birth is required')
     .matches(dobRegex, 'Use YYYY-MM-DD'),
   medical_notes: yup.string().trim().max(20000, 'Notes are too long').optional(),
+  pulse_package_ids: yup
+    .array()
+    .of(yup.number().integer().positive('Invalid package id'))
+    .optional()
+    .default([]),
+  area_package_ids: yup
+    .array()
+    .of(yup.number().integer().positive('Invalid package id'))
+    .optional()
+    .default([]),
 });

@@ -1,16 +1,106 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
+import { alpha, useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import FormControl from '@mui/material/FormControl';
 import FormHelperText from '@mui/material/FormHelperText';
+import FormLabel from '@mui/material/FormLabel';
 import Grid from '@mui/material/Grid';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
+import Stack from '@mui/material/Stack';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs from 'dayjs';
 import FormFieldLabel from '../../components/FormFieldLabel/FormFieldLabel';
 import FormTextField from '../../components/FormTextField/FormTextField';
 import { useToast } from '../../context/ToastContext';
 import { MACHINE_TYPE_OPTIONS, machinePriceFieldLabel } from '../../schemas/machineSchema';
+
+const MACHINE_MAINTENANCE_DATE_FIELD_ID = 'machine-latest-maintenance-date';
+
+/** Same interaction pattern as patient date of birth (read-only field + calendar). */
+function MachineLatestMaintenanceDatePicker({ disabled }) {
+  const theme = useTheme();
+  const { control } = useFormContext();
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  return (
+    <Controller
+      name="latest_maintenance_date"
+      control={control}
+      render={({ field, fieldState }) => (
+        <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
+          <FormLabel
+            htmlFor={MACHINE_MAINTENANCE_DATE_FIELD_ID}
+            error={Boolean(fieldState.error)}
+            sx={{ fontWeight: 600, fontSize: '0.875rem' }}
+          >
+            Latest maintenance date
+          </FormLabel>
+          <DatePicker
+            open={pickerOpen}
+            onOpen={() => setPickerOpen(true)}
+            onClose={() => setPickerOpen(false)}
+            value={field.value ? dayjs(field.value) : null}
+            onChange={v => {
+              field.onChange(v && dayjs(v).isValid() ? dayjs(v).format('YYYY-MM-DD') : '');
+            }}
+            format="D/M/YYYY"
+            disabled={disabled}
+            slotProps={{
+              textField: {
+                id: MACHINE_MAINTENANCE_DATE_FIELD_ID,
+                fullWidth: true,
+                readOnly: true,
+                error: Boolean(fieldState.error),
+                helperText: fieldState.error?.message || 'Optional',
+                placeholder: 'e.g. 15/4/2026',
+                name: field.name,
+                inputRef: field.ref,
+                onBlur: field.onBlur,
+                onClick: () => setPickerOpen(true),
+                onPaste: e => e.preventDefault(),
+                onKeyDown: e => {
+                  if (e.key === 'Tab' || e.key === 'Escape') return;
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setPickerOpen(true);
+                    return;
+                  }
+                  e.preventDefault();
+                },
+                inputProps: {
+                  'aria-label': 'Latest maintenance date',
+                  readOnly: true,
+                  inputMode: 'none',
+                },
+                sx: {
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    bgcolor: alpha(theme.palette.background.paper, 0.85),
+                    cursor: disabled ? 'default' : 'pointer',
+                  },
+                  '& .MuiInputBase-input': {
+                    cursor: disabled ? 'default' : 'pointer',
+                    caretColor: 'transparent',
+                  },
+                },
+              },
+              openPickerButton: {
+                'aria-label': 'Open latest maintenance date calendar',
+                onClick: e => {
+                  e.stopPropagation();
+                  setPickerOpen(true);
+                },
+              },
+            }}
+          />
+        </Stack>
+      )}
+    />
+  );
+}
 
 export default function MachineForm({ services, onSubmit, submitLabel = 'Save machine' }) {
   const {
@@ -135,6 +225,10 @@ export default function MachineForm({ services, onSubmit, submitLabel = 'Save ma
               />
             )}
           />
+        </Grid>
+
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <MachineLatestMaintenanceDatePicker disabled={isSubmitting} />
         </Grid>
 
         <Grid size={12}>

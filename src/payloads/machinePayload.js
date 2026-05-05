@@ -1,5 +1,11 @@
 import { machineDefaultValues } from '../schemas/machineSchema';
 
+function sliceDateOnly(value) {
+  if (value == null) return '';
+  const s = String(value).trim();
+  return s.length >= 10 ? s.slice(0, 10) : s;
+}
+
 export function mergeMachineFromApi(data) {
   const row =
     data && typeof data === 'object' && data.machine && typeof data.machine === 'object'
@@ -25,11 +31,14 @@ export function mergeMachineFromApi(data) {
     price:
       row.price !== '' && row.price != null && !Number.isNaN(Number(row.price)) ? Number(row.price) : '',
     description: typeof row.description === 'string' ? row.description : '',
+    latest_maintenance_date: sliceDateOnly(row.latest_maintenance_date),
   };
 }
 
 export function buildMachinePayload(values) {
   const description = typeof values.description === 'string' ? values.description.trim() : '';
+  const maintenance =
+    typeof values.latest_maintenance_date === 'string' ? values.latest_maintenance_date.trim() : '';
 
   return {
     service: Number(values.service),
@@ -37,5 +46,6 @@ export function buildMachinePayload(values) {
     type: String(values.type ?? 'pulses'),
     price: Number(values.price),
     ...(description ? { description } : {}),
+    latest_maintenance_date: maintenance || null,
   };
 }

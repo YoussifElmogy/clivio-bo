@@ -1,5 +1,7 @@
 import * as yup from 'yup';
 
+const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
+
 export const MACHINE_TYPE_OPTIONS = [
   { value: 'pulses', label: 'Pulses' },
   { value: 'duration', label: 'Duration' },
@@ -28,6 +30,8 @@ export const machineDefaultValues = {
   type: 'pulses',
   price: '',
   description: '',
+  /** YYYY-MM-DD or '' */
+  latest_maintenance_date: '',
 };
 
 export const machineSchema = yup.object({
@@ -46,4 +50,9 @@ export const machineSchema = yup.object({
     .moreThan(0, 'Price must be greater than 0')
     .required('Price is required'),
   description: yup.string().optional(),
+  latest_maintenance_date: yup
+    .string()
+    .trim()
+    .optional()
+    .test('date-or-empty', 'Use a valid date (YYYY-MM-DD)', v => !v || dateOnlyRegex.test(v)),
 });

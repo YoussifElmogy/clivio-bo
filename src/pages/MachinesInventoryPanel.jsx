@@ -38,6 +38,16 @@ function buildMachinesListQuery(page, rowsPerPage, nameTrimmed, serviceId) {
   return params.toString();
 }
 
+function formatMaintenanceDateCell(raw) {
+  if (raw == null || raw === '') return '—';
+  const s = String(raw).trim();
+  if (s.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const [y, m, d] = s.slice(0, 10).split('-');
+    return `${Number(d)}/${Number(m)}/${y}`;
+  }
+  return s || '—';
+}
+
 export default function MachinesInventoryPanel({ onListCountChange } = {}) {
   const navigate = useNavigate();
   const { get, del } = useApi();
@@ -187,7 +197,7 @@ export default function MachinesInventoryPanel({ onListCountChange } = {}) {
       { id: 'service', label: 'Service', minWidth: 150 },
       { id: 'type', label: 'Type', minWidth: 100 },
       { id: 'price', label: 'Price', minWidth: 110 },
-      { id: 'description', label: 'Description', minWidth: 200 },
+      { id: 'latest_maintenance_date', label: 'Latest maintenance', minWidth: 150 },
       {
         id: 'actions',
         label: 'Actions',
@@ -239,11 +249,8 @@ export default function MachinesInventoryPanel({ onListCountChange } = {}) {
     if (col.id === 'service') return row.service_name?.trim?.() || row.service?.name?.trim?.() || '—';
     if (col.id === 'type') return row.type?.trim?.() || '—';
     if (col.id === 'price') return row.price != null && row.price !== '' ? row.price : '—';
-    if (col.id === 'description') {
-      const d = row.description?.trim?.();
-      if (!d) return '—';
-      return d.length > 80 ? `${d.slice(0, 80)}…` : d;
-    }
+    if (col.id === 'latest_maintenance_date')
+      return formatMaintenanceDateCell(row.latest_maintenance_date);
     return '';
   }, []);
 

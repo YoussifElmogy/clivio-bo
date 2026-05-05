@@ -28,7 +28,10 @@ function MachineEditSkeleton() {
         <Skeleton variant="rounded" width="100%" height={56} />
       </Stack>
       <Skeleton variant="rounded" width="100%" height={56} />
-      <Skeleton variant="rounded" height={56} sx={{ width: { xs: '100%', sm: '50%' } }} />
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5}>
+        <Skeleton variant="rounded" height={56} sx={{ flex: 1, width: { xs: '100%', sm: 'auto' } }} />
+        <Skeleton variant="rounded" height={56} sx={{ flex: 1, width: { xs: '100%', sm: 'auto' } }} />
+      </Stack>
       <Skeleton variant="rounded" width="100%" height={100} />
       <Skeleton variant="rounded" width={170} height={44} />
     </Stack>
