@@ -35,4 +35,13 @@ export const PERM = {
   ADD_ASSISTANT: 'add_assistant',
   EDIT_ASSISTANT: 'edit_assistant',
   DELETE_ASSISTANT: 'delete_assistant',
+
+  /** Laser: pulse packages + area packages */
+  VIEW_LASER: 'view_laser',
+  ADD_PULSE_PACKAGE: 'add_pulse_package',
+  EDIT_PULSE_PACKAGE: 'edit_pulse_package',
+  DELETE_PULSE_PACKAGE: 'delete_pulse_package',
+  ADD_AREA_PACKAGE: 'add_area_package',
+  EDIT_AREA_PACKAGE: 'edit_area_package',
+  DELETE_AREA_PACKAGE: 'delete_area_package',
 };

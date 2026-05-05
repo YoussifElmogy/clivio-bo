@@ -32,6 +32,11 @@ const ProductCreatePage = lazy(() => import('./pages/ProductCreatePage.jsx'));
 const ProductEditPage = lazy(() => import('./pages/ProductEditPage.jsx'));
 const MachineCreatePage = lazy(() => import('./pages/MachineCreatePage.jsx'));
 const MachineEditPage = lazy(() => import('./pages/MachineEditPage.jsx'));
+const LaserPage = lazy(() => import('./pages/LaserPage.jsx'));
+const PulsePackageCreatePage = lazy(() => import('./pages/PulsePackageCreatePage.jsx'));
+const PulsePackageEditPage = lazy(() => import('./pages/PulsePackageEditPage.jsx'));
+const AreaPackageCreatePage = lazy(() => import('./pages/AreaPackageCreatePage.jsx'));
+const AreaPackageEditPage = lazy(() => import('./pages/AreaPackageEditPage.jsx'));
 
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
 const RequiredPasswordChangePage = lazy(() => import('./pages/RequiredPasswordChangePage.jsx'));
@@ -257,6 +262,46 @@ const appRouter = createBrowserRouter([
         element: (
           <ProtectedRoute requiresPermission={PERM.VIEW_CONFIG}>
             <ConfigurationPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'laser/pulse-packages/new',
+        element: (
+          <ProtectedRoute requiresPermission={PERM.ADD_PULSE_PACKAGE}>
+            <PulsePackageCreatePage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'laser/pulse-packages/:id/edit',
+        element: (
+          <ProtectedRoute requiresPermission={PERM.EDIT_PULSE_PACKAGE}>
+            <PulsePackageEditPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'laser/area-packages/new',
+        element: (
+          <ProtectedRoute requiresPermission={PERM.ADD_AREA_PACKAGE}>
+            <AreaPackageCreatePage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'laser/area-packages/:id/edit',
+        element: (
+          <ProtectedRoute requiresPermission={PERM.EDIT_AREA_PACKAGE}>
+            <AreaPackageEditPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'laser',
+        element: (
+          <ProtectedRoute requiresPermission={PERM.VIEW_LASER}>
+            <LaserPage />
           </ProtectedRoute>
         ),
       },

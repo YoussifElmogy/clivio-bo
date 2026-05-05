@@ -17,6 +17,7 @@ import EventAvailableOutlined from '@mui/icons-material/EventAvailableOutlined';
 import CalendarMonthOutlined from '@mui/icons-material/CalendarMonthOutlined';
 import MedicalInformationOutlined from '@mui/icons-material/MedicalInformationOutlined';
 import Inventory2Outlined from '@mui/icons-material/Inventory2Outlined';
+import FlashOnOutlined from '@mui/icons-material/FlashOnOutlined';
 import LocalHospitalRounded from '@mui/icons-material/LocalHospitalRounded';
 import { useTheme } from '@mui/material/styles';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
@@ -74,6 +75,12 @@ const navItems = [
     to: '/inventory',
     Icon: Inventory2Outlined,
     requiresPermission: PERM.VIEW_INVENTORY,
+  },
+  {
+    label: 'Laser',
+    to: '/laser',
+    Icon: FlashOnOutlined,
+    requiresPermission: PERM.VIEW_LASER,
   },
   {
     label: 'Configurations',
