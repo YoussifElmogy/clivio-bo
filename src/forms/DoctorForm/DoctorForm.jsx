@@ -126,6 +126,42 @@ export default function DoctorForm({
             )}
           />
         </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <Controller
+            name="price_per_consultation"
+            control={control}
+            render={({ field }) => (
+              <FormTextField
+                field={field}
+                id="doctor-price-per-consultation"
+                label="Consultation price"
+                type="number"
+                placeholder="Optional"
+                invalid={Boolean(errors.price_per_consultation)}
+                errorMessage={errors.price_per_consultation?.message}
+                disabled={isSubmitting}
+              />
+            )}
+          />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <Controller
+            name="price_per_examination"
+            control={control}
+            render={({ field }) => (
+              <FormTextField
+                field={field}
+                id="doctor-price-per-examination"
+                label="Examination price"
+                type="number"
+                placeholder="Optional"
+                invalid={Boolean(errors.price_per_examination)}
+                errorMessage={errors.price_per_examination?.message}
+                disabled={isSubmitting}
+              />
+            )}
+          />
+        </Grid>
         {showPasswordField && !isEdit ? (
           <Grid size={{ xs: 12, sm: 6 }}>
             <Controller

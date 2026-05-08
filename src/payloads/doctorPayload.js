@@ -10,6 +10,12 @@ function normalizeTime(value) {
   return t.length >= 5 ? t.slice(0, 5) : t;
 }
 
+function toOptionalNumber(value) {
+  if (value === '' || value == null) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 /**
  * API `assigned_branches[].schedule` is a flat list of { day, from_time, to_time }.
  * Form expects days[].slots[] grouped by weekday.
@@ -90,6 +96,8 @@ export function mergeDoctorFromApi(data) {
         : true;
 
   const phoneParts = splitPhoneNumber(row.phone);
+  const pricePerConsultation = toOptionalNumber(row.price_per_consultation);
+  const pricePerExamination = toOptionalNumber(row.price_per_examination);
 
   return {
     name: typeof row.name === 'string' ? row.name : '',
@@ -97,6 +105,8 @@ export function mergeDoctorFromApi(data) {
     phone_country_code: phoneParts.countryCode,
     phone: phoneParts.nationalNumber,
     specialty,
+    price_per_consultation: pricePerConsultation ?? '',
+    price_per_examination: pricePerExamination ?? '',
     password: '',
     active,
     branch_schedules,
@@ -121,12 +131,16 @@ export function buildDoctorCreatePayload(values) {
     }));
 
   const specialty = typeof values.specialty === 'string' ? values.specialty.trim() : '';
+  const pricePerConsultation = toOptionalNumber(values.price_per_consultation);
+  const pricePerExamination = toOptionalNumber(values.price_per_examination);
 
   const payload = {
     name: values.name.trim(),
     email: values.email.trim(),
     phone: buildInternationalPhone(values.phone_country_code, values.phone),
     specialty,
+    ...(pricePerConsultation != null ? { price_per_consultation: pricePerConsultation } : {}),
+    ...(pricePerExamination != null ? { price_per_examination: pricePerExamination } : {}),
     is_active: values.active === undefined ? true : Boolean(values.active),
     branch_schedules,
   };

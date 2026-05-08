@@ -32,6 +32,12 @@ export default function DoctorFormSkeleton() {
         <Grid size={{ xs: 12, sm: 6 }}>
           <FieldSkeleton labelWidth={88} />
         </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <FieldSkeleton labelWidth={136} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <FieldSkeleton labelWidth={134} />
+        </Grid>
         <Grid size={12}>
           <Stack direction="row" alignItems="center" spacing={1.5} sx={{ pt: 0.5 }}>
             <Skeleton variant="rounded" width={42} height={42} sx={{ borderRadius: 1 }} />

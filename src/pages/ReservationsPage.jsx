@@ -1,18 +1,33 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
+import Drawer from '@mui/material/Drawer';
 import FormControl from '@mui/material/FormControl';
+import IconButton from '@mui/material/IconButton';
 import InputLabel from '@mui/material/InputLabel';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemSecondaryAction from '@mui/material/ListItemSecondaryAction';
+import ListItemText from '@mui/material/ListItemText';
 import MenuItem from '@mui/material/MenuItem';
+import Divider from '@mui/material/Divider';
+import Paper from '@mui/material/Paper';
 import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
 import PaginatedTable from '../components/PaginatedTable/PaginatedTable';
 import EditOutlined from '@mui/icons-material/EditOutlined';
-import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
+import AttachFileOutlined from '@mui/icons-material/AttachFileOutlined';
+import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
+import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined';
+import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined';
+import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
 import { useToast } from '../context/ToastContext';
 import usePermissions from '../hooks/usePermissions';
 import { PERM } from '../config/permissions';
@@ -63,10 +78,49 @@ function buildListQuery(page, rowsPerPage, { patientName, status, dateOfVisit })
   return params.toString();
 }
 
+function parseAttachmentsList(data) {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === 'object') {
+    if (Array.isArray(data.attachments)) return data.attachments;
+    if (Array.isArray(data.results)) return data.results;
+    if (Array.isArray(data.items)) return data.items;
+    if (data.data && Array.isArray(data.data)) return data.data;
+  }
+  return [];
+}
+
+function attachmentDisplayName(row) {
+  return (
+    row?.file_name ||
+    row?.filename ||
+    row?.name ||
+    row?.original_name ||
+    row?.path?.split?.('/')?.pop?.() ||
+    'Attachment'
+  );
+}
+
+function attachmentViewUrl(row) {
+  const raw =
+    row?.file_url ||
+    row?.url ||
+    row?.file ||
+    row?.path ||
+    row?.attachment_url ||
+    row?.download_url ||
+    '';
+  if (!raw) return '';
+  const value = String(raw).trim();
+  if (!value) return '';
+  if (/^https?:\/\//i.test(value)) return value;
+  if (value.startsWith('/')) return value;
+  return `/${value.replace(/^\/+/, '')}`;
+}
+
 export default function ReservationsPage() {
   const navigate = useNavigate();
-  const { get } = useApi();
-  const { showError } = useToast();
+  const { get, post, del } = useApi();
+  const { showError, showSuccess, showInfo } = useToast();
   const { can } = usePermissions();
   const canEditAppointment = can(PERM.EDIT_APPOINTMENT);
   const [rows, setRows] = useState([]);
@@ -81,6 +135,116 @@ export default function ReservationsPage() {
   const [appliedPatientName, setAppliedPatientName] = useState('');
   const [appliedStatus, setAppliedStatus] = useState('');
   const [appliedDate, setAppliedDate] = useState('');
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
+  const [attachmentsUploading, setAttachmentsUploading] = useState(false);
+  const [attachmentsDeletingId, setAttachmentsDeletingId] = useState(null);
+  const [attachmentRows, setAttachmentRows] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [activeReservation, setActiveReservation] = useState(null);
+
+  const refreshAttachments = useCallback(
+    async reservationId => {
+      setAttachmentsLoading(true);
+      try {
+        const data = await get(`/reservations/${encodeURIComponent(reservationId)}/attachments`);
+        setAttachmentRows(parseAttachmentsList(data));
+      } catch (err) {
+        const msg =
+          err?.detail ||
+          err?.response?.data?.detail ||
+          err?.response?.data?.message ||
+          err?.message ||
+          'Could not load attachments.';
+        showError(typeof msg === 'string' ? msg : 'Could not load attachments.');
+        setAttachmentRows([]);
+      } finally {
+        setAttachmentsLoading(false);
+      }
+    },
+    [get, showError]
+  );
+
+  const openAttachmentsDrawer = useCallback(
+    async row => {
+      const rid = row.id ?? row.uuid;
+      if (rid == null) {
+        showInfo('This row has no id.');
+        return;
+      }
+      setActiveReservation({
+        id: rid,
+        label: patientCell(row),
+      });
+      setSelectedFile(null);
+      setAttachmentsOpen(true);
+      await refreshAttachments(rid);
+    },
+    [refreshAttachments, showInfo]
+  );
+
+  const handleUploadAttachment = useCallback(async () => {
+    const reservationId = activeReservation?.id;
+    if (!reservationId) return;
+    if (!selectedFile) {
+      showInfo('Choose a file first.');
+      return;
+    }
+    setAttachmentsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      await post(`/reservations/${encodeURIComponent(reservationId)}/attachments`, formData);
+      showSuccess('Attachment uploaded.');
+      setSelectedFile(null);
+      await refreshAttachments(reservationId);
+    } catch (err) {
+      const msg =
+        err?.detail ||
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Could not upload attachment.';
+      showError(typeof msg === 'string' ? msg : 'Could not upload attachment.');
+    } finally {
+      setAttachmentsUploading(false);
+    }
+  }, [activeReservation?.id, post, refreshAttachments, selectedFile, showError, showInfo, showSuccess]);
+
+  const handleDeleteAttachment = useCallback(
+    async attachmentId => {
+      if (!attachmentId) return;
+      setAttachmentsDeletingId(attachmentId);
+      try {
+        await del(`/attachments/${encodeURIComponent(attachmentId)}`);
+        showSuccess('Attachment deleted.');
+        if (activeReservation?.id) await refreshAttachments(activeReservation.id);
+      } catch (err) {
+        const msg =
+          err?.detail ||
+          err?.response?.data?.detail ||
+          err?.response?.data?.message ||
+          err?.message ||
+          'Could not delete attachment.';
+        showError(typeof msg === 'string' ? msg : 'Could not delete attachment.');
+      } finally {
+        setAttachmentsDeletingId(null);
+      }
+    },
+    [activeReservation?.id, del, refreshAttachments, showError, showSuccess]
+  );
+
+  const handleViewAttachment = useCallback(
+    att => {
+      const url = attachmentViewUrl(att);
+      if (!url) {
+        showInfo('No view URL found for this attachment.');
+        return;
+      }
+      window.open(url, '_blank', 'noopener,noreferrer');
+    },
+    [showInfo]
+  );
 
   const applyFilters = useCallback(() => {
     setAppliedPatientName(patientNameInput.trim());
@@ -155,30 +319,45 @@ export default function ReservationsPage() {
         id: 'actions',
         label: 'Actions',
         align: 'right',
-        minWidth: 72,
+        minWidth: 120,
         render: row => {
           const rid = row.id ?? row.uuid;
           return (
-            <Tooltip title={canEditAppointment ? 'Edit' : 'No permission'}>
-              <span>
-                <IconButton
-                  size="small"
-                  color="primary"
-                  aria-label="Edit appointment"
-                  onClick={() => {
-                    if (rid != null) navigate(`/appointments/${encodeURIComponent(rid)}/edit`);
-                  }}
-                  disabled={!canEditAppointment}
-                >
-                  <EditOutlined fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
+            <>
+              <Tooltip title={canEditAppointment ? 'Attachments' : 'No permission'}>
+                <span>
+                  <IconButton
+                    size="small"
+                    color="secondary"
+                    aria-label="Manage attachments"
+                    onClick={() => openAttachmentsDrawer(row)}
+                    disabled={!canEditAppointment}
+                  >
+                    <AttachFileOutlined fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title={canEditAppointment ? 'Edit' : 'No permission'}>
+                <span>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    aria-label="Edit appointment"
+                    onClick={() => {
+                      if (rid != null) navigate(`/appointments/${encodeURIComponent(rid)}/edit`);
+                    }}
+                    disabled={!canEditAppointment}
+                  >
+                    <EditOutlined fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </>
           );
         },
       },
     ],
-    [navigate, canEditAppointment]
+    [navigate, canEditAppointment, openAttachmentsDrawer]
   );
 
   const getCellValue = useCallback((row, col) => {
@@ -285,6 +464,117 @@ export default function ReservationsPage() {
         getRowId={row => row.id ?? row.uuid ?? JSON.stringify(row)}
         getCellValue={getCellValue}
       />
+      <Drawer
+        anchor="right"
+        open={attachmentsOpen}
+        onClose={() => {
+          if (!attachmentsUploading && attachmentsDeletingId == null) setAttachmentsOpen(false);
+        }}
+      >
+        <Stack sx={{ width: { xs: '100vw', sm: 430 }, p: 2.5, gap: 2, height: '100%' }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              Appointment attachments
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              {activeReservation?.label || 'Appointment'}
+            </Typography>
+          </Box>
+          <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+            <Stack spacing={1.25}>
+              <Button
+                component="label"
+                variant="outlined"
+                startIcon={<CloudUploadOutlined />}
+                disabled={attachmentsUploading}
+                sx={{ borderRadius: 2, alignSelf: 'flex-start' }}
+              >
+                Choose file
+                <input
+                  hidden
+                  type="file"
+                  onChange={e => {
+                    const file = e.target.files?.[0] ?? null;
+                    setSelectedFile(file);
+                  }}
+                />
+              </Button>
+              <Typography variant="body2" color="text.secondary">
+                {selectedFile ? selectedFile.name : 'No file selected'}
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={handleUploadAttachment}
+                disabled={!selectedFile || attachmentsUploading}
+                sx={{ borderRadius: 2, alignSelf: 'flex-start' }}
+              >
+                {attachmentsUploading ? 'Uploading…' : 'Upload attachment'}
+              </Button>
+            </Stack>
+          </Paper>
+          <Divider />
+          <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+            {attachmentsLoading ? (
+              <Stack alignItems="center" justifyContent="center" sx={{ pt: 5 }}>
+                <CircularProgress size={28} />
+              </Stack>
+            ) : attachmentRows.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                No attachments yet.
+              </Typography>
+            ) : (
+              <List disablePadding>
+                {attachmentRows.map((att, idx) => {
+                  const aid = att.id ?? att.uuid;
+                  return (
+                    <ListItem key={aid ?? idx} divider sx={{ pr: 15 }}>
+                      <InsertDriveFileOutlined color="action" sx={{ mr: 1.25 }} />
+                      <ListItemText
+                        primary={attachmentDisplayName(att)}
+                        secondary={att.created_at ? String(att.created_at).slice(0, 19).replace('T', ' ') : null}
+                        primaryTypographyProps={{ noWrap: true }}
+                        secondaryTypographyProps={{ noWrap: true }}
+                      />
+                      <ListItemSecondaryAction>
+                        <Tooltip title="View attachment">
+                          <span>
+                            <IconButton
+                              edge="end"
+                              color="primary"
+                              aria-label="View attachment"
+                              onClick={() => handleViewAttachment(att)}
+                              sx={{ mr: 0.5 }}
+                            >
+                              <VisibilityOutlined fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Tooltip title="Delete attachment">
+                          <span>
+                            <IconButton
+                              edge="end"
+                              color="error"
+                              aria-label="Delete attachment"
+                              disabled={aid == null || attachmentsDeletingId === aid}
+                              onClick={() => handleDeleteAttachment(aid)}
+                            >
+                              {attachmentsDeletingId === aid ? (
+                                <CircularProgress size={18} thickness={5} color="inherit" />
+                              ) : (
+                                <DeleteOutlineOutlined fontSize="small" />
+                              )}
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  );
+                })}
+              </List>
+            )}
+          </Box>
+        </Stack>
+      </Drawer>
     </FormPageShell>
   );
 }

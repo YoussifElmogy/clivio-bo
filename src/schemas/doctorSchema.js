@@ -4,6 +4,19 @@ import { optionalUserPasswordYup, requiredUserPasswordYup } from './userPassword
 import { COUNTRY_OPTIONS, DEFAULT_COUNTRY_CODE } from '../constants/countryPhoneOptions';
 import { validatePhoneByCountry } from '../utils/phoneNumber';
 
+function optionalPriceYup(label) {
+  return yup
+    .number()
+    .transform((value, originalValue) => {
+      if (originalValue === '' || originalValue == null) return null;
+      return value;
+    })
+    .nullable()
+    .notRequired()
+    .min(0, `${label} must be at least 0`)
+    .typeError(`${label} must be a number`);
+}
+
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 function sliceTime(t) {
@@ -128,6 +141,8 @@ export function createDoctorCreateSchema(branches = [], { requirePassword = fals
         return message ? this.createError({ message }) : true;
       }),
     specialty: yup.string().trim().optional(),
+    price_per_consultation: optionalPriceYup('Consultation price'),
+    price_per_examination: optionalPriceYup('Examination price'),
     password: requirePassword ? requiredUserPasswordYup() : optionalUserPasswordYup(),
     active: yup.boolean().optional(),
     branch_schedules: yup.array().of(branchScheduleSchema).optional(),
@@ -147,6 +162,8 @@ export const doctorCreateDefaultValues = {
   phone_country_code: DEFAULT_COUNTRY_CODE,
   phone: '',
   specialty: '',
+  price_per_consultation: '',
+  price_per_examination: '',
   password: '',
   active: true,
   branch_schedules: [],
