@@ -55,3 +55,9 @@ export function getUsernameFromToken(token) {
     null
   );
 }
+
+export function getUserIdFromToken(token) {
+  const p = decodeJwtPayload(token);
+  if (!p) return null;
+  return p.id || p.user_id || p.userId || p.uid || p.sub || null;
+}

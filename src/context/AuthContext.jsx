@@ -5,10 +5,12 @@ import {
   clearAuthCookies,
   ACCESS_TOKEN_KEY,
   REFRESH_TOKEN_KEY,
+  USER_ID_KEY,
 } from '../configs/apiClient';
 import {
   getUserRoleFromToken,
   getFullNameFromToken,
+  getUserIdFromToken,
   getUsernameFromToken,
 } from '../utils/jwt';
 import { normalizeRolesFromAuth } from '../utils/permissions';
@@ -25,6 +27,7 @@ export const AuthProvider = ({ children }) => {
   const { post } = useApi();
 
   const decodeUserFromToken = token => ({
+    id: getUserIdFromToken(token) || '',
     role: getUserRoleFromToken(token) || 'Staff',
     fullName:
       getFullNameFromToken(token) ||
@@ -43,10 +46,17 @@ export const AuthProvider = ({ children }) => {
         const userData = JSON.parse(storedUserData);
         const normalized = {
           ...userData,
+          id: userData.id ?? Cookies.get(USER_ID_KEY) ?? '',
           mustChangePassword: normalizeMustChangePassword(userData.mustChangePassword),
           roles: normalizeRolesFromAuth(userData.roles),
         };
         setUser(normalized);
+        if (normalized.id !== '' && normalized.id != null) {
+          Cookies.set(USER_ID_KEY, String(normalized.id), {
+            expires: 7,
+            sameSite: 'lax',
+          });
+        }
         Cookies.set('userData', JSON.stringify(normalized), {
           expires: 7,
           sameSite: 'lax',
@@ -54,6 +64,12 @@ export const AuthProvider = ({ children }) => {
       } catch {
         const userInfoFromToken = decodeUserFromToken(accessToken);
         setUser({ ...userInfoFromToken, mustChangePassword: false });
+        if (userInfoFromToken.id) {
+          Cookies.set(USER_ID_KEY, String(userInfoFromToken.id), {
+            expires: 7,
+            sameSite: 'lax',
+          });
+        }
         Cookies.set('userData', JSON.stringify({ ...userInfoFromToken, mustChangePassword: false }), {
           expires: 7,
           sameSite: 'lax',
@@ -63,6 +79,12 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true);
       const userInfoFromToken = decodeUserFromToken(accessToken);
       setUser({ ...userInfoFromToken, mustChangePassword: false });
+      if (userInfoFromToken.id) {
+        Cookies.set(USER_ID_KEY, String(userInfoFromToken.id), {
+          expires: 7,
+          sameSite: 'lax',
+        });
+      }
       Cookies.set('userData', JSON.stringify({ ...userInfoFromToken, mustChangePassword: false }), {
         expires: 7,
         sameSite: 'lax',
@@ -105,6 +127,11 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true);
 
       const fromToken = decodeUserFromToken(accessToken);
+      const idFromResponse = res.user?.id ?? res.user?.user_id ?? res.id ?? res.user_id;
+      const normalizedId =
+        idFromResponse !== undefined && idFromResponse !== null && String(idFromResponse).trim() !== ''
+          ? idFromResponse
+          : fromToken.id || '';
 
       const mustFromResponse = normalizeMustChangePassword(
         res.must_change_password ?? res.mustChangePassword ?? res.user?.must_change_password ?? res.user?.mustChangePassword
@@ -126,6 +153,7 @@ export const AuthProvider = ({ children }) => {
             fromToken.username ||
             username,
           email: res.user.email || username,
+          id: normalizedId,
           mustChangePassword: mustFromResponse,
           roles: rolesNormalized,
         };
@@ -135,12 +163,19 @@ export const AuthProvider = ({ children }) => {
           role: res.role || fromToken.role,
           username: fromToken.username || username,
           email: res.email || fromToken.username || username,
+          id: normalizedId,
           mustChangePassword: mustFromResponse,
           roles: rolesNormalized,
         };
       }
 
       setUser(userInfo);
+      if (userInfo.id !== '' && userInfo.id != null) {
+        Cookies.set(USER_ID_KEY, String(userInfo.id), {
+          expires: 7,
+          sameSite: 'lax',
+        });
+      }
       Cookies.set('userData', JSON.stringify(userInfo), {
         expires: 7,
         sameSite: 'lax',
@@ -175,6 +210,12 @@ export const AuthProvider = ({ children }) => {
     }
     if (updatedUserData.roles !== undefined) {
       newUserData.roles = normalizeRolesFromAuth(updatedUserData.roles);
+    }
+    if (newUserData.id !== '' && newUserData.id != null) {
+      Cookies.set(USER_ID_KEY, String(newUserData.id), {
+        expires: 7,
+        sameSite: 'lax',
+      });
     }
     setUser(newUserData);
     Cookies.set('userData', JSON.stringify(newUserData), {

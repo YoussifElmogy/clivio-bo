@@ -29,8 +29,10 @@ import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined';
 import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined';
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import usePermissions from '../hooks/usePermissions';
 import { PERM } from '../config/permissions';
+import { isDoctorUser } from '../utils/authRoles';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import {
   RESERVATION_STATUS_OPTIONS,
@@ -39,6 +41,14 @@ import {
 import { formatHhmmToAmPm } from '../utils/timeFormat';
 
 const API_LIST = '/reservations';
+
+function todayIsoDate() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 function normalizeReservationsList(data) {
   const parsed = parsePaginatedList(data, { listKeys: ['reservations', 'results'] });
@@ -117,12 +127,22 @@ function attachmentViewUrl(row) {
   return `/${value.replace(/^\/+/, '')}`;
 }
 
+function rowPatientId(row) {
+  const raw = row?.patient_id ?? row?.patient?.id;
+  if (raw == null || raw === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
 export default function ReservationsPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { get, post, del } = useApi();
   const { showError, showSuccess, showInfo } = useToast();
   const { can } = usePermissions();
+  const isDoctor = isDoctorUser(user);
   const canEditAppointment = can(PERM.EDIT_APPOINTMENT);
+  const defaultVisitDate = useMemo(() => todayIsoDate(), []);
   const [rows, setRows] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [listMode, setListMode] = useState(null);
@@ -131,10 +151,10 @@ export default function ReservationsPage() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [patientNameInput, setPatientNameInput] = useState('');
   const [statusInput, setStatusInput] = useState('');
-  const [dateInput, setDateInput] = useState('');
+  const [dateInput, setDateInput] = useState(defaultVisitDate);
   const [appliedPatientName, setAppliedPatientName] = useState('');
   const [appliedStatus, setAppliedStatus] = useState('');
-  const [appliedDate, setAppliedDate] = useState('');
+  const [appliedDate, setAppliedDate] = useState(defaultVisitDate);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [attachmentsLoading, setAttachmentsLoading] = useState(false);
   const [attachmentsUploading, setAttachmentsUploading] = useState(false);
@@ -246,6 +266,25 @@ export default function ReservationsPage() {
     [showInfo]
   );
 
+  const openReservationSummary = useCallback(
+    row => {
+      const reservationId = row.id ?? row.uuid;
+      const patientId = rowPatientId(row);
+      if (reservationId == null) {
+        showInfo('This row has no reservation id.');
+        return;
+      }
+      if (patientId == null) {
+        showInfo('This row has no patient id.');
+        return;
+      }
+      navigate(
+        `/appointments/${encodeURIComponent(reservationId)}/view?patient_id=${encodeURIComponent(patientId)}`
+      );
+    },
+    [navigate, showInfo]
+  );
+
   const applyFilters = useCallback(() => {
     setAppliedPatientName(patientNameInput.trim());
     setAppliedStatus(statusInput.trim());
@@ -256,12 +295,12 @@ export default function ReservationsPage() {
   const clearFilters = useCallback(() => {
     setPatientNameInput('');
     setStatusInput('');
-    setDateInput('');
+    setDateInput(defaultVisitDate);
     setAppliedPatientName('');
     setAppliedStatus('');
-    setAppliedDate('');
+    setAppliedDate(defaultVisitDate);
     setPage(0);
-  }, []);
+  }, [defaultVisitDate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -337,27 +376,42 @@ export default function ReservationsPage() {
                   </IconButton>
                 </span>
               </Tooltip>
-              <Tooltip title={canEditAppointment ? 'Edit' : 'No permission'}>
-                <span>
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    aria-label="Edit appointment"
-                    onClick={() => {
-                      if (rid != null) navigate(`/appointments/${encodeURIComponent(rid)}/edit`);
-                    }}
-                    disabled={!canEditAppointment}
-                  >
-                    <EditOutlined fontSize="small" />
-                  </IconButton>
-                </span>
-              </Tooltip>
+              {isDoctor ? (
+                <Tooltip title="View appointment">
+                  <span>
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      aria-label="View appointment"
+                      onClick={() => openReservationSummary(row)}
+                    >
+                      <VisibilityOutlined fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              ) : (
+                <Tooltip title={canEditAppointment ? 'Edit' : 'No permission'}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      aria-label="Edit appointment"
+                      onClick={() => {
+                        if (rid != null) navigate(`/appointments/${encodeURIComponent(rid)}/edit`);
+                      }}
+                      disabled={!canEditAppointment}
+                    >
+                      <EditOutlined fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              )}
             </>
           );
         },
       },
     ],
-    [navigate, canEditAppointment, openAttachmentsDrawer]
+    [navigate, canEditAppointment, isDoctor, openAttachmentsDrawer, openReservationSummary]
   );
 
   const getCellValue = useCallback((row, col) => {
@@ -530,9 +584,13 @@ export default function ReservationsPage() {
                     <ListItem key={aid ?? idx} divider sx={{ pr: 15 }}>
                       <InsertDriveFileOutlined color="action" sx={{ mr: 1.25 }} />
                       <ListItemText
-                        primary={attachmentDisplayName(att)}
+                        primary={
+                          <Box component="span" sx={{ overflowWrap: 'anywhere' }}>
+                            {attachmentDisplayName(att)}
+                          </Box>
+                        }
                         secondary={att.created_at ? String(att.created_at).slice(0, 19).replace('T', ' ') : null}
-                        primaryTypographyProps={{ noWrap: true }}
+                        primaryTypographyProps={{ noWrap: false }}
                         secondaryTypographyProps={{ noWrap: true }}
                       />
                       <ListItemSecondaryAction>

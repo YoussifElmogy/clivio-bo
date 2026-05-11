@@ -13,6 +13,7 @@ import AccountTreeOutlined from '@mui/icons-material/AccountTreeOutlined';
 import MedicalServicesOutlined from '@mui/icons-material/MedicalServicesOutlined';
 import GroupsOutlined from '@mui/icons-material/GroupsOutlined';
 import PersonOutlineOutlined from '@mui/icons-material/PersonOutlineOutlined';
+import MedicationOutlined from '@mui/icons-material/MedicationOutlined';
 import EventAvailableOutlined from '@mui/icons-material/EventAvailableOutlined';
 import CalendarMonthOutlined from '@mui/icons-material/CalendarMonthOutlined';
 import MedicalInformationOutlined from '@mui/icons-material/MedicalInformationOutlined';
@@ -25,6 +26,7 @@ import DropdownMenu from '../DropdownMenu/DropdownMenu';
 import { useAuth } from '../../context/AuthContext';
 import usePermissions from '../../hooks/usePermissions';
 import { PERM } from '../../config/permissions';
+import { isDoctorUser } from '../../utils/authRoles';
 
 const navItems = [
   { label: 'Overview', to: '/', Icon: DashboardRounded },
@@ -45,6 +47,13 @@ const navItems = [
     to: '/patients',
     Icon: PersonOutlineOutlined,
     requiresPermission: PERM.VIEW_PATIENT,
+  },
+  {
+    label: 'Medicines',
+    to: '/doctor-medicines',
+    Icon: MedicationOutlined,
+    requiresPermission: PERM.VIEW_DOCTOR,
+    doctorOnly: true,
   },
   {
     label: 'Appointments',
@@ -97,10 +106,24 @@ export default function Sidebar({ sidebarWidth = '17.778rem', onNavigate }) {
   const { logout, user } = useAuth();
   const { can } = usePermissions();
 
+  const doctorOnlyNavTo = new Set(['/appointments', '/patients', '/doctor-medicines']);
   const visibleNavItems = navItems.filter(item => {
+    if (isDoctorUser(user) && !doctorOnlyNavTo.has(item.to)) return false;
+    if (!isDoctorUser(user) && item.doctorOnly) return false;
     if (!item.requiresPermission) return true;
     return can(item.requiresPermission);
   });
+  const mainNavItemsRaw = visibleNavItems;
+  const mainNavItems = isDoctorUser(user)
+    ? [...mainNavItemsRaw].sort((a, b) => {
+        const order = {
+          '/appointments': 0,
+          '/patients': 1,
+          '/doctor-medicines': 2,
+        };
+        return (order[a.to] ?? 99) - (order[b.to] ?? 99);
+      })
+    : mainNavItemsRaw;
 
   const accountMenuItems = [
     {
@@ -153,7 +176,7 @@ export default function Sidebar({ sidebarWidth = '17.778rem', onNavigate }) {
       sx={{ width: sidebarWidth, flexShrink: 0 }}
     >
       <NavLink
-        to="/"
+        to={isDoctorUser(user) ? '/appointments' : '/'}
         style={{ textDecoration: 'none' }}
         onClick={clearDocumentsPreserve}
       >
@@ -209,7 +232,7 @@ export default function Sidebar({ sidebarWidth = '17.778rem', onNavigate }) {
         </Box>
       </NavLink>
       <List sx={{ flex: 1, pt: 0 }}>
-        {visibleNavItems.map(item => {
+        {mainNavItems.map(item => {
           const isActive =
             item.to === '/'
               ? location.pathname === '/'

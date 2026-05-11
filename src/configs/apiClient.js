@@ -6,10 +6,12 @@ export const API_BASE_URL = rawBase.trim().replace(/\/$/, '');
 
 export const ACCESS_TOKEN_KEY = 'idToken';
 export const REFRESH_TOKEN_KEY = 'refreshToken';
+export const USER_ID_KEY = 'userId';
 
 export function clearAuthCookies() {
   Cookies.remove(ACCESS_TOKEN_KEY);
   Cookies.remove(REFRESH_TOKEN_KEY);
+  Cookies.remove(USER_ID_KEY);
   Cookies.remove('userData');
 }
 
@@ -26,6 +28,50 @@ function isAuthLoginUrl(url) {
 
 function isAuthRefreshUrl(url) {
   return typeof url === 'string' && url.includes('/auth/refresh');
+}
+
+function normalizeRole(value) {
+  if (typeof value !== 'string') return '';
+  return value.trim().toLowerCase().replace(/[\s_-]+/g, '');
+}
+
+function getUserDataCookie() {
+  try {
+    const raw = Cookies.get('userData');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function appendDoctorIdQueryIfNeeded(config) {
+  const method = String(config.method || 'GET').toUpperCase();
+  if (method !== 'GET') return;
+
+  const userData = getUserDataCookie();
+  if (normalizeRole(userData?.role) !== 'doctor') return;
+
+  const doctorId = Cookies.get(USER_ID_KEY) || userData?.id;
+  if (doctorId == null || String(doctorId).trim() === '') return;
+
+  if (config.params instanceof URLSearchParams) {
+    if (!config.params.has('doctor_id')) config.params.set('doctor_id', String(doctorId));
+    return;
+  }
+
+  if (config.params && typeof config.params === 'object') {
+    if (config.params.doctor_id == null || config.params.doctor_id === '') {
+      config.params.doctor_id = String(doctorId);
+    }
+    return;
+  }
+
+  const url = String(config.url || '');
+  if (!url) return;
+  const [path, query = ''] = url.split('?');
+  const qs = new URLSearchParams(query);
+  if (!qs.has('doctor_id')) qs.set('doctor_id', String(doctorId));
+  config.url = `${path}?${qs.toString()}`;
 }
 
 let refreshPromise = null;
@@ -80,6 +126,9 @@ apiClient.interceptors.request.use(config => {
   const url = config.url || '';
   if (token && !isAuthLoginUrl(url)) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  if (!isAuthLoginUrl(url) && !isAuthRefreshUrl(url)) {
+    appendDoctorIdQueryIfNeeded(config);
   }
   // Do not send X-Time-Zone unless the API CORS config lists it in
   // Access-Control-Allow-Headers (otherwise the browser blocks the request).

@@ -10,13 +10,14 @@ import LoginForm from '../forms/LoginForm/LoginForm';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { REQUIRED_PASSWORD_CHANGE_PATH } from '../constants/authRoutes';
+import { isDoctorUser } from '../utils/authRoles';
 
 export default function LoginPage() {
   const theme = useTheme();
   const isWide = useMediaQuery(theme.breakpoints.up('md'));
   const navigate = useNavigate();
   const location = useLocation();
-  const from = location.state?.from?.pathname || '/';
+  const from = location.state?.from?.pathname;
   const { login, isAuthenticated, user } = useAuth();
   const { showError } = useToast();
 
@@ -26,7 +27,8 @@ export default function LoginPage() {
       navigate(REQUIRED_PASSWORD_CHANGE_PATH, { replace: true });
       return;
     }
-    navigate(from, { replace: true });
+    const homePath = isDoctorUser(user) ? '/appointments' : '/';
+    navigate(from || homePath, { replace: true });
   }, [isAuthenticated, user?.mustChangePassword, from, navigate, user]);
 
   const handleLogin = async values => {

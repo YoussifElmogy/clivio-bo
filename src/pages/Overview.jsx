@@ -1,4 +1,5 @@
 import React from 'react';
+import { Navigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
@@ -7,6 +8,7 @@ import LocalHospitalRounded from '@mui/icons-material/LocalHospitalRounded';
 import EventAvailableOutlined from '@mui/icons-material/EventAvailableOutlined';
 import GroupsOutlined from '@mui/icons-material/GroupsOutlined';
 import { useAuth } from '../context/AuthContext';
+import { isDoctorUser } from '../utils/authRoles';
 
 const statPlaceholders = [
   {
@@ -28,6 +30,7 @@ const statPlaceholders = [
 
 export default function Overview() {
   const { user } = useAuth();
+  if (isDoctorUser(user)) return <Navigate to="/appointments" replace />;
   const name = user?.fullName || user?.username || 'there';
 
   return (

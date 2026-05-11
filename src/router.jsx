@@ -14,6 +14,9 @@ const ConfigurationPage = lazy(() => import('./pages/ConfigurationPage.jsx'));
 const DoctorsPage = lazy(() => import('./pages/DoctorsPage.jsx'));
 const DoctorCreatePage = lazy(() => import('./pages/DoctorCreatePage.jsx'));
 const DoctorEditPage = lazy(() => import('./pages/DoctorEditPage.jsx'));
+const DoctorMedicinesPage = lazy(() => import('./pages/DoctorMedicinesPage.jsx'));
+const DoctorMedicineCreatePage = lazy(() => import('./pages/DoctorMedicineCreatePage.jsx'));
+const DoctorMedicineEditPage = lazy(() => import('./pages/DoctorMedicineEditPage.jsx'));
 const AssistantsPage = lazy(() => import('./pages/AssistantsPage.jsx'));
 const AssistantCreatePage = lazy(() => import('./pages/AssistantCreatePage.jsx'));
 const AssistantEditPage = lazy(() => import('./pages/AssistantEditPage.jsx'));
@@ -22,6 +25,7 @@ const PatientCreatePage = lazy(() => import('./pages/PatientCreatePage.jsx'));
 const PatientEditPage = lazy(() => import('./pages/PatientEditPage.jsx'));
 const PatientAppointmentPage = lazy(() => import('./pages/PatientAppointmentPage.jsx'));
 const ReservationsPage = lazy(() => import('./pages/ReservationsPage.jsx'));
+const ReservationSummaryPage = lazy(() => import('./pages/ReservationSummaryPage.jsx'));
 const ReservationEditPage = lazy(() => import('./pages/ReservationEditPage.jsx'));
 const SchedulesPage = lazy(() => import('./pages/SchedulesPage.jsx'));
 const ServicesPage = lazy(() => import('./pages/ServicesPage.jsx'));
@@ -112,6 +116,30 @@ const appRouter = createBrowserRouter([
         ),
       },
       {
+        path: 'doctor-medicines/new',
+        element: (
+          <ProtectedRoute requiresPermission={PERM.ADD_DOCTOR}>
+            <DoctorMedicineCreatePage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'doctor-medicines/:id/edit',
+        element: (
+          <ProtectedRoute requiresPermission={PERM.EDIT_DOCTOR}>
+            <DoctorMedicineEditPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'doctor-medicines',
+        element: (
+          <ProtectedRoute requiresPermission={PERM.VIEW_DOCTOR}>
+            <DoctorMedicinesPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: 'assistants/new',
         element: (
           <ProtectedRoute requiresPermission={PERM.ADD_ASSISTANT}>
@@ -166,6 +194,14 @@ const appRouter = createBrowserRouter([
         element: (
           <ProtectedRoute requiresPermission={PERM.VIEW_PATIENT}>
             <PatientsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'appointments/:id/view',
+        element: (
+          <ProtectedRoute requiresPermission={PERM.VIEW_APPOINTMENT}>
+            <ReservationSummaryPage />
           </ProtectedRoute>
         ),
       },
