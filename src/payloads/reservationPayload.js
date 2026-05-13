@@ -4,6 +4,7 @@ const STATUS_SET = new Set([
   RESERVATION_STATUS.PENDING,
   RESERVATION_STATUS.CONFIRMED,
   RESERVATION_STATUS.ARRIVED,
+  RESERVATION_STATUS.FINISHED,
   RESERVATION_STATUS.CANCELED,
 ]);
 
@@ -38,7 +39,7 @@ export function normalizeReservationSlot(value) {
 /**
  * Maps GET /reservations/:id (or list row) into react-hook-form values for the edit screen.
  * Supports payloads like:
- * `{ id, branch_id?, branch_name, doctor_id?, doctor_name, patient_name, date_of_visit, slot, status, created_at }`
+ * `{ id, branch_id?, branch_name, doctor_id?, doctor_name, patient_name, patient_mobile?, date_of_visit, slot, status, created_at }`
  */
 export function mapReservationApiToForm(data) {
   const row = unwrapReservationDetail(data);

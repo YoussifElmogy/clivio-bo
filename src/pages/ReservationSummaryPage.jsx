@@ -20,6 +20,7 @@ import FormPageShell from '../components/FormPageShell/FormPageShell';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { reservationStatusLabel } from '../constants/reservationStatus';
+import { formatAttachmentSecondaryLine } from '../utils/timeFormat';
 
 const VISIT_STATUS_OPTIONS = [
   { value: 'arrived', label: 'Arrived' },
@@ -122,6 +123,12 @@ export default function ReservationSummaryPage() {
               ? ''
               : String(rawDiscount);
           setDiscount(parsedDiscount);
+          const examRaw = normalized?.reservation?.is_examination;
+          const isExamination =
+            examRaw === true ||
+            examRaw === 1 ||
+            String(examRaw).toLowerCase() === 'true';
+          setPrescriptionType(isExamination ? 'examination' : 'consultation');
         }
       } catch (err) {
         if (!cancelled) {
@@ -180,6 +187,17 @@ export default function ReservationSummaryPage() {
 
   const statusOptions = useMemo(() => VISIT_STATUS_OPTIONS, []);
 
+  const patientMobileDisplay = useMemo(() => {
+    if (!summaryData) return '—';
+    const raw =
+      summaryData.patient?.mobile ??
+      summaryData.patient_mobile ??
+      summaryData.reservation?.patient_mobile ??
+      '';
+    const s = String(raw).trim();
+    return s || '—';
+  }, [summaryData]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -232,10 +250,6 @@ export default function ReservationSummaryPage() {
     const medicines = medicineRows.map(item => ({
       description: `${item.name} - ${item.description}`,
     }));
-    if (!medicines.length) {
-      showInfo('Add at least one medicine with description.');
-      return;
-    }
     const discountNumber = String(discount).trim() === '' ? 0 : Number(discount);
     if (!Number.isFinite(discountNumber) || discountNumber < 0) {
       showError('Discount must be a valid number.');
@@ -330,6 +344,9 @@ export default function ReservationSummaryPage() {
                 Age: {summaryData?.patient?.age ?? '—'}
               </Typography>
               <Typography variant="body2" color="text.secondary">
+                Mobile: {patientMobileDisplay}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
                 Notes: {summaryData?.patient?.medical_notes || '—'}
               </Typography>
             </Stack>
@@ -369,13 +386,7 @@ export default function ReservationSummaryPage() {
                   >
                     <ListItemText
                       primary={att.file_name || 'Attachment'}
-                      secondary={
-                        att.uploaded_by_name
-                          ? `Uploaded by ${att.uploaded_by_name}`
-                          : att.created_at
-                            ? String(att.created_at).slice(0, 19).replace('T', ' ')
-                            : null
-                      }
+                      secondary={formatAttachmentSecondaryLine(att)}
                     />
                   </ListItem>
                 ))}

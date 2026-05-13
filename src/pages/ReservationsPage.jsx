@@ -38,7 +38,7 @@ import {
   RESERVATION_STATUS_OPTIONS,
   reservationStatusLabel,
 } from '../constants/reservationStatus';
-import { formatHhmmToAmPm } from '../utils/timeFormat';
+import { formatAttachmentSecondaryLine, formatHhmmToAmPm } from '../utils/timeFormat';
 
 const API_LIST = '/reservations';
 
@@ -75,10 +75,22 @@ function patientCell(row) {
   return row.patient_id != null ? `Patient #${row.patient_id}` : '—';
 }
 
-function buildListQuery(page, rowsPerPage, { patientName, status, dateOfVisit }) {
+function patientMobileCell(row) {
+  const raw =
+    row.patient_mobile ??
+    row.patientMobile ??
+    row.patient?.mobile ??
+    row.mobile ??
+    row.phone ??
+    '';
+  const s = String(raw).trim();
+  return s || '—';
+}
+
+function buildListQuery(page, rowsPerPage, { search, status, dateOfVisit }) {
   const params = new URLSearchParams();
-  const pn = patientName?.trim();
-  if (pn) params.set('patient_name', pn);
+  const q = search?.trim();
+  if (q) params.set('search', q);
   const st = status?.trim();
   if (st) params.set('status', st);
   const d = dateOfVisit?.trim();
@@ -149,10 +161,10 @@ export default function ReservationsPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [patientNameInput, setPatientNameInput] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [statusInput, setStatusInput] = useState('');
   const [dateInput, setDateInput] = useState(defaultVisitDate);
-  const [appliedPatientName, setAppliedPatientName] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [appliedStatus, setAppliedStatus] = useState('');
   const [appliedDate, setAppliedDate] = useState(defaultVisitDate);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
@@ -286,17 +298,17 @@ export default function ReservationsPage() {
   );
 
   const applyFilters = useCallback(() => {
-    setAppliedPatientName(patientNameInput.trim());
+    setAppliedSearch(searchInput.trim());
     setAppliedStatus(statusInput.trim());
     setAppliedDate(dateInput.trim());
     setPage(0);
-  }, [patientNameInput, statusInput, dateInput]);
+  }, [searchInput, statusInput, dateInput]);
 
   const clearFilters = useCallback(() => {
-    setPatientNameInput('');
+    setSearchInput('');
     setStatusInput('');
     setDateInput(defaultVisitDate);
-    setAppliedPatientName('');
+    setAppliedSearch('');
     setAppliedStatus('');
     setAppliedDate(defaultVisitDate);
     setPage(0);
@@ -308,7 +320,7 @@ export default function ReservationsPage() {
       setLoading(true);
       try {
         const query = buildListQuery(page, rowsPerPage, {
-          patientName: appliedPatientName,
+          search: appliedSearch,
           status: appliedStatus,
           dateOfVisit: appliedDate,
         });
@@ -338,7 +350,7 @@ export default function ReservationsPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, rowsPerPage, appliedPatientName, appliedStatus, appliedDate]);
+  }, [page, rowsPerPage, appliedSearch, appliedStatus, appliedDate]);
 
   const count = listMode === 'server' ? totalCount : rows.length;
   const paginatedRows = useMemo(() => {
@@ -349,6 +361,7 @@ export default function ReservationsPage() {
   const columns = useMemo(
     () => [
       { id: 'patient', label: 'Patient', minWidth: 160 },
+      { id: 'patient_mobile', label: 'Mobile', minWidth: 120 },
       { id: 'visit', label: 'Visit', minWidth: 140 },
       { id: 'slot', label: 'Time', minWidth: 108 },
       { id: 'branch', label: 'Branch', minWidth: 120 },
@@ -416,6 +429,7 @@ export default function ReservationsPage() {
 
   const getCellValue = useCallback((row, col) => {
     if (col.id === 'patient') return patientCell(row);
+    if (col.id === 'patient_mobile') return patientMobileCell(row);
     if (col.id === 'visit') {
       const d = row.date_of_visit;
       if (d == null || String(d).trim() === '') return '—';
@@ -438,7 +452,7 @@ export default function ReservationsPage() {
   return (
     <FormPageShell
       title={`Appointments (${count})`}
-      description="View and edit reservations. Filter by patient, status, or visit date."
+      description="View and edit reservations. Search by patient name or mobile; filter by status or visit date."
       paperSx={{ p: { xs: 2, sm: 3 } }}
     >
       <Stack spacing={2} sx={{ mb: 2 }}>
@@ -450,18 +464,18 @@ export default function ReservationsPage() {
           useFlexGap
         >
           <TextField
-            label="Patient name"
+            label="Search"
             size="small"
-            value={patientNameInput}
-            onChange={e => setPatientNameInput(e.target.value)}
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
             onKeyDown={e => {
               if (e.key === 'Enter') {
                 e.preventDefault();
                 applyFilters();
               }
             }}
-            placeholder="e.g. Ahmed"
-            sx={{ flex: { md: '1 1 200px' }, minWidth: { md: 180 } }}
+            placeholder="Patient name or mobile"
+            sx={{ flex: { md: '1 1 220px' }, minWidth: { md: 200 } }}
           />
           <FormControl size="small" sx={{ minWidth: { xs: '100%', md: 160 } }}>
             <InputLabel id="res-filter-status-label">Status</InputLabel>
@@ -589,7 +603,7 @@ export default function ReservationsPage() {
                             {attachmentDisplayName(att)}
                           </Box>
                         }
-                        secondary={att.created_at ? String(att.created_at).slice(0, 19).replace('T', ' ') : null}
+                        secondary={formatAttachmentSecondaryLine(att)}
                         primaryTypographyProps={{ noWrap: false }}
                         secondaryTypographyProps={{ noWrap: true }}
                       />

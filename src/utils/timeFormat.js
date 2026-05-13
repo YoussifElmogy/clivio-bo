@@ -1,3 +1,34 @@
+import dayjs from 'dayjs';
+
+/**
+ * Formats backend ISO timestamps (e.g. `2026-05-13T21:39:48.342946Z`) for display.
+ * @param {unknown} value
+ * @returns {string} e.g. "May 13, 2026 · 9:39 PM" in local time, or "" if empty/invalid
+ */
+export function formatIsoDateTimeDisplay(value) {
+  if (value == null || value === '') return '';
+  const d = dayjs(String(value).trim());
+  if (!d.isValid()) return String(value).trim();
+  return d.format('MMM D, YYYY · h:mm A');
+}
+
+/**
+ * Secondary line for attachment lists: uploader + formatted `created_at`.
+ * @param {Record<string, unknown>} att
+ * @returns {string|null}
+ */
+export function formatAttachmentSecondaryLine(att) {
+  if (!att || typeof att !== 'object') return null;
+  const parts = [];
+  const uploader = att.uploaded_by_name;
+  if (typeof uploader === 'string' && uploader.trim()) {
+    parts.push(`Uploaded by ${uploader.trim()}`);
+  }
+  const dt = formatIsoDateTimeDisplay(att.created_at);
+  if (dt) parts.push(dt);
+  return parts.length ? parts.join(' · ') : null;
+}
+
 /**
  * @param {string} hhmm - "14:00" or "09:05"
  * @returns {string} e.g. "2:00 PM", "9:05 AM"

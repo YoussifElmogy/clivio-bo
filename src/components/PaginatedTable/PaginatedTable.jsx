@@ -17,6 +17,7 @@ import { useTheme } from '@mui/material/styles';
  * @param {Array<{ id: string, label: string, align?: 'left'|'right'|'center', minWidth?: number, render?: (row) => React.ReactNode }>} columns
  * @param {function} [getCellValue] (row, column) => value for default cells when `render` is omitted
  * @param {number} [skeletonRows] number of placeholder rows while loading (capped by `rowsPerPage`)
+ * @param {function} [onRowClick] (row) => void; when set, rows are clickable with pointer cursor
  */
 export default function PaginatedTable({
   columns,
@@ -32,6 +33,7 @@ export default function PaginatedTable({
   getRowId = row => row.id,
   getCellValue,
   skeletonRows: skeletonRowsProp,
+  onRowClick,
 }) {
   const theme = useTheme();
   const skeletonRowCount = Math.min(
@@ -103,7 +105,15 @@ export default function PaginatedTable({
               </TableRow>
             ) : (
               rows.map(row => (
-                <TableRow key={String(getRowId(row))} hover sx={{ '&:last-child td': { borderBottom: 0 } }}>
+                <TableRow
+                  key={String(getRowId(row))}
+                  hover
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  sx={{
+                    '&:last-child td': { borderBottom: 0 },
+                    ...(onRowClick ? { cursor: 'pointer' } : {}),
+                  }}
+                >
                   {columns.map(col => (
                     <TableCell key={col.id} align={col.align ?? 'left'} sx={{ verticalAlign: 'middle' }}>
                       {col.render ? col.render(row) : defaultGetCellValue(row, col)}

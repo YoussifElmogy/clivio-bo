@@ -45,6 +45,7 @@ export default function ReservationEditPage() {
   const { showSuccess, showError } = useToast();
   const [initialLoad, setInitialLoad] = useState(true);
   const [headerPatient, setHeaderPatient] = useState('');
+  const [headerPatientMobile, setHeaderPatientMobile] = useState('');
   /** Bumped after GET + reset so name→id enrichment re-runs even if branches/doctors already loaded first. */
   const [reservationLoadedSeq, setReservationLoadedSeq] = useState(0);
 
@@ -157,6 +158,7 @@ export default function ReservationEditPage() {
     let cancelled = false;
     /** Clear stale branch/doctor so catalog hooks never run against the previous reservation while loading. */
     setHeaderPatient('');
+    setHeaderPatientMobile('');
     apiReservationRef.current = null;
     enrichedFromNamesRef.current = { branch: false, doctor: false };
     prevBranchIdRef.current = undefined;
@@ -173,6 +175,9 @@ export default function ReservationEditPage() {
         apiReservationRef.current = detail;
         enrichedFromNamesRef.current = { branch: false, doctor: false };
         setHeaderPatient(patientLine(detail));
+        setHeaderPatientMobile(
+          String(detail.patient_mobile ?? detail.patient?.mobile ?? detail.mobile ?? '').trim()
+        );
         const mapped = mapReservationApiToForm(raw);
         prevBranchIdRef.current = undefined;
         prevDoctorIdRef.current = undefined;
@@ -225,7 +230,9 @@ export default function ReservationEditPage() {
       title="Edit appointment"
       description={
         headerPatient
-          ? `Update reservation for ${headerPatient}.`
+          ? `Update reservation for ${headerPatient}${
+              headerPatientMobile ? ` · ${headerPatientMobile}` : ''
+            }.`
           : 'Update branch, doctor, visit time, and status.'
       }
       maxWidth="md"

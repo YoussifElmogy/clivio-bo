@@ -21,6 +21,7 @@ const AssistantsPage = lazy(() => import('./pages/AssistantsPage.jsx'));
 const AssistantCreatePage = lazy(() => import('./pages/AssistantCreatePage.jsx'));
 const AssistantEditPage = lazy(() => import('./pages/AssistantEditPage.jsx'));
 const PatientsPage = lazy(() => import('./pages/PatientsPage.jsx'));
+const PatientProfilePage = lazy(() => import('./pages/PatientProfilePage.jsx'));
 const PatientCreatePage = lazy(() => import('./pages/PatientCreatePage.jsx'));
 const PatientEditPage = lazy(() => import('./pages/PatientEditPage.jsx'));
 const PatientAppointmentPage = lazy(() => import('./pages/PatientAppointmentPage.jsx'));
@@ -186,6 +187,14 @@ const appRouter = createBrowserRouter([
             requiresPermission={[PERM.VIEW_PATIENT, PERM.ADD_APPOINTMENT]}
           >
             <PatientAppointmentPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'patients/:id/profile',
+        element: (
+          <ProtectedRoute requiresPermission={PERM.VIEW_PATIENT}>
+            <PatientProfilePage />
           </ProtectedRoute>
         ),
       },

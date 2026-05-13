@@ -3,6 +3,7 @@ export const RESERVATION_STATUS = {
   PENDING: 'pending',
   CONFIRMED: 'confirmed',
   ARRIVED: 'arrived',
+  FINISHED: 'finished',
   CANCELED: 'canceled',
 };
 
@@ -11,6 +12,7 @@ export const RESERVATION_STATUS_OPTIONS = [
   { value: RESERVATION_STATUS.PENDING, label: 'Pending' },
   { value: RESERVATION_STATUS.CONFIRMED, label: 'Confirmed' },
   { value: RESERVATION_STATUS.ARRIVED, label: 'Arrived' },
+  { value: RESERVATION_STATUS.FINISHED, label: 'Finished' },
   { value: RESERVATION_STATUS.CANCELED, label: 'Canceled' },
 ];
 

@@ -15,6 +15,7 @@ import Tooltip from '@mui/material/Tooltip';
 import EditOutlined from '@mui/icons-material/EditOutlined';
 import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined';
 import EventAvailableOutlined from '@mui/icons-material/EventAvailableOutlined';
+import PersonOutlined from '@mui/icons-material/PersonOutlined';
 import SearchOutlined from '@mui/icons-material/SearchOutlined';
 import ClearOutlined from '@mui/icons-material/ClearOutlined';
 import useApi from '../configs/useApi';
@@ -107,6 +108,18 @@ export default function PatientsPage() {
     setAppliedSearch('');
     setPage(0);
   }, []);
+
+  const handlePatientRowClick = useCallback(
+    row => {
+      const pid = row.id ?? row.uuid;
+      if (pid == null) {
+        showInfo('This row has no id.');
+        return;
+      }
+      navigate(`/patients/${encodeURIComponent(pid)}/profile`);
+    },
+    [navigate, showInfo]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -206,63 +219,85 @@ export default function PatientsPage() {
       { id: 'mobile', label: 'Mobile', minWidth: 140 },
       { id: 'dob', label: 'Date of birth', minWidth: 120 },
     ];
-    if (isDoctor) return base;
     return [
       ...base,
       {
         id: 'actions',
         label: 'Actions',
         align: 'right',
-        minWidth: 132,
+        minWidth: isDoctor ? 72 : 200,
         render: row => {
           const patientId = row.id ?? row.uuid;
           return (
             <>
-              <Tooltip title={canAddAppointment ? 'Add appointment' : 'No permission'}>
-                <span>
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    aria-label="Add appointment"
-                    onClick={() => {
-                      if (patientId != null) navigate(`/patients/${patientId}/appointment`);
-                      else showInfo('This row has no id.');
-                    }}
-                    disabled={!canAddAppointment}
-                  >
-                    <EventAvailableOutlined fontSize="small" />
-                  </IconButton>
-                </span>
+              <Tooltip title="Patient profile">
+                <IconButton
+                  size="small"
+                  color="primary"
+                  aria-label="Patient profile"
+                  onClick={e => {
+                    e.stopPropagation();
+                    if (patientId != null) navigate(`/patients/${encodeURIComponent(patientId)}/profile`);
+                    else showInfo('This row has no id.');
+                  }}
+                >
+                  <PersonOutlined fontSize="small" />
+                </IconButton>
               </Tooltip>
-              <Tooltip title={canEditPatient ? 'Edit' : 'No permission'}>
-                <span>
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    aria-label="Edit patient"
-                    onClick={() => {
-                      if (patientId != null) navigate(`/patients/${patientId}/edit`);
-                      else showInfo('This row has no id.');
-                    }}
-                    disabled={!canEditPatient}
-                  >
-                    <EditOutlined fontSize="small" />
-                  </IconButton>
-                </span>
-              </Tooltip>
-              <Tooltip title={canDeletePatient ? 'Delete' : 'No permission'}>
-                <span>
-                  <IconButton
-                    size="small"
-                    color="error"
-                    aria-label="Delete patient"
-                    onClick={() => requestDelete(row)}
-                    disabled={!canDeletePatient}
-                  >
-                    <DeleteOutlineOutlined fontSize="small" />
-                  </IconButton>
-                </span>
-              </Tooltip>
+              {!isDoctor ? (
+                <>
+                  <Tooltip title={canAddAppointment ? 'Add appointment' : 'No permission'}>
+                    <span>
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        aria-label="Add appointment"
+                        onClick={e => {
+                          e.stopPropagation();
+                          if (patientId != null) navigate(`/patients/${patientId}/appointment`);
+                          else showInfo('This row has no id.');
+                        }}
+                        disabled={!canAddAppointment}
+                      >
+                        <EventAvailableOutlined fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                  <Tooltip title={canEditPatient ? 'Edit' : 'No permission'}>
+                    <span>
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        aria-label="Edit patient"
+                        onClick={e => {
+                          e.stopPropagation();
+                          if (patientId != null) navigate(`/patients/${patientId}/edit`);
+                          else showInfo('This row has no id.');
+                        }}
+                        disabled={!canEditPatient}
+                      >
+                        <EditOutlined fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                  <Tooltip title={canDeletePatient ? 'Delete' : 'No permission'}>
+                    <span>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        aria-label="Delete patient"
+                        onClick={e => {
+                          e.stopPropagation();
+                          requestDelete(row);
+                        }}
+                        disabled={!canDeletePatient}
+                      >
+                        <DeleteOutlineOutlined fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </>
+              ) : null}
             </>
           );
         },
@@ -375,6 +410,7 @@ export default function PatientsPage() {
           count={count}
           getRowId={row => row.id ?? row.uuid ?? JSON.stringify(row)}
           getCellValue={getCellValue}
+          onRowClick={handlePatientRowClick}
         />
         <Dialog
           open={deleteTarget != null}
