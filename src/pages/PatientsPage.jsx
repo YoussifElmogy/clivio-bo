@@ -22,9 +22,11 @@ import FormPageShell from '../components/FormPageShell/FormPageShell';
 import PaginatedTable from '../components/PaginatedTable/PaginatedTable';
 import CustomLoader from '../components/CustomLoader/CustomLoader';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import usePermissions from '../hooks/usePermissions';
 import { PERM } from '../config/permissions';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
+import { isDoctorUser } from '../utils/authRoles';
 
 function normalizePatientsList(data) {
   const parsed = parsePaginatedList(data, { listKeys: ['patients', 'results'] });
@@ -74,9 +76,11 @@ function buildPatientsListQuery(page, rowsPerPage, searchTrimmed) {
 
 export default function PatientsPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { get, del } = useApi();
   const { showError, showInfo, showSuccess } = useToast();
   const { can } = usePermissions();
+  const isDoctor = isDoctorUser(user);
   const canAddPatient = can(PERM.ADD_PATIENT);
   const canEditPatient = can(PERM.EDIT_PATIENT);
   const canDeletePatient = can(PERM.DELETE_PATIENT);
@@ -196,11 +200,15 @@ export default function PatientsPage() {
     return rows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
   }, [listMode, rows, page, rowsPerPage]);
 
-  const columns = useMemo(
-    () => [
+  const columns = useMemo(() => {
+    const base = [
       { id: 'name', label: 'Name', minWidth: 180 },
       { id: 'mobile', label: 'Mobile', minWidth: 140 },
       { id: 'dob', label: 'Date of birth', minWidth: 120 },
+    ];
+    if (isDoctor) return base;
+    return [
+      ...base,
       {
         id: 'actions',
         label: 'Actions',
@@ -259,16 +267,16 @@ export default function PatientsPage() {
           );
         },
       },
-    ],
-    [
-      navigate,
-      requestDelete,
-      showInfo,
-      canAddAppointment,
-      canEditPatient,
-      canDeletePatient,
-    ]
-  );
+    ];
+  }, [
+    isDoctor,
+    navigate,
+    requestDelete,
+    showInfo,
+    canAddAppointment,
+    canEditPatient,
+    canDeletePatient,
+  ]);
 
   const getCellValue = useCallback((row, col) => {
     if (col.id === 'name') return patientFullName(row) ?? '—';
@@ -283,18 +291,20 @@ export default function PatientsPage() {
       <FormPageShell
         title={`Patients (${count})`}
         headerAction={
-          <Tooltip title={canAddPatient ? 'Add patient' : 'No permission'}>
-            <span>
-              <Button
-                variant="contained"
-                onClick={() => navigate('/patients/new')}
-                sx={{ borderRadius: 2 }}
-                disabled={!canAddPatient}
-              >
-                Add patient
-              </Button>
-            </span>
-          </Tooltip>
+          isDoctor ? null : (
+            <Tooltip title={canAddPatient ? 'Add patient' : 'No permission'}>
+              <span>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate('/patients/new')}
+                  sx={{ borderRadius: 2 }}
+                  disabled={!canAddPatient}
+                >
+                  Add patient
+                </Button>
+              </span>
+            </Tooltip>
+          )
         }
         paperSx={{ p: { xs: 2, sm: 3 } }}
       >
