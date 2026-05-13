@@ -73,6 +73,35 @@ function patientInitial(name) {
   return s.charAt(0).toUpperCase();
 }
 
+/** List/detail APIs may use different keys for the reservation primary key */
+function reservationRowId(row) {
+  if (!row || typeof row !== 'object') return null;
+  const nested = row.reservation && typeof row.reservation === 'object' ? row.reservation : null;
+  const raw =
+    row.id ??
+    row.uuid ??
+    row.reservation_id ??
+    row.reservationId ??
+    row.appointment_id ??
+    row.appointmentId ??
+    row.pk ??
+    nested?.id ??
+    nested?.uuid ??
+    null;
+  if (raw == null || raw === '') return null;
+  return raw;
+}
+
+/** Prefer row payload, then loaded patient, then route param (handles missing patient_id on list rows). */
+function patientContextId(row, patient, patientIdFromRoute, patientIdParam) {
+  const fromRow = row?.patient_id ?? row?.patient?.id;
+  if (fromRow != null && String(fromRow).trim() !== '') return String(fromRow).trim();
+  if (patient?.id != null && String(patient.id).trim() !== '') return String(patient.id).trim();
+  if (patientIdFromRoute != null && String(patientIdFromRoute).trim() !== '') return String(patientIdFromRoute).trim();
+  const raw = patientIdParam != null ? String(patientIdParam).trim() : '';
+  return raw || null;
+}
+
 export default function PatientProfilePage() {
   const theme = useTheme();
   const { id: patientIdParam } = useParams();
@@ -83,6 +112,7 @@ export default function PatientProfilePage() {
   const { can } = usePermissions();
   const isDoctor = isDoctorUser(user);
   const canEditAppointment = can(PERM.EDIT_APPOINTMENT);
+  const canViewAppointment = can(PERM.VIEW_APPOINTMENT);
 
   const patientId = useMemo(() => {
     const raw = patientIdParam?.trim();
@@ -179,6 +209,18 @@ export default function PatientProfilePage() {
   const displayName = patient?.name?.trim?.() || 'Patient';
   const accent = theme.palette.primary.main;
 
+  const medicalNotesText = useMemo(() => {
+    if (!patient || typeof patient !== 'object') return '—';
+    const raw =
+      patient.medical_notes ??
+      patient.medicalNotes ??
+      patient.notes ??
+      patient.health_notes ??
+      '';
+    const s = String(raw).trim();
+    return s || '—';
+  }, [patient]);
+
   const handleOpenAttachment = useCallback(
     att => {
       const url = attachmentViewUrl(att);
@@ -193,27 +235,40 @@ export default function PatientProfilePage() {
 
   const handleAppointmentRow = useCallback(
     row => {
-      const rid = row.id ?? row.uuid;
-      const pid = row.patient_id ?? patient?.id ?? patientId;
+      const rid = reservationRowId(row);
+      const pid = patientContextId(row, patient, patientId, patientIdParam);
       if (rid == null) {
-        showInfo('This appointment has no id.');
+        showError('Could not open this appointment (missing reservation id).');
         return;
       }
-      if (pid == null) {
-        showInfo('Missing patient id for this appointment.');
+      if (pid == null || pid === '') {
+        showError('Missing patient id for this appointment.');
         return;
       }
       if (isDoctor) {
-        navigate(`/appointments/${encodeURIComponent(rid)}/view?patient_id=${encodeURIComponent(pid)}`);
+        navigate(`/appointments/${encodeURIComponent(String(rid))}/view?patient_id=${encodeURIComponent(String(pid))}`);
         return;
       }
       if (canEditAppointment) {
-        navigate(`/appointments/${encodeURIComponent(rid)}/edit`);
-      } else {
-        navigate(`/appointments/${encodeURIComponent(rid)}/view?patient_id=${encodeURIComponent(pid)}`);
+        navigate(`/appointments/${encodeURIComponent(String(rid))}/edit`);
+        return;
       }
+      if (canViewAppointment) {
+        navigate(`/appointments/${encodeURIComponent(String(rid))}/view?patient_id=${encodeURIComponent(String(pid))}`);
+        return;
+      }
+      showError('You do not have permission to open this appointment (need view or edit appointment).');
     },
-    [canEditAppointment, isDoctor, navigate, patient?.id, patientId, showInfo]
+    [
+      canEditAppointment,
+      canViewAppointment,
+      isDoctor,
+      navigate,
+      patient,
+      patientId,
+      patientIdParam,
+      showError,
+    ]
   );
 
   const apptCount = apptListMode === 'server' ? apptTotal : apptRows.length;
@@ -309,38 +364,67 @@ export default function PatientProfilePage() {
                 {heroSkeleton ? <Box component="span" sx={{ opacity: 0.5 }}>Loading…</Box> : displayName}
               </Typography>
               {!heroSkeleton && patient ? (
-                <Stack
-                  direction="row"
-                  flexWrap="wrap"
-                  useFlexGap
-                  sx={{
-                    columnGap: { xs: 2, sm: 2.5 },
-                    rowGap: 1.25,
-                    alignItems: 'center',
-                  }}
-                >
-                  {patient.age != null && patient.age !== '' ? (
-                    <Chip
-                      size="medium"
-                      icon={<PersonOutlineRounded />}
-                      label={`Age ${patient.age}`}
-                      variant="outlined"
-                      sx={{ borderRadius: 2, fontWeight: 600 }}
-                    />
-                  ) : null}
-                  {patient.mobile ? (
-                    <Chip
-                      size="medium"
-                      icon={<LocalPhoneOutlined />}
-                      label={String(patient.mobile)}
-                      variant="outlined"
-                      component="a"
-                      href={`tel:${String(patient.mobile).replace(/\s/g, '')}`}
-                      clickable
-                      sx={{ borderRadius: 2, fontWeight: 600 }}
-                    />
-                  ) : null}
-                </Stack>
+                <>
+                  <Stack
+                    direction="row"
+                    flexWrap="wrap"
+                    useFlexGap
+                    sx={{
+                      columnGap: { xs: 2, sm: 2.5 },
+                      rowGap: 1.25,
+                      alignItems: 'center',
+                    }}
+                  >
+                    {patient.age != null && patient.age !== '' ? (
+                      <Chip
+                        size="medium"
+                        icon={<PersonOutlineRounded />}
+                        label={`Age ${patient.age}`}
+                        variant="outlined"
+                        sx={{ borderRadius: 2, fontWeight: 600 }}
+                      />
+                    ) : null}
+                    {patient.mobile ? (
+                      <Chip
+                        size="medium"
+                        icon={<LocalPhoneOutlined />}
+                        label={String(patient.mobile)}
+                        variant="outlined"
+                        component="a"
+                        href={`tel:${String(patient.mobile).replace(/\s/g, '')}`}
+                        clickable
+                        sx={{ borderRadius: 2, fontWeight: 600 }}
+                      />
+                    ) : null}
+                  </Stack>
+                  <Box
+                    sx={{
+                      mt: 2.5,
+                      pt: 2.5,
+                      borderTop: '1px solid',
+                      borderColor: 'divider',
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ fontWeight: 700, letterSpacing: 0.08, textTransform: 'uppercase', display: 'block' }}
+                    >
+                      Medical notes
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        mt: 1,
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        color: medicalNotesText === '—' ? 'text.secondary' : 'text.primary',
+                      }}
+                    >
+                      {medicalNotesText}
+                    </Typography>
+                  </Box>
+                </>
               ) : null}
             </Box>
           </Stack>
@@ -453,7 +537,10 @@ export default function PatientProfilePage() {
               setPage(0);
             }}
             count={apptCount}
-            getRowId={row => row.id ?? row.uuid ?? JSON.stringify(row)}
+            getRowId={row => {
+              const rid = reservationRowId(row);
+              return rid != null ? String(rid) : JSON.stringify(row);
+            }}
             getCellValue={getApptCellValue}
             onRowClick={handleAppointmentRow}
           />

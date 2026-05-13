@@ -382,7 +382,10 @@ export default function ReservationsPage() {
                     size="small"
                     color="secondary"
                     aria-label="Manage attachments"
-                    onClick={() => openAttachmentsDrawer(row)}
+                    onClick={e => {
+                      e.stopPropagation();
+                      openAttachmentsDrawer(row);
+                    }}
                     disabled={!canEditAppointment}
                   >
                     <AttachFileOutlined fontSize="small" />
@@ -396,7 +399,10 @@ export default function ReservationsPage() {
                       size="small"
                       color="primary"
                       aria-label="View appointment"
-                      onClick={() => openReservationSummary(row)}
+                      onClick={e => {
+                        e.stopPropagation();
+                        openReservationSummary(row);
+                      }}
                     >
                       <VisibilityOutlined fontSize="small" />
                     </IconButton>
@@ -409,7 +415,8 @@ export default function ReservationsPage() {
                       size="small"
                       color="primary"
                       aria-label="Edit appointment"
-                      onClick={() => {
+                      onClick={e => {
+                        e.stopPropagation();
                         if (rid != null) navigate(`/appointments/${encodeURIComponent(rid)}/edit`);
                       }}
                       disabled={!canEditAppointment}
@@ -531,6 +538,7 @@ export default function ReservationsPage() {
         count={count}
         getRowId={row => row.id ?? row.uuid ?? JSON.stringify(row)}
         getCellValue={getCellValue}
+        onRowClick={isDoctor ? openReservationSummary : undefined}
       />
       <Drawer
         anchor="right"
