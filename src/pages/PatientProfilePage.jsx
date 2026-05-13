@@ -21,7 +21,7 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import usePermissions from '../hooks/usePermissions';
 import { PERM } from '../config/permissions';
-import { isDoctorUser } from '../utils/authRoles';
+import { isAssistantUser, isDoctorUser, isSuperAdminUser } from '../utils/authRoles';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import { reservationStatusLabel } from '../constants/reservationStatus';
 import { formatAttachmentSecondaryLine, formatHhmmToAmPm } from '../utils/timeFormat';
@@ -111,6 +111,7 @@ export default function PatientProfilePage() {
   const { showError, showInfo } = useToast();
   const { can } = usePermissions();
   const isDoctor = isDoctorUser(user);
+  const blockAppointmentRowNavigation = isSuperAdminUser(user) || isAssistantUser(user);
   const canEditAppointment = can(PERM.EDIT_APPOINTMENT);
   const canViewAppointment = can(PERM.VIEW_APPOINTMENT);
 
@@ -517,11 +518,15 @@ export default function PatientProfilePage() {
             </Typography>
           </Stack>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5, maxWidth: 720 }}>
-            {isDoctor
-              ? 'Tap a row to open the appointment summary.'
-              : canEditAppointment
-                ? 'Tap a row to edit the appointment.'
-                : 'Tap a row to view appointment details.'}
+            {blockAppointmentRowNavigation
+              ? 'Appointments are listed for reference only. Use Appointments in the sidebar to open or change a booking.'
+              : isDoctor
+                ? 'Tap a row to open the appointment summary.'
+                : canEditAppointment
+                  ? 'Tap a row to edit the appointment.'
+                  : canViewAppointment
+                    ? 'Tap a row to view appointment details.'
+                    : 'Tap a row when you have permission to view or edit appointments.'}
           </Typography>
           <PaginatedTable
             columns={apptColumns}
@@ -542,7 +547,7 @@ export default function PatientProfilePage() {
               return rid != null ? String(rid) : JSON.stringify(row);
             }}
             getCellValue={getApptCellValue}
-            onRowClick={handleAppointmentRow}
+            onRowClick={blockAppointmentRowNavigation ? undefined : handleAppointmentRow}
           />
         </Box>
       </Stack>
