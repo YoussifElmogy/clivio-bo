@@ -12,8 +12,10 @@ import {
   getFullNameFromToken,
   getUserIdFromToken,
   getUsernameFromToken,
+  getClinicModeFromToken,
 } from '../utils/jwt';
 import { normalizeRolesFromAuth } from '../utils/permissions';
+import { resolveClinicMode } from '../constants/clinicMode';
 
 const AuthContext = createContext();
 
@@ -34,6 +36,7 @@ export const AuthProvider = ({ children }) => {
       getUsernameFromToken(token) ||
       'User',
     username: getUsernameFromToken(token) || '',
+    clinic_mode: resolveClinicMode({ fromToken: getClinicModeFromToken(token) }),
   });
 
   useEffect(() => {
@@ -49,6 +52,11 @@ export const AuthProvider = ({ children }) => {
           id: userData.id ?? Cookies.get(USER_ID_KEY) ?? '',
           mustChangePassword: normalizeMustChangePassword(userData.mustChangePassword),
           roles: normalizeRolesFromAuth(userData.roles),
+          clinic_mode: resolveClinicMode({
+            clinic_mode: userData.clinic_mode,
+            clinicMode: userData.clinicMode,
+            fromToken: getClinicModeFromToken(accessToken),
+          }),
         };
         setUser(normalized);
         if (normalized.id !== '' && normalized.id != null) {
@@ -138,6 +146,11 @@ export const AuthProvider = ({ children }) => {
       );
 
       const rolesNormalized = normalizeRolesFromAuth(res.roles ?? res.user?.roles);
+      const clinic_mode = resolveClinicMode({
+        clinic_mode: res.clinic_mode ?? res.user?.clinic_mode,
+        clinicMode: res.clinicMode ?? res.user?.clinicMode,
+        fromToken: getClinicModeFromToken(accessToken),
+      });
 
       let userInfo;
       if (res.user && typeof res.user === 'object') {
@@ -156,6 +169,7 @@ export const AuthProvider = ({ children }) => {
           id: normalizedId,
           mustChangePassword: mustFromResponse,
           roles: rolesNormalized,
+          clinic_mode,
         };
       } else {
         userInfo = {
@@ -166,6 +180,7 @@ export const AuthProvider = ({ children }) => {
           id: normalizedId,
           mustChangePassword: mustFromResponse,
           roles: rolesNormalized,
+          clinic_mode,
         };
       }
 

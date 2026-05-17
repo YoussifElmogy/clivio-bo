@@ -33,6 +33,7 @@ import { useAuth } from '../context/AuthContext';
 import usePermissions from '../hooks/usePermissions';
 import { PERM } from '../config/permissions';
 import { isDoctorUser } from '../utils/authRoles';
+import { getDoctorAppointmentViewPath } from '../utils/doctorAppointmentNavigation';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import {
   RESERVATION_STATUS_OPTIONS,
@@ -291,10 +292,14 @@ export default function ReservationsPage() {
         return;
       }
       navigate(
-        `/appointments/${encodeURIComponent(reservationId)}/view?patient_id=${encodeURIComponent(patientId)}`
+        getDoctorAppointmentViewPath({
+          reservationId,
+          patientId,
+          user,
+        })
       );
     },
-    [navigate, showInfo]
+    [navigate, showInfo, user]
   );
 
   const applyFilters = useCallback(() => {

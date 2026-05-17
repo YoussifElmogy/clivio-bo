@@ -61,3 +61,9 @@ export function getUserIdFromToken(token) {
   if (!p) return null;
   return p.id || p.user_id || p.userId || p.uid || p.sub || null;
 }
+
+export function getClinicModeFromToken(token) {
+  const p = decodeJwtPayload(token);
+  if (!p) return null;
+  return p.clinic_mode ?? p.clinicMode ?? p.clinic_type ?? p.clinicType ?? null;
+}

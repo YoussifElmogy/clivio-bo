@@ -9,6 +9,63 @@ export const MACHINE_TYPE_OPTIONS = [
   { value: 'sessions', label: 'Sessions' },
 ];
 
+const MACHINE_TYPES = ['pulses', 'duration', 'injectables', 'sessions'];
+
+export function normalizeMachineType(type) {
+  const t = String(type ?? '')
+    .trim()
+    .toLowerCase();
+  return MACHINE_TYPES.includes(t) ? t : 'sessions';
+}
+
+export function machineTypeLabel(type) {
+  return (
+    MACHINE_TYPE_OPTIONS.find(o => o.value === normalizeMachineType(type))?.label ??
+    type ??
+    'Machine'
+  );
+}
+
+export function machineZoneNeedsUsageField(type) {
+  const t = normalizeMachineType(type);
+  return t === 'duration' || t === 'pulses';
+}
+
+export function machineZoneUsageFieldLabel(type) {
+  switch (normalizeMachineType(type)) {
+    case 'duration':
+      return 'Minutes';
+    case 'pulses':
+      return 'Pulses';
+    default:
+      return '';
+  }
+}
+
+/** @returns {{ valid: boolean, message?: string, minutes?: number, pulses?: number }} */
+export function parseMachineZoneUsage(type, rawValue) {
+  const t = normalizeMachineType(type);
+  if (!machineZoneNeedsUsageField(t)) {
+    return { valid: true };
+  }
+  const label = machineZoneUsageFieldLabel(t);
+  const trimmed = String(rawValue ?? '').trim();
+  if (!trimmed) {
+    return { valid: false, message: `${label} is required` };
+  }
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || n <= 0) {
+    return { valid: false, message: 'Enter a number greater than 0' };
+  }
+  if (t === 'pulses' && !Number.isInteger(n)) {
+    return { valid: false, message: 'Pulses must be a whole number' };
+  }
+  if (t === 'duration') {
+    return { valid: true, minutes: n };
+  }
+  return { valid: true, pulses: n };
+}
+
 export function machinePriceFieldLabel(type) {
   switch (type) {
     case 'pulses':

@@ -22,6 +22,7 @@ import { useAuth } from '../context/AuthContext';
 import usePermissions from '../hooks/usePermissions';
 import { PERM } from '../config/permissions';
 import { isAssistantUser, isDoctorUser, isSuperAdminUser } from '../utils/authRoles';
+import { getDoctorAppointmentViewPath } from '../utils/doctorAppointmentNavigation';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import { reservationStatusLabel } from '../constants/reservationStatus';
 import { formatAttachmentSecondaryLine, formatHhmmToAmPm } from '../utils/timeFormat';
@@ -247,7 +248,13 @@ export default function PatientProfilePage() {
         return;
       }
       if (isDoctor) {
-        navigate(`/appointments/${encodeURIComponent(String(rid))}/view?patient_id=${encodeURIComponent(String(pid))}`);
+        navigate(
+          getDoctorAppointmentViewPath({
+            reservationId: rid,
+            patientId: pid,
+            user,
+          })
+        );
         return;
       }
       if (canEditAppointment) {
@@ -269,6 +276,7 @@ export default function PatientProfilePage() {
       patientId,
       patientIdParam,
       showError,
+      user,
     ]
   );
 
@@ -521,7 +529,7 @@ export default function PatientProfilePage() {
             {blockAppointmentRowNavigation
               ? 'Appointments are listed for reference only. Use Appointments in the sidebar to open or change a booking.'
               : isDoctor
-                ? 'Tap a row to open the appointment summary.'
+                ? 'Tap a row to open the appointment (summary or derma mapping).'
                 : canEditAppointment
                   ? 'Tap a row to edit the appointment.'
                   : canViewAppointment

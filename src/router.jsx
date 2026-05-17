@@ -27,6 +27,7 @@ const PatientEditPage = lazy(() => import('./pages/PatientEditPage.jsx'));
 const PatientAppointmentPage = lazy(() => import('./pages/PatientAppointmentPage.jsx'));
 const ReservationsPage = lazy(() => import('./pages/ReservationsPage.jsx'));
 const ReservationSummaryPage = lazy(() => import('./pages/ReservationSummaryPage.jsx'));
+const DoctorDermaAppointmentPage = lazy(() => import('./pages/DoctorDermaAppointmentPage.jsx'));
 const ReservationEditPage = lazy(() => import('./pages/ReservationEditPage.jsx'));
 const SchedulesPage = lazy(() => import('./pages/SchedulesPage.jsx'));
 const ServicesPage = lazy(() => import('./pages/ServicesPage.jsx'));
@@ -203,6 +204,14 @@ const appRouter = createBrowserRouter([
         element: (
           <ProtectedRoute requiresPermission={PERM.VIEW_PATIENT}>
             <PatientsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'appointments/:id/derma-mapping',
+        element: (
+          <ProtectedRoute requiresPermission={PERM.VIEW_APPOINTMENT}>
+            <DoctorDermaAppointmentPage />
           </ProtectedRoute>
         ),
       },
