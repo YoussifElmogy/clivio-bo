@@ -50,11 +50,19 @@ export function buildDermaReviewRequestPayload({
       }))
     : [];
 
+  const generalService = prescription?.general_service ?? null;
+  const generalServiceId =
+    prescription?.general_service_id ?? generalService?.id ?? null;
+
   return {
     reservation_id: Number(reservationId),
     patient_id: Number(patientId),
-    visit_type: prescription?.visit_type ?? 'consultation',
-    is_examination: Boolean(prescription?.is_examination),
+    general_service_id:
+      generalServiceId != null && !Number.isNaN(Number(generalServiceId))
+        ? Number(generalServiceId)
+        : null,
+    general_service: generalService,
+    visit_type: prescription?.visit_type ?? generalService?.name ?? '',
     prescription: {
       medicines,
       patient: prescription?.patient ?? null,

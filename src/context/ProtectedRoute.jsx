@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 import { useLocation, Navigate } from 'react-router-dom';
 import { REQUIRED_PASSWORD_CHANGE_PATH } from '../constants/authRoutes';
 import usePermissions from '../hooks/usePermissions';
+import { isDoctorUser } from '../utils/authRoles';
 
 function listRequiredPermissions(requiresPermission) {
   if (requiresPermission == null) return [];
@@ -17,9 +18,10 @@ function listRequiredPermissions(requiresPermission) {
 /**
  * @param {React.ReactNode} children
  * @param {string|string[]} [requiresPermission] - values like PERM.VIEW_PATIENT; array = all required
+ * @param {boolean} [doctorOnly] - when true, only doctor role can access
  */
-const ProtectedRoute = ({ children, requiresPermission }) => {
-  const { isAuthenticated, mustChangePassword } = useAuth();
+const ProtectedRoute = ({ children, requiresPermission, doctorOnly = false }) => {
+  const { isAuthenticated, mustChangePassword, user } = useAuth();
   const { can } = usePermissions();
   const location = useLocation();
 
@@ -50,6 +52,10 @@ const ProtectedRoute = ({ children, requiresPermission }) => {
 
   const required = listRequiredPermissions(requiresPermission);
   if (required.length && !required.every(p => can(p))) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (doctorOnly && !isDoctorUser(user)) {
     return <Navigate to="/" replace />;
   }
 

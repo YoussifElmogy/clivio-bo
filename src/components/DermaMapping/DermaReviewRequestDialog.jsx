@@ -123,7 +123,9 @@ export default function DermaReviewRequestDialog({
   const faceZones = reviewPayload?.face_mapping?.zones ?? [];
   const bodyZones = reviewPayload?.body_mapping?.zones ?? [];
   const prescription = reviewPayload?.prescription ?? {};
-  const visitTypeLabel = reviewPayload?.is_examination ? 'Examination' : 'Consultation';
+  const visitTypeLabel =
+    reviewPayload?.general_service?.name ??
+    (reviewPayload?.visit_type?.trim?.() || '—');
 
   const medicines = useMemo(
     () => (Array.isArray(prescription.medicines) ? prescription.medicines : []),

@@ -20,6 +20,7 @@ import MedicalInformationOutlined from '@mui/icons-material/MedicalInformationOu
 import Inventory2Outlined from '@mui/icons-material/Inventory2Outlined';
 import FlashOnOutlined from '@mui/icons-material/FlashOnOutlined';
 import LocalHospitalRounded from '@mui/icons-material/LocalHospitalRounded';
+import PriceCheckOutlined from '@mui/icons-material/PriceCheckOutlined';
 import { useTheme } from '@mui/material/styles';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import DropdownMenu from '../DropdownMenu/DropdownMenu';
@@ -53,6 +54,12 @@ const navItems = [
     to: '/doctor-medicines',
     Icon: MedicationOutlined,
     requiresPermission: PERM.VIEW_DOCTOR,
+    doctorOnly: true,
+  },
+  {
+    label: 'General Services',
+    to: '/general-services',
+    Icon: PriceCheckOutlined,
     doctorOnly: true,
   },
   {
@@ -106,7 +113,12 @@ export default function Sidebar({ sidebarWidth = '17.778rem', onNavigate }) {
   const { logout, user } = useAuth();
   const { can } = usePermissions();
 
-  const doctorOnlyNavTo = new Set(['/appointments', '/patients', '/doctor-medicines']);
+  const doctorOnlyNavTo = new Set([
+    '/appointments',
+    '/patients',
+    '/doctor-medicines',
+    '/general-services',
+  ]);
   const visibleNavItems = navItems.filter(item => {
     if (isDoctorUser(user) && !doctorOnlyNavTo.has(item.to)) return false;
     if (!isDoctorUser(user) && item.doctorOnly) return false;
@@ -120,6 +132,7 @@ export default function Sidebar({ sidebarWidth = '17.778rem', onNavigate }) {
           '/appointments': 0,
           '/patients': 1,
           '/doctor-medicines': 2,
+          '/general-services': 3,
         };
         return (order[a.to] ?? 99) - (order[b.to] ?? 99);
       })

@@ -17,6 +17,9 @@ const DoctorEditPage = lazy(() => import('./pages/DoctorEditPage.jsx'));
 const DoctorMedicinesPage = lazy(() => import('./pages/DoctorMedicinesPage.jsx'));
 const DoctorMedicineCreatePage = lazy(() => import('./pages/DoctorMedicineCreatePage.jsx'));
 const DoctorMedicineEditPage = lazy(() => import('./pages/DoctorMedicineEditPage.jsx'));
+const GeneralServicesPage = lazy(() => import('./pages/GeneralServicesPage.jsx'));
+const GeneralServiceCreatePage = lazy(() => import('./pages/GeneralServiceCreatePage.jsx'));
+const GeneralServiceEditPage = lazy(() => import('./pages/GeneralServiceEditPage.jsx'));
 const AssistantsPage = lazy(() => import('./pages/AssistantsPage.jsx'));
 const AssistantCreatePage = lazy(() => import('./pages/AssistantCreatePage.jsx'));
 const AssistantEditPage = lazy(() => import('./pages/AssistantEditPage.jsx'));
@@ -138,6 +141,30 @@ const appRouter = createBrowserRouter([
         element: (
           <ProtectedRoute requiresPermission={PERM.VIEW_DOCTOR}>
             <DoctorMedicinesPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'general-services/new',
+        element: (
+          <ProtectedRoute doctorOnly>
+            <GeneralServiceCreatePage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'general-services/:id/edit',
+        element: (
+          <ProtectedRoute doctorOnly>
+            <GeneralServiceEditPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'general-services',
+        element: (
+          <ProtectedRoute doctorOnly>
+            <GeneralServicesPage />
           </ProtectedRoute>
         ),
       },

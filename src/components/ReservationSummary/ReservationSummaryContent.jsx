@@ -20,6 +20,13 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { reservationStatusLabel } from '../../constants/reservationStatus';
 import { formatAttachmentSecondaryLine } from '../../utils/timeFormat';
+import { parsePaginatedList } from '../../utils/parsePaginatedList';
+import {
+  extractGeneralServiceIdFromSummary,
+  formatGeneralServicePrice,
+  generalServicesListUrl,
+  mapGeneralServiceRow,
+} from '../../payloads/generalServicePayload';
 
 const VISIT_STATUS_OPTIONS = [
   { value: 'arrived', label: 'Arrived' },
@@ -88,7 +95,9 @@ export default function ReservationSummaryContent({
   const [loading, setLoading] = useState(true);
   const [summaryData, setSummaryData] = useState(null);
   const [statusValue, setStatusValue] = useState('');
-  const [prescriptionType, setPrescriptionType] = useState('consultation');
+  const [generalServiceId, setGeneralServiceId] = useState('');
+  const [generalServices, setGeneralServices] = useState([]);
+  const [generalServicesLoading, setGeneralServicesLoading] = useState(true);
   const [discount, setDiscount] = useState('');
   const [medicineOptions, setMedicineOptions] = useState([]);
   const [selectedMedicine, setSelectedMedicine] = useState(null);
@@ -127,12 +136,7 @@ export default function ReservationSummaryContent({
               ? ''
               : String(rawDiscount);
           setDiscount(parsedDiscount);
-          const examRaw = normalized?.reservation?.is_examination;
-          const isExamination =
-            examRaw === true ||
-            examRaw === 1 ||
-            String(examRaw).toLowerCase() === 'true';
-          setPrescriptionType(isExamination ? 'examination' : 'consultation');
+          setGeneralServiceId(extractGeneralServiceIdFromSummary(normalized));
         }
       } catch (err) {
         if (!cancelled) {
@@ -190,10 +194,47 @@ export default function ReservationSummaryContent({
   };
 
   useEffect(() => {
+    const doctorId = user?.id;
+    if (!doctorId) {
+      setGeneralServices([]);
+      setGeneralServicesLoading(false);
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      setGeneralServicesLoading(true);
+      try {
+        const data = await get(generalServicesListUrl(doctorId));
+        if (cancelled) return;
+        const parsed = parsePaginatedList(data, { listKeys: ['general_services', 'results'] });
+        const rows = parsed.rows.map(mapGeneralServiceRow).filter(Boolean);
+        setGeneralServices(rows);
+      } catch {
+        if (!cancelled) setGeneralServices([]);
+      } finally {
+        if (!cancelled) setGeneralServicesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const selectedGeneralService = useMemo(
+    () => generalServices.find(s => String(s.id) === String(generalServiceId)) ?? null,
+    [generalServices, generalServiceId]
+  );
+
+  useEffect(() => {
     if (!onPrescriptionSnapshotChange || loading) return;
     onPrescriptionSnapshotChange({
-      visit_type: prescriptionType,
-      is_examination: prescriptionType === 'examination',
+      general_service_id:
+        generalServiceId !== '' && !Number.isNaN(Number(generalServiceId))
+          ? Number(generalServiceId)
+          : null,
+      general_service: selectedGeneralService,
+      visit_type: selectedGeneralService?.name ?? '',
       medicines: medicineRows.map(row => ({
         name: row.name,
         description: row.description,
@@ -206,7 +247,8 @@ export default function ReservationSummaryContent({
   }, [
     loading,
     summaryData,
-    prescriptionType,
+    generalServiceId,
+    selectedGeneralService,
     medicineRows,
     onPrescriptionSnapshotChange,
   ]);
@@ -270,6 +312,12 @@ export default function ReservationSummaryContent({
       showError('Patient id is missing.');
       return;
     }
+    const parsedGeneralServiceId = Number(generalServiceId);
+    if (!Number.isFinite(parsedGeneralServiceId) || parsedGeneralServiceId <= 0) {
+      showError('Select a service type.');
+      return;
+    }
+
     const medicines = medicineRows.map(item => ({
       description: `${item.name} - ${item.description}`,
     }));
@@ -277,7 +325,7 @@ export default function ReservationSummaryContent({
       doctor_id: doctorId,
       patient_id: parsedPatientId,
       medicines,
-      is_examination: prescriptionType === 'examination',
+      general_service_id: parsedGeneralServiceId,
     };
 
     if (!dermaMode) {
@@ -503,9 +551,24 @@ export default function ReservationSummaryContent({
             <FormLabel sx={{ mb: 0.75, color: 'text.secondary', fontSize: '0.875rem', fontWeight: 600 }}>
               Type
             </FormLabel>
-            <Select value={prescriptionType} onChange={e => setPrescriptionType(e.target.value)}>
-              <MenuItem value="consultation">Consultation</MenuItem>
-              <MenuItem value="examination">Examination</MenuItem>
+            <Select
+              value={generalServiceId}
+              onChange={e => setGeneralServiceId(e.target.value)}
+              disabled={generalServicesLoading || generalServices.length === 0}
+              displayEmpty
+            >
+              <MenuItem value="" disabled>
+                <em>{generalServicesLoading ? 'Loading services…' : 'Select service'}</em>
+              </MenuItem>
+              {generalServices.map(service => {
+                const id = String(service.id);
+                const priceLabel = service.price != null ? formatGeneralServicePrice(service.price) : '';
+                return (
+                  <MenuItem key={id} value={id}>
+                    {priceLabel ? `${service.name} — ${priceLabel}` : service.name}
+                  </MenuItem>
+                );
+              })}
             </Select>
           </FormControl>
           {!dermaMode ? (
