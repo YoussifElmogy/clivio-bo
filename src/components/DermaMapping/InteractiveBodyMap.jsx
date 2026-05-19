@@ -6,26 +6,26 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
 import useApi from '../../configs/useApi';
-import faceMapImage from '../../assets/face-map.jpeg';
-import { FACE_MAP_VIEWBOX, FACE_MAP_ZONES } from '../../constants/faceMapZones';
+import bodyMapImage from '../../assets/body-map.jpeg';
+import { BODY_MAP_VIEWBOX, BODY_MAP_ZONES } from '../../constants/bodyMapZones';
 import {
-  createCustomFaceZone,
-  isMapFaceZoneId,
-  nextCustomFaceZoneId,
-} from '../../constants/customFaceZones';
+  createCustomBodyZone,
+  isMapBodyZoneId,
+  nextCustomBodyZoneId,
+} from '../../constants/customBodyZones';
 import { useToast } from '../../context/ToastContext';
 import {
-  buildDermaFaceMappingZonePostPayload,
+  buildDermaBodyMappingZonePostPayload,
   buildZoneServicePostBody,
   collectDermaFaceMappingLineIds,
   collectDermaFaceMappingLineIdsForZone,
-  dermaFaceMappingLineDeleteUrl,
-  dermaFaceMappingsCreateUrl,
-  dermaFaceMappingsListUrl,
+  dermaBodyMappingLineDeleteUrl,
+  dermaBodyMappingsCreateUrl,
+  dermaBodyMappingsListUrl,
   getZoneAssignmentsFromRecord,
-  mergeDermaFaceMappingStateFromApi,
+  mergeDermaBodyMappingStateFromApi,
   prepareAdditionalZoneForPost,
-} from '../../payloads/dermaFaceMappingPayload';
+} from '../../payloads/dermaBodyMappingPayload';
 import CustomFaceZonesSection from './CustomFaceZonesSection';
 import FaceMappingAssignmentsPanel from './FaceMappingAssignmentsPanel';
 import FaceZoneServiceDialog from './FaceZoneServiceDialog';
@@ -40,12 +40,12 @@ function apiErrorMessage(err, fallback) {
 }
 
 function findZoneById(zoneId, customZones) {
-  const mapZone = FACE_MAP_ZONES.find(z => z.id === zoneId);
+  const mapZone = BODY_MAP_ZONES.find(z => z.id === zoneId);
   if (mapZone) return mapZone;
   return customZones.find(z => z.id === zoneId) ?? null;
 }
 
-export default function InteractiveFaceMap({ reservationId, patientId, onAssignmentsChange }) {
+export default function InteractiveBodyMap({ reservationId, patientId, onAssignmentsChange }) {
   const theme = useTheme();
   const { get, post, del } = useApi();
   const { showError, showSuccess } = useToast();
@@ -71,8 +71,8 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
   );
 
   const refreshMappings = useCallback(async () => {
-    const data = await get(dermaFaceMappingsListUrl(reservationId));
-    const { assignments, customZones: loadedCustom } = mergeDermaFaceMappingStateFromApi(data);
+    const data = await get(dermaBodyMappingsListUrl(reservationId));
+    const { assignments, customZones: loadedCustom } = mergeDermaBodyMappingStateFromApi(data);
     setZoneAssignments(assignments);
     setCustomZones(loadedCustom);
     notifyParent(assignments);
@@ -93,7 +93,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
         if (!cancelled) {
           const status = err?.status ?? err?.response?.status;
           if (status !== 404) {
-            showError(apiErrorMessage(err, 'Could not load face mapping.'));
+            showError(apiErrorMessage(err, 'Could not load body mapping.'));
           }
           setZoneAssignments({});
           setCustomZones([]);
@@ -134,7 +134,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
                   zoneEntries.find(a => a.serviceId === serviceId)
               );
           if (lineIds.length) {
-            await Promise.all(lineIds.map(lineId => del(dermaFaceMappingLineDeleteUrl(lineId))));
+            await Promise.all(lineIds.map(lineId => del(dermaBodyMappingLineDeleteUrl(lineId))));
           }
 
           const remaining = clearEntireZone
@@ -142,7 +142,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
             : zoneEntries.filter(a => a.serviceId !== serviceId);
 
           if (remaining.length) {
-            const payload = buildDermaFaceMappingZonePostPayload({
+            const payload = buildDermaBodyMappingZonePostPayload({
               reservationId,
               patientId,
               zone: zoneForPayload,
@@ -157,7 +157,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
                 items: entry.lines ?? entry.products ?? [],
               })),
             });
-            if (payload) await post(dermaFaceMappingsCreateUrl(), payload);
+            if (payload) await post(dermaBodyMappingsCreateUrl(), payload);
           }
         } else {
           const mergedByServiceId = new Map();
@@ -175,7 +175,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
             zoneMappingId,
           });
 
-          const payload = buildDermaFaceMappingZonePostPayload({
+          const payload = buildDermaBodyMappingZonePostPayload({
             reservationId,
             patientId,
             zone: zoneForPayload,
@@ -190,7 +190,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
               items: entry.lines ?? entry.products ?? [],
             })),
           });
-          if (payload) await post(dermaFaceMappingsCreateUrl(), payload);
+          if (payload) await post(dermaBodyMappingsCreateUrl(), payload);
         }
 
         await refreshMappings();
@@ -198,7 +198,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
         setDialogOpen(false);
         setActiveServiceId(null);
       } catch (err) {
-        showError(apiErrorMessage(err, 'Could not update face mapping.'));
+        showError(apiErrorMessage(err, 'Could not update body mapping.'));
         throw err;
       } finally {
         setSaving(false);
@@ -212,7 +212,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
     Object.values(zoneAssignments).forEach(a => {
       if (a.isCustomZone) return;
       const items = a.lines ?? a.products ?? [];
-      if (items.length > 0 && isMapFaceZoneId(a.zoneId)) ids.add(a.zoneId);
+      if (items.length > 0 && isMapBodyZoneId(a.zoneId)) ids.add(a.zoneId);
     });
     return ids;
   }, [zoneAssignments]);
@@ -299,13 +299,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
     persistZoneChange({ zone, service: { id: serviceId }, products: [] });
   };
 
-  const handleUndoZone = zoneId => {
-    const zone = findZoneById(zoneId, customZones);
-    if (!zone) return;
-    persistZoneChange({ zone, service: {}, products: [], clearEntireZone: true });
-  };
-
-  const handleEditAssignment = (assignment) => {
+  const handleEditAssignment = assignment => {
     if (!assignment || saving) return;
     const zone = assignment.isCustomZone
       ? customZones.find(z => z.id === assignment.zoneId) ?? {
@@ -323,8 +317,8 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
   };
 
   const handleAddCustomZone = label => {
-    const id = nextCustomFaceZoneId(customZonesRef.current);
-    const zone = createCustomFaceZone({ id, label });
+    const id = nextCustomBodyZoneId(customZonesRef.current);
+    const zone = createCustomBodyZone({ id, label });
     if (!zone) return;
     setCustomZones(prev => [...prev, zone].sort((a, b) => a.id - b.id));
   };
@@ -354,7 +348,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
       const record = zoneAssignmentsRef.current;
       const lineIds = collectDermaFaceMappingLineIdsForZone(record, zone.id);
       if (lineIds.length) {
-        await Promise.all(lineIds.map(lineId => del(dermaFaceMappingLineDeleteUrl(lineId))));
+        await Promise.all(lineIds.map(lineId => del(dermaBodyMappingLineDeleteUrl(lineId))));
       }
     },
     [del]
@@ -388,7 +382,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
     <Box sx={{ width: '100%' }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 560 }}>
-          Tap a zone on the face or add an additional zone below. Multiple services per face zone are supported.
+          Tap a zone on the body or add an additional zone below. Multiple services per body zone are supported.
         </Typography>
         {saving ? (
           <Chip label="Saving…" size="small" color="primary" variant="outlined" />
@@ -415,8 +409,8 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
       >
         <Box
           component="img"
-          src={faceMapImage}
-          alt="Face treatment zones"
+          src={bodyMapImage}
+          alt="Body treatment zones"
           sx={{
             display: 'block',
             width: '100%',
@@ -425,11 +419,11 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
         />
         <Box
           component="svg"
-          viewBox={`0 0 ${FACE_MAP_VIEWBOX.width} ${FACE_MAP_VIEWBOX.height}`}
+          viewBox={`0 0 ${BODY_MAP_VIEWBOX.width} ${BODY_MAP_VIEWBOX.height}`}
           preserveAspectRatio="xMidYMid meet"
           aria-hidden={false}
           role="img"
-          aria-label="Interactive face zones"
+          aria-label="Interactive body zones"
           sx={{
             position: 'absolute',
             inset: 0,
@@ -458,12 +452,12 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
             },
           }}
         >
-          {FACE_MAP_ZONES.map(zone => {
+          {BODY_MAP_ZONES.map(zone => {
             const assigned = highlightedMapZoneIds.has(zone.id);
             return (
               <polygon
                 key={zone.id}
-                id={`zone-${zone.id}`}
+                id={`body-zone-${zone.id}`}
                 data-assigned={assigned ? 'true' : 'false'}
                 points={zone.points}
                 onClick={() => !saving && handleZoneClick(zone)}
@@ -481,6 +475,8 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
         zoneServiceCounts={zoneServiceCounts}
         highlightedZoneIds={highlightedAdditionalZoneIds}
         disabled={saving}
+        notOnMapCaption="Not on the body diagram"
+        sectionSubtitle=""
         onAddZone={handleAddCustomZone}
         onUpdateZoneLabel={handleUpdateCustomZoneLabel}
         onRemoveZone={handleRemoveCustomZone}

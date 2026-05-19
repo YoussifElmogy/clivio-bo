@@ -892,9 +892,14 @@ export default function FaceZoneServiceDialog({
           borderColor: 'divider',
         }}
       >
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+        <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 0.5 }}>
           {zone ? (
-            <Chip label={`Zone ${zone.id}`} size="small" color="primary" sx={{ fontWeight: 700 }} />
+            <Chip
+              label={zone?.isCustom === true ? 'Additional zone' : `Zone ${zone.id}`}
+              size="small"
+              color={zone?.isCustom === true ? 'secondary' : 'primary'}
+              sx={{ fontWeight: 700 }}
+            />
           ) : null}
           <Typography variant="h6" component="h2" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
             {zone?.label ?? 'Zone treatment'}

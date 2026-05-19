@@ -11,6 +11,8 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
+import { isMapBodyZoneId } from '../../constants/customBodyZones';
+import { isMapFaceZoneId } from '../../constants/customFaceZones';
 import { formatDermaZoneProductChipLabel } from '../../schemas/productSchema';
 
 function formatMoney(amount, currency = 'EGP') {
@@ -18,7 +20,7 @@ function formatMoney(amount, currency = 'EGP') {
   return `${Number(amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${currency}`;
 }
 
-function MappingSection({ title, zones, emptyMessage }) {
+function MappingSection({ title, zones, emptyMessage, isMapZoneId = isMapFaceZoneId }) {
   if (!zones?.length) {
     return (
       <Box>
@@ -49,17 +51,21 @@ function MappingSection({ title, zones, emptyMessage }) {
                 ? [{ service: zone.service, lines: zone.lines ?? [] }]
                 : [];
 
+          const zoneKey = zone.zone_id ?? zone.zone_label ?? 'zone';
+
           return (
-            <Paper key={zone.zone_id} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+            <Paper key={zoneKey} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
               <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
-                Zone {zone.zone_id} — {zone.zone_label}
+                {isMapZoneId(zone.zone_id)
+                  ? `Zone ${zone.zone_id} — ${zone.zone_label}`
+                  : zone.zone_label || 'Additional zone'}
               </Typography>
               <Stack spacing={1.25}>
                 {serviceBlocks.map((block, blockIdx) => {
                   const svc = block.service ?? {};
                   const lines = block.lines ?? [];
                   return (
-                    <Box key={`${zone.zone_id}-${svc.id ?? block.id ?? blockIdx}`}>
+                    <Box key={`${zoneKey}-${svc.id ?? block.id ?? blockIdx}`}>
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
                         {svc.name ?? `Service #${block.id ?? svc.id}`}
                         {svc.category_display ? ` · ${svc.category_display}` : ''}
@@ -155,7 +161,8 @@ export default function DermaReviewRequestDialog({
           <MappingSection
             title="Body mapping"
             zones={bodyZones}
-            emptyMessage="Body mapping not configured yet."
+            emptyMessage="No body zones selected yet."
+            isMapZoneId={isMapBodyZoneId}
           />
 
           <Divider />

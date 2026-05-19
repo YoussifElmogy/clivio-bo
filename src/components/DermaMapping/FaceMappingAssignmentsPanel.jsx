@@ -49,6 +49,7 @@ function lineIcon(item) {
 
 function FaceMappingAssignmentCard({ assignment, disabled, onEdit, onRemove }) {
   const theme = useTheme();
+  const isAdditional = assignment.isCustomZone === true;
   const items = assignment.lines ?? assignment.products ?? [];
   const { label: categoryLabel, color: categoryColor, Icon: CategoryIcon } =
     serviceCategoryMeta(assignment);
@@ -85,39 +86,62 @@ function FaceMappingAssignmentCard({ assignment, disabled, onEdit, onRemove }) {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            px: 1.75,
+            px: isAdditional ? 1.25 : 1.75,
             py: 2,
-            minWidth: 56,
-            bgcolor: alpha(theme.palette.primary.main, 0.08),
+            minWidth: isAdditional ? 72 : 56,
+            bgcolor: alpha(
+              isAdditional ? theme.palette.secondary.main : theme.palette.primary.main,
+              0.08
+            ),
             borderRight: '1px solid',
             borderColor: 'divider',
           }}
         >
-          <Typography
-            variant="caption"
-            sx={{
-              color: 'primary.main',
-              fontWeight: 700,
-              letterSpacing: 0.5,
-              textTransform: 'uppercase',
-              fontSize: '0.65rem',
-              lineHeight: 1,
-              mb: 0.25,
-            }}
-          >
-            Zone
-          </Typography>
-          <Typography
-            component="span"
-            sx={{
-              fontSize: '1.35rem',
-              fontWeight: 800,
-              lineHeight: 1,
-              color: 'primary.main',
-            }}
-          >
-            {assignment.zoneId}
-          </Typography>
+          {isAdditional ? (
+            <Typography
+              variant="caption"
+              sx={{
+                color: 'secondary.main',
+                fontWeight: 700,
+                letterSpacing: 0.3,
+                textTransform: 'uppercase',
+                fontSize: '0.6rem',
+                lineHeight: 1.25,
+                textAlign: 'center',
+                maxWidth: 64,
+              }}
+            >
+              Additional
+            </Typography>
+          ) : (
+            <>
+              <Typography
+                variant="caption"
+                sx={{
+                  color: 'primary.main',
+                  fontWeight: 700,
+                  letterSpacing: 0.5,
+                  textTransform: 'uppercase',
+                  fontSize: '0.65rem',
+                  lineHeight: 1,
+                  mb: 0.25,
+                }}
+              >
+                Zone
+              </Typography>
+              <Typography
+                component="span"
+                sx={{
+                  fontSize: '1.35rem',
+                  fontWeight: 800,
+                  lineHeight: 1,
+                  color: 'primary.main',
+                }}
+              >
+                {assignment.zoneId}
+              </Typography>
+            </>
+          )}
         </Box>
 
         <Box sx={{ flex: 1, minWidth: 0, py: 1.5, pr: 1, pl: 1.75 }}>
@@ -161,8 +185,12 @@ function FaceMappingAssignmentCard({ assignment, disabled, onEdit, onRemove }) {
                   <IconButton
                     size="small"
                     disabled={disabled}
-                    aria-label={`Edit zone ${assignment.zoneId}`}
-                    onClick={() => onEdit?.(assignment.zoneId, assignment.serviceId)}
+                    aria-label={
+                      isAdditional
+                        ? `Edit ${assignment.zoneLabel}`
+                        : `Edit zone ${assignment.zoneId}`
+                    }
+                    onClick={() => onEdit?.(assignment)}
                     sx={{
                       color: 'text.secondary',
                       '&:hover': { color: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.08) },
@@ -281,7 +309,7 @@ export default function FaceMappingAssignmentsPanel({
             Treatment plan
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            Mapped zones for this appointment
+            Face map and additional areas for this appointment
           </Typography>
         </Box>
         <Chip

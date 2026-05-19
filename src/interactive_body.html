@@ -1,0 +1,134 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+/>
+
+<title>Interactive Body</title>
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #ffffff;
+    min-height: 100vh;
+    font-family: Arial, sans-serif;
+}
+
+.wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 1012px;
+}
+
+.wrapper img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.wrapper svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+polygon {
+    fill: rgba(255, 0, 0, 0);
+    stroke: transparent;
+    transition: 0.2s;
+}
+
+polygon:hover {
+    fill: rgba(255, 0, 0, 0.25);
+    cursor: pointer;
+}
+
+polygon.active {
+    fill: rgba(255, 0, 0, 0.4);
+}
+
+</style>
+
+<script>
+
+function zoneClick(zone) {
+
+    console.log("Clicked Zone " + zone);
+
+    const polygon = document.getElementById("zone-" + zone);
+
+    polygon.classList.toggle("active");
+
+    alert("Clicked Zone " + zone);
+}
+
+</script>
+
+</head>
+
+<body>
+
+<div class="wrapper">
+
+    <img src="assets/body-map.jpeg" alt="Body treatment zones"/>
+
+    <svg
+        viewBox="0 0 1012 1554"
+        preserveAspectRatio="xMidYMid meet"
+    >
+
+<!-- Zone ids 1–5 match numbered regions on body-map.jpeg -->
+
+<polygon
+    id="zone-1"
+    points="411,502 391,518 382,540 385,620 375,702 386,733 404,748 431,759 492,768 558,762 604,743 619,726 625,706 616,626 619,539 610,518 584,499 526,483 476,483"
+    onclick="zoneClick(1)"
+/>
+
+<polygon
+    id="zone-2"
+    points="347,308 315,327 292,367 279,524 255,595 229,743 190,778 159,824 160,832 170,832 191,815 185,889 205,905 231,900 239,886 248,888 255,879 273,811 277,750 333,620 353,465 349,406 359,357 357,328"
+    onclick="zoneClick(2)"
+/>
+
+<polygon
+    id="zone-3"
+    points="653,308 642,339 652,408 648,466 671,608 728,745 732,807 750,878 758,882 748,844 767,844 779,895 765,894 791,906 815,887 809,815 837,826 811,779 772,745 746,598 722,527 709,368 690,332"
+    onclick="zoneClick(3)"
+/>
+
+<polygon
+    id="zone-4"
+    points="374,760 360,777 357,889 389,1076 385,1203 419,1357 417,1404 387,1492 391,1496 396,1487 395,1506 401,1509 406,1500 410,1516 419,1510 430,1522 442,1496 461,1505 465,1491 462,1308 479,1190 470,1097 488,858 477,822 453,795 414,770"
+    onclick="zoneClick(4)"
+/>
+
+<polygon
+    id="zone-5"
+    points="627,760 601,764 556,788 525,819 513,849 528,1100 519,1206 535,1314 532,1492 545,1526 556,1521 554,1495 572,1522 578,1511 588,1516 592,1502 600,1508 601,1487 609,1494 578,1398 578,1352 612,1199 608,1078 641,895 640,777"
+    onclick="zoneClick(5)"
+/>
+
+    </svg>
+
+</div>
+
+</body>
+</html>

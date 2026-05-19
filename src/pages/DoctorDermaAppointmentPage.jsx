@@ -13,6 +13,7 @@ import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
 import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
+import InteractiveBodyMap from '../components/DermaMapping/InteractiveBodyMap';
 import InteractiveFaceMap from '../components/DermaMapping/InteractiveFaceMap';
 import DermaReviewRequestDialog from '../components/DermaMapping/DermaReviewRequestDialog';
 import ReservationSummaryContent from '../components/ReservationSummary/ReservationSummaryContent';
@@ -56,7 +57,7 @@ export default function DoctorDermaAppointmentPage() {
   const [tab, setTab] = useState(0);
   const [patientName, setPatientName] = useState('');
   const [faceAssignments, setFaceAssignments] = useState({});
-  const [bodyAssignments] = useState({});
+  const [bodyAssignments, setBodyAssignments] = useState({});
   const [prescriptionSnapshot, setPrescriptionSnapshot] = useState(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
@@ -78,6 +79,10 @@ export default function DoctorDermaAppointmentPage() {
 
   const handleFaceAssignmentsChange = useCallback(record => {
     setFaceAssignments(record ?? {});
+  }, []);
+
+  const handleBodyAssignmentsChange = useCallback(record => {
+    setBodyAssignments(record ?? {});
   }, []);
 
   const handlePrescriptionSnapshotChange = useCallback(snapshot => {
@@ -203,26 +208,11 @@ export default function DoctorDermaAppointmentPage() {
       </TabPanel>
 
       <TabPanel value={tab} index={2}>
-        <Paper
-          variant="outlined"
-          sx={{
-            p: 4,
-            borderRadius: 2,
-            textAlign: 'center',
-            bgcolor: 'action.hover',
-          }}
-        >
-          <AccessibilityNewOutlined sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-            Body mapping
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 400, mx: 'auto' }}>
-            Body zone mapping will be available in a future update, similar to the interactive face map.
-          </Typography>
-          <Button variant="outlined" sx={{ mt: 2, borderRadius: 2 }} onClick={() => showInfo('Body mapping coming soon.')}>
-            Coming soon
-          </Button>
-        </Paper>
+        <InteractiveBodyMap
+          reservationId={reservationId}
+          patientId={patientId}
+          onAssignmentsChange={handleBodyAssignmentsChange}
+        />
       </TabPanel>
 
       <Box

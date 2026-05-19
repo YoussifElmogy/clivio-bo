@@ -3,8 +3,20 @@
  *
  * GET    /derma-face-mappings?reservation_id=:id
  * POST   /derma-face-mappings          (one zone; `services[]` with lines per service)
- * DELETE /derma-face-mapping-lines/:id
+ * DELETE /derma-face-mapping-lines/:id  (lines only — no DELETE on /derma-face-mappings/:id)
+ *
+ * Map zones 1–8: send `zone_id` + `zone_label`.
+ * Additional zones: create with `zone_label` only (no `zone_id`).
+ * When editing (mapping `id` set), include `zone_id` only if the backend previously returned one.
  */
+
+import {
+  CUSTOM_FACE_ZONE_ID_START,
+  additionalZoneInternalId,
+  isCustomFaceZone,
+  isMapFaceZoneId,
+} from '../constants/customFaceZones';
+import { isMapBodyZoneId } from '../constants/customBodyZones';
 
 export const DERMA_MAPPING_TYPE = {
   FACE: 'face',
@@ -34,8 +46,22 @@ export const DERMA_MACHINE_TYPE = {
 };
 
 function toInt(value) {
+  if (value === null || value === undefined || value === '') return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
+}
+
+/** Additional-zone POST body: omit zone_id unless the API returned a positive id. */
+export function prepareAdditionalZoneForPost(zone, zoneEntries = []) {
+  if (!zone) return zone;
+  const backendZoneId =
+    zone.zone_id !== undefined && zone.zone_id !== null && zone.zone_id !== ''
+      ? zone.zone_id
+      : zoneEntries[0]?.apiZoneId;
+  const parsed = toInt(backendZoneId);
+  const { zone_id: _z, ...rest } = zone;
+  if (parsed == null || parsed <= 0) return rest;
+  return { ...rest, zone_id: parsed };
 }
 
 function toPositiveNumber(value) {
@@ -227,19 +253,21 @@ export function buildDermaFaceMappingSavePayload({
   };
 }
 
-function groupAssignmentsByZone(assignmentsRecord) {
+function groupAssignmentsByZone(assignmentsRecord, { isMapZoneId = isMapFaceZoneId } = {}) {
   const byZone = new Map();
 
   Object.values(assignmentsRecord ?? {}).forEach(entry => {
-    const zoneId = toInt(entry?.zoneId);
-    if (zoneId == null) return;
+    const zoneKey = entry?.zoneId;
+    if (zoneKey === null || zoneKey === undefined) return;
 
-    if (!byZone.has(zoneId)) {
-      byZone.set(zoneId, {
-        zone_id: zoneId,
-        zone_label: entry.zoneLabel ?? `Zone ${zoneId}`,
+    if (!byZone.has(zoneKey)) {
+      const zoneBlock = {
+        zone_label: entry.zoneLabel ?? `Zone ${zoneKey}`,
         services: [],
-      });
+        isCustom: entry.isCustomZone === true || !isMapZoneId(zoneKey),
+      };
+      if (!zoneBlock.isCustom) zoneBlock.zone_id = toInt(zoneKey);
+      byZone.set(zoneKey, zoneBlock);
     }
 
     const service = entry.service ?? {
@@ -250,7 +278,7 @@ function groupAssignmentsByZone(assignmentsRecord) {
     };
     const items = entry.lines ?? entry.products ?? entry.items ?? [];
     const block = buildZoneServicePostBody({ service, items: linesToUiItems(items) });
-    if (block) byZone.get(zoneId).services.push(block);
+    if (block) byZone.get(zoneKey).services.push(block);
   });
 
   return [...byZone.values()].filter(z => z.services.length > 0);
@@ -263,7 +291,9 @@ export function buildDermaFaceMappingPayloadFromAssignments(
   assignmentsRecord,
   { reservationId, patientId, mappingType } = {}
 ) {
-  const zones = groupAssignmentsByZone(assignmentsRecord);
+  const zones = groupAssignmentsByZone(assignmentsRecord, {
+    isMapZoneId: mappingType === DERMA_MAPPING_TYPE.BODY ? isMapBodyZoneId : isMapFaceZoneId,
+  });
 
   return buildDermaFaceMappingSavePayload({
     reservationId,
@@ -371,21 +401,19 @@ export function collectDermaFaceMappingLineIds(assignment) {
 
 /** All line ids for every service on a face zone. */
 export function collectDermaFaceMappingLineIdsForZone(assignmentsRecord, zoneId) {
-  const zid = toInt(zoneId);
-  if (zid == null) return [];
+  if (zoneId === null || zoneId === undefined) return [];
   return [
     ...new Set(
       Object.values(assignmentsRecord ?? {})
-        .filter(a => a.zoneId === zid)
+        .filter(a => a.zoneId === zoneId)
         .flatMap(collectDermaFaceMappingLineIds)
     ),
   ];
 }
 
 export function getZoneAssignmentsFromRecord(assignmentsRecord, zoneId) {
-  const zid = toInt(zoneId);
-  if (zid == null) return [];
-  return Object.values(assignmentsRecord ?? {}).filter(a => a.zoneId === zid);
+  if (zoneId === null || zoneId === undefined) return [];
+  return Object.values(assignmentsRecord ?? {}).filter(a => a.zoneId === zoneId);
 }
 
 /**
@@ -468,49 +496,116 @@ function parseZoneServiceBlocks(row) {
 }
 
 export function mergeDermaFaceMappingFromApi(data) {
-  const rows = extractDermaFaceMappingZoneRows(data);
-  const record = {};
-
-  rows.forEach(row => {
-    const zoneMappingId = toInt(row?.id);
-    const zoneId = toInt(row?.zone_id);
-    if (zoneId == null) return;
-
-    const zoneLabel = row.zone_label ?? `Zone ${zoneId}`;
-    const serviceBlocks = parseZoneServiceBlocks(row);
-
-    serviceBlocks.forEach(block => {
-      const service = block?.service ?? {};
-      const serviceId = toInt(service?.id);
-      if (serviceId == null) return;
-
-      const rawLines = block?.lines ?? [];
-      const items = linesToUiItems(rawLines);
-      if (!items.length) return;
-
-      const lineIds = rawLines.map(line => toInt(line?.id)).filter(id => id != null);
-      const key = `${zoneId}-${serviceId}`;
-
-      record[key] = {
-        zoneMappingId,
-        serviceMappingId: toInt(block?.id),
-        lineIds,
-        documentId: toInt(row?.documentId),
-        zoneId,
-        zoneLabel,
-        serviceId,
-        serviceName: service?.name ?? '',
-        serviceCategory: service?.category ?? null,
-        serviceCategoryDisplay: service?.category_display ?? null,
-        service,
-        lines: items,
-        products: items,
-      };
-    });
-  });
-
-  return record;
+  return mergeDermaFaceMappingStateFromApi(data).assignments;
 }
+
+/**
+ * @param {{
+ *   extractZoneRows: (data: unknown) => object[],
+ *   isMapZoneId: (zoneId: unknown) => boolean,
+ *   customZoneIdStart: number,
+ *   additionalZoneInternalIdFn: Function,
+ * }} config
+ */
+export function createMergeDermaMappingStateFromApi({
+  extractZoneRows,
+  isMapZoneId,
+  customZoneIdStart,
+  additionalZoneInternalIdFn,
+}) {
+  return function mergeDermaMappingStateFromApi(data) {
+    const rows = extractZoneRows(data);
+    const record = {};
+    const customZonesById = new Map();
+    let nextCustomId = customZoneIdStart;
+
+    rows.forEach(row => {
+      const zoneMappingId = toInt(row?.id);
+      const apiZoneId = toInt(row?.zone_id);
+      let zoneId = apiZoneId;
+      const zoneLabelRaw = typeof row?.zone_label === 'string' ? row.zone_label.trim() : '';
+      const isCustomRow = apiZoneId == null || !isMapZoneId(apiZoneId);
+
+      if (isCustomRow) {
+        if (!zoneLabelRaw) return;
+        zoneId = additionalZoneInternalIdFn({
+          zoneMappingId,
+          apiZoneId,
+          tempId: nextCustomId,
+        });
+        if (typeof zoneId === 'number' && zoneId >= customZoneIdStart) {
+          nextCustomId = Math.max(nextCustomId, zoneId + 1);
+        } else if (typeof zoneId === 'number' && zoneId < 0) {
+          nextCustomId += 1;
+        }
+      } else if (zoneId == null) {
+        return;
+      }
+
+      const zoneLabel = isCustomRow ? zoneLabelRaw : zoneLabelRaw || `Zone ${zoneId}`;
+      const serviceBlocks = parseZoneServiceBlocks(row);
+      let rowHasLines = false;
+
+      serviceBlocks.forEach(block => {
+        const service = block?.service ?? {};
+        const serviceId = toInt(service?.id);
+        if (serviceId == null) return;
+
+        const rawLines = block?.lines ?? [];
+        const items = linesToUiItems(rawLines);
+        if (!items.length) return;
+
+        rowHasLines = true;
+
+        const lineIds = rawLines.map(line => toInt(line?.id)).filter(id => id != null);
+        const key = `${zoneId}-${serviceId}`;
+
+        record[key] = {
+          zoneMappingId,
+          serviceMappingId: toInt(block?.id),
+          lineIds,
+          documentId: toInt(row?.documentId),
+          zoneId,
+          zoneLabel,
+          apiZoneId:
+            isCustomRow && apiZoneId != null && apiZoneId > 0 ? apiZoneId : null,
+          isCustomZone: isCustomRow,
+          serviceId,
+          serviceName: service?.name ?? '',
+          serviceCategory: service?.category ?? null,
+          serviceCategoryDisplay: service?.category_display ?? null,
+          service,
+          lines: items,
+          products: items,
+        };
+      });
+
+      if (isCustomRow && rowHasLines && !customZonesById.has(zoneId)) {
+        customZonesById.set(zoneId, {
+          id: zoneId,
+          label: zoneLabelRaw,
+          isCustom: true,
+          zone_id: apiZoneId != null && apiZoneId > 0 ? apiZoneId : undefined,
+          zoneMappingId: zoneMappingId != null && zoneMappingId > 0 ? zoneMappingId : null,
+        });
+      }
+    });
+
+    const customZones = [...customZonesById.values()].sort((a, b) => {
+      if (typeof a.id === 'number' && typeof b.id === 'number') return a.id - b.id;
+      return String(a.id).localeCompare(String(b.id));
+    });
+    return { assignments: record, customZones };
+  };
+}
+
+/** GET response → assignments record + additional zone definitions (label-only on API). */
+export const mergeDermaFaceMappingStateFromApi = createMergeDermaMappingStateFromApi({
+  extractZoneRows: extractDermaFaceMappingZoneRows,
+  isMapZoneId: isMapFaceZoneId,
+  customZoneIdStart: CUSTOM_FACE_ZONE_ID_START,
+  additionalZoneInternalIdFn: additionalZoneInternalId,
+});
 
 /**
  * POST /derma-face-mappings — one zone with all its services.
@@ -523,15 +618,16 @@ export function mergeDermaFaceMappingFromApi(data) {
  *   zoneMappingId?: number,
  * }} input
  */
-export function buildDermaFaceMappingZonePostPayload({
+export function buildDermaMappingZonePostPayload({
   reservationId,
   patientId,
   zone,
   services,
   zoneMappingId,
+  isCustomZone = isCustomFaceZone,
 }) {
-  const zoneId = toInt(zone?.id);
-  if (zoneId == null) return null;
+  const zoneLabel = typeof zone?.label === 'string' ? zone.label.trim() : '';
+  if (!zoneLabel) return null;
 
   const serviceBlocks = (Array.isArray(services) ? services : [])
     .map(entry => {
@@ -545,19 +641,31 @@ export function buildDermaFaceMappingZonePostPayload({
   const payload = {
     reservation_id: toInt(reservationId),
     patient_id: toInt(patientId),
-    zone_id: zoneId,
-    zone_label:
-      typeof zone?.label === 'string' && zone.label.trim() ? zone.label.trim() : `Zone ${zoneId}`,
+    zone_label: zoneLabel,
     services: serviceBlocks,
   };
 
-  const zid = toInt(zoneMappingId);
-  if (zid != null) payload.id = zid;
+  const mappingId = toInt(zoneMappingId);
+  if (mappingId != null && mappingId > 0) payload.id = mappingId;
+
+  if (!isCustomZone(zone)) {
+    const zoneId = toInt(zone?.id);
+    if (zoneId == null) return null;
+    payload.zone_id = zoneId;
+  } else if (mappingId != null && mappingId > 0) {
+    const returnedZoneId = toInt(zone?.zone_id);
+    if (returnedZoneId != null && returnedZoneId > 0) payload.zone_id = returnedZoneId;
+  }
 
   return payload;
 }
 
-/** @deprecated Use buildDermaFaceMappingZonePostPayload */
+/** @deprecated Use buildDermaMappingZonePostPayload */
+export function buildDermaFaceMappingZonePostPayload(input) {
+  return buildDermaMappingZonePostPayload(input);
+}
+
+/** @deprecated Use buildDermaMappingZonePostPayload */
 export function buildDermaFaceMappingCreatePayload({
   reservationId,
   patientId,
@@ -566,7 +674,7 @@ export function buildDermaFaceMappingCreatePayload({
   items,
   mappingId,
 }) {
-  return buildDermaFaceMappingZonePostPayload({
+  return buildDermaMappingZonePostPayload({
     reservationId,
     patientId,
     zone,
