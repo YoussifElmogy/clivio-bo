@@ -125,54 +125,70 @@ export default function AssistantForm({
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>
           <Controller
-            name="branch_id"
+            name="branch_ids"
             control={control}
-            render={({ field, fieldState }) => (
-              <Box>
-                <FormFieldLabel htmlFor="assistant-branch" required>
-                  Branch
-                </FormFieldLabel>
-                <FormControl fullWidth error={Boolean(fieldState.error)} variant="outlined">
-                  <Select
-                    id="assistant-branch"
-                    displayEmpty
-                    value={field.value === '' || field.value === undefined ? '' : field.value}
-                    onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
-                    disabled={isSubmitting || noBranches}
-                    inputProps={{ 'aria-label': 'Branch' }}
-                    renderValue={selected => {
-                      if (selected === '' || selected === undefined) {
-                        return (
-                          <Typography component="span" color="text.secondary" sx={{ opacity: 0.65 }}>
-                            Select branch
-                          </Typography>
+            render={({ field, fieldState }) => {
+              const selected = Array.isArray(field.value)
+                ? field.value.map(Number).filter(n => !Number.isNaN(n))
+                : [];
+
+              return (
+                <Box>
+                  <FormFieldLabel htmlFor="assistant-branches" required>
+                    Branches
+                  </FormFieldLabel>
+                  <FormControl fullWidth error={Boolean(fieldState.error)} variant="outlined">
+                    <Select
+                      id="assistant-branches"
+                      multiple
+                      displayEmpty
+                      value={selected}
+                      onChange={e => {
+                        const raw = e.target.value;
+                        const next = typeof raw === 'string' ? raw.split(',') : raw;
+                        field.onChange(
+                          next.map(Number).filter(n => !Number.isNaN(n)).sort((a, b) => a - b)
                         );
-                      }
-                      const b = branches.find(x => Number(x.id) === Number(selected));
-                      return b?.name?.trim() || `Branch #${selected}`;
-                    }}
-                    sx={{
-                      borderRadius: 2,
-                      '& .MuiOutlinedInput-notchedOutline': {
+                      }}
+                      disabled={isSubmitting || noBranches}
+                      inputProps={{ 'aria-label': 'Branches' }}
+                      renderValue={chosen => {
+                        if (!chosen.length) {
+                          return (
+                            <Typography component="span" color="text.secondary" sx={{ opacity: 0.65 }}>
+                              Select branches
+                            </Typography>
+                          );
+                        }
+                        return chosen
+                          .map(id => {
+                            const b = branches.find(x => Number(x.id) === Number(id));
+                            return b?.name?.trim() || `Branch #${id}`;
+                          })
+                          .join(', ');
+                      }}
+                      sx={{
                         borderRadius: 2,
-                      },
-                    }}
-                  >
-                    <MenuItem value="">
-                      <em>Select branch</em>
-                    </MenuItem>
-                    {branches.map(b => (
-                      <MenuItem key={b.id} value={Number(b.id)}>
-                        {b.name?.trim() || `Branch #${b.id}`}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  {fieldState.error?.message ? (
-                    <FormHelperText>{fieldState.error.message}</FormHelperText>
-                  ) : null}
-                </FormControl>
-              </Box>
-            )}
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          borderRadius: 2,
+                        },
+                      }}
+                    >
+                      {branches.map(b => (
+                        <MenuItem key={b.id} value={Number(b.id)}>
+                          {b.name?.trim() || `Branch #${b.id}`}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    {fieldState.error?.message ? (
+                      <FormHelperText>{fieldState.error.message}</FormHelperText>
+                    ) : (
+                      <FormHelperText>Select one or more branches for this assistant.</FormHelperText>
+                    )}
+                  </FormControl>
+                </Box>
+              );
+            }}
           />
         </Grid>
         {showPasswordField && !isEdit ? (

@@ -19,6 +19,7 @@ function CustomZoneCard({
   hasTreatment,
   serviceCount,
   disabled,
+  readOnly = false,
   notOnMapCaption,
   onAddTreatment,
   onEditLabel,
@@ -87,45 +88,47 @@ function CustomZoneCard({
           </Typography>
         </Box>
 
-        <Stack direction="row" spacing={0.25} sx={{ flexShrink: 0 }}>
-          <Tooltip title="Edit label">
-            <span>
-              <IconButton size="small" disabled={disabled} onClick={() => onEditLabel?.(zone)} aria-label="Edit zone label">
-                <EditOutlined fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title={hasTreatment ? 'Remove zone and all treatments' : 'Remove zone'}>
-            <span>
-              <IconButton
-                size="small"
-                disabled={disabled}
-                color="error"
-                onClick={() => onRemove?.(zone)}
-                aria-label="Remove custom zone"
-              >
-                <DeleteOutlineRounded fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title="Add or edit treatment">
-            <span>
-              <IconButton
-                size="small"
-                color="primary"
-                disabled={disabled}
-                onClick={() => onAddTreatment?.(zone)}
-                aria-label={`Add treatment to ${zone.label}`}
-                sx={{
-                  bgcolor: alpha(theme.palette.primary.main, 0.1),
-                  '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.18) },
-                }}
-              >
-                <AddRounded />
-              </IconButton>
-            </span>
-          </Tooltip>
-        </Stack>
+        {!readOnly ? (
+          <Stack direction="row" spacing={0.25} sx={{ flexShrink: 0 }}>
+            <Tooltip title="Edit label">
+              <span>
+                <IconButton size="small" disabled={disabled} onClick={() => onEditLabel?.(zone)} aria-label="Edit zone label">
+                  <EditOutlined fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title={hasTreatment ? 'Remove zone and all treatments' : 'Remove zone'}>
+              <span>
+                <IconButton
+                  size="small"
+                  disabled={disabled}
+                  color="error"
+                  onClick={() => onRemove?.(zone)}
+                  aria-label="Remove custom zone"
+                >
+                  <DeleteOutlineRounded fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Add or edit treatment">
+              <span>
+                <IconButton
+                  size="small"
+                  color="primary"
+                  disabled={disabled}
+                  onClick={() => onAddTreatment?.(zone)}
+                  aria-label={`Add treatment to ${zone.label}`}
+                  sx={{
+                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                    '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.18) },
+                  }}
+                >
+                  <AddRounded />
+                </IconButton>
+              </span>
+            </Tooltip>
+          </Stack>
+        ) : null}
       </Stack>
     </Paper>
   );
@@ -136,6 +139,7 @@ export default function CustomFaceZonesSection({
   zoneServiceCounts = {},
   highlightedZoneIds = new Set(),
   disabled = false,
+  readOnly = false,
   notOnMapCaption = 'Not on the face diagram',
   sectionSubtitle = 'Areas outside the face map',
   onAddZone,
@@ -227,6 +231,7 @@ export default function CustomFaceZonesSection({
               hasTreatment={highlightedZoneIds.has(zone.id)}
               serviceCount={zoneServiceCounts[zone.id] ?? 0}
               disabled={disabled}
+              readOnly={readOnly}
               notOnMapCaption={notOnMapCaption}
               onAddTreatment={onOpenZone}
               onEditLabel={openEditDialog}
@@ -234,7 +239,7 @@ export default function CustomFaceZonesSection({
             />
           ))}
 
-          {canAddAnotherZone ? (
+          {!readOnly && canAddAnotherZone ? (
             <Button
               fullWidth
               variant="outlined"
@@ -252,7 +257,7 @@ export default function CustomFaceZonesSection({
             >
               {customZones.length === 0 ? 'Add additional zone' : 'Add another additional zone'}
             </Button>
-          ) : customZones.length > 0 ? (
+          ) : !readOnly && customZones.length > 0 ? (
             <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', px: 1 }}>
               Save treatment on &ldquo;{customZones[customZones.length - 1]?.label}&rdquo; before adding another.
             </Typography>

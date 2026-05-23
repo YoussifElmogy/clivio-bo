@@ -44,4 +44,7 @@ export const PERM = {
   ADD_AREA_PACKAGE: 'add_area_package',
   EDIT_AREA_PACKAGE: 'edit_area_package',
   DELETE_AREA_PACKAGE: 'delete_area_package',
+
+  VIEW_INVOICE: 'view_invoice',
+  PAY_INVOICE: 'pay_invoice',
 };

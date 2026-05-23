@@ -47,7 +47,7 @@ function lineIcon(item) {
   return MedicationLiquidOutlined;
 }
 
-function FaceMappingAssignmentCard({ assignment, disabled, onEdit, onRemove }) {
+function FaceMappingAssignmentCard({ assignment, disabled, readOnly = false, onEdit, onRemove }) {
   const theme = useTheme();
   const isAdditional = assignment.isCustomZone === true;
   const items = assignment.lines ?? assignment.products ?? [];
@@ -179,6 +179,7 @@ function FaceMappingAssignmentCard({ assignment, disabled, onEdit, onRemove }) {
               </Stack>
             </Box>
 
+            {!readOnly ? (
             <Stack direction="row" spacing={0.25} sx={{ flexShrink: 0, mt: -0.25 }}>
               <Tooltip title="Edit zone">
                 <span>
@@ -217,6 +218,7 @@ function FaceMappingAssignmentCard({ assignment, disabled, onEdit, onRemove }) {
                 </span>
               </Tooltip>
             </Stack>
+            ) : null}
           </Stack>
 
           <Stack spacing={0.75}>
@@ -268,6 +270,7 @@ function FaceMappingAssignmentCard({ assignment, disabled, onEdit, onRemove }) {
 export default function FaceMappingAssignmentsPanel({
   assignments = [],
   disabled = false,
+  readOnly = false,
   onEditZone,
   onRemoveService,
 }) {
@@ -326,6 +329,7 @@ export default function FaceMappingAssignmentsPanel({
             key={assignment.mappingId ?? `${assignment.zoneId}-${assignment.serviceId}`}
             assignment={assignment}
             disabled={disabled}
+            readOnly={readOnly}
             onEdit={onEditZone}
             onRemove={onRemoveService}
           />

@@ -29,6 +29,7 @@ const PatientCreatePage = lazy(() => import('./pages/PatientCreatePage.jsx'));
 const PatientEditPage = lazy(() => import('./pages/PatientEditPage.jsx'));
 const PatientAppointmentPage = lazy(() => import('./pages/PatientAppointmentPage.jsx'));
 const ReservationsPage = lazy(() => import('./pages/ReservationsPage.jsx'));
+const InvoicesPage = lazy(() => import('./pages/InvoicesPage.jsx'));
 const ReservationSummaryPage = lazy(() => import('./pages/ReservationSummaryPage.jsx'));
 const DoctorDermaAppointmentPage = lazy(() => import('./pages/DoctorDermaAppointmentPage.jsx'));
 const ReservationEditPage = lazy(() => import('./pages/ReservationEditPage.jsx'));
@@ -263,6 +264,14 @@ const appRouter = createBrowserRouter([
         element: (
           <ProtectedRoute requiresPermission={PERM.VIEW_APPOINTMENT}>
             <ReservationsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'invoices',
+        element: (
+          <ProtectedRoute requiresPermission={PERM.VIEW_INVOICE} invoicesAccess>
+            <InvoicesPage />
           </ProtectedRoute>
         ),
       },

@@ -60,15 +60,40 @@ export function mapGeneralServiceRow(row) {
   return { id, name, price };
 }
 
-export function extractGeneralServiceIdFromSummary(data) {
-  if (!data || typeof data !== 'object') return '';
-  const raw =
+function normalizeGeneralServiceIdsList(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(id => Number(id))
+    .filter(id => Number.isFinite(id) && id > 0);
+}
+
+/** All general service ids from GET /reservation-summary (e.g. `general_service_ids`). */
+export function extractGeneralServiceIdsFromSummary(data) {
+  if (!data || typeof data !== 'object') return [];
+
+  const fromArray =
+    data.general_service_ids ??
+    data.reservation?.general_service_ids ??
+    data.prescription?.general_service_ids;
+  const list = normalizeGeneralServiceIdsList(fromArray);
+  if (list.length) return list;
+
+  const single =
     data.reservation?.general_service_id ??
     data.reservation?.general_service?.id ??
     data.general_service_id ??
-    data.general_service?.id;
-  if (raw === '' || raw == null) return '';
-  return String(raw);
+    data.general_service?.id ??
+    data.prescription?.general_service_id;
+  if (single === '' || single == null) return [];
+  const n = Number(single);
+  return Number.isFinite(n) && n > 0 ? [n] : [];
+}
+
+/** First id for single-select UI (Type dropdown). */
+export function extractGeneralServiceIdFromSummary(data) {
+  const ids = extractGeneralServiceIdsFromSummary(data);
+  if (ids.length) return String(ids[0]);
+  return '';
 }
 
 export function buildGeneralServicePayload(values, options = {}) {

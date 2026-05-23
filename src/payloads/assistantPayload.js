@@ -17,6 +17,59 @@ export function parseAssistantRolesResponse(data) {
   return [];
 }
 
+function normalizeBranchIdsFromRow(row) {
+  if (!row || typeof row !== 'object') return [];
+
+  if (Array.isArray(row.branch_ids)) {
+    return row.branch_ids.map(Number).filter(n => !Number.isNaN(n));
+  }
+
+  if (Array.isArray(row.branches)) {
+    return row.branches
+      .map(b => (typeof b === 'object' && b != null ? Number(b.id) : Number(b)))
+      .filter(n => !Number.isNaN(n));
+  }
+
+  let branchRaw = row.branch_id;
+  if (branchRaw === '' || branchRaw == null || Number.isNaN(Number(branchRaw))) {
+    const nested = row.branch;
+    if (nested && typeof nested === 'object' && nested.id != null) {
+      branchRaw = nested.id;
+    }
+  }
+  if (branchRaw !== '' && branchRaw != null && !Number.isNaN(Number(branchRaw))) {
+    return [Number(branchRaw)];
+  }
+
+  return [];
+}
+
+/** Branch labels for list cells. */
+export function formatAssistantBranchesCell(row) {
+  if (!row || typeof row !== 'object') return '—';
+
+  if (Array.isArray(row.branches) && row.branches.length) {
+    const names = row.branches
+      .map(b => (typeof b === 'object' && b != null ? b.name?.trim() : ''))
+      .filter(Boolean);
+    if (names.length) return names.join(', ');
+  }
+
+  if (Array.isArray(row.branch_names) && row.branch_names.length) {
+    const names = row.branch_names.map(n => String(n).trim()).filter(Boolean);
+    if (names.length) return names.join(', ');
+  }
+
+  const ids = normalizeBranchIdsFromRow(row);
+  if (ids.length) {
+    return ids.map(id => `#${id}`).join(', ');
+  }
+
+  const single =
+    row.branch_name?.trim() || row.branch?.name?.trim() || null;
+  return single || '—';
+}
+
 /**
  * Maps GET /assistants/:id (or wrapped `{ assistant }`) to form default shape.
  */
@@ -40,18 +93,7 @@ export function mergeAssistantFromApi(data) {
       .filter(n => !Number.isNaN(n));
   }
 
-  let branchRaw = row.branch_id;
-  if (branchRaw === '' || branchRaw == null || Number.isNaN(Number(branchRaw))) {
-    const nested = row.branch;
-    if (nested && typeof nested === 'object' && nested.id != null) {
-      branchRaw = nested.id;
-    }
-  }
-  const branch_id =
-    branchRaw !== '' && branchRaw != null && !Number.isNaN(Number(branchRaw))
-      ? Number(branchRaw)
-      : '';
-
+  const branch_ids = normalizeBranchIdsFromRow(row);
   const phoneParts = splitPhoneNumber(row.phone);
 
   return {
@@ -59,7 +101,7 @@ export function mergeAssistantFromApi(data) {
     email: typeof row.email === 'string' ? row.email : '',
     phone_country_code: phoneParts.countryCode,
     phone: phoneParts.nationalNumber,
-    branch_id,
+    branch_ids,
     password: '',
     role_ids,
   };
@@ -74,11 +116,16 @@ export function buildAssistantCreatePayload(values) {
     .filter(n => !Number.isNaN(n))
     .sort((a, b) => a - b);
 
+  const branch_ids = [...(values.branch_ids ?? [])]
+    .map(Number)
+    .filter(n => !Number.isNaN(n))
+    .sort((a, b) => a - b);
+
   const payload = {
     name: values.name.trim(),
     email: values.email.trim(),
     phone: buildInternationalPhone(values.phone_country_code, values.phone),
-    branch_id: Number(values.branch_id),
+    branch_ids,
     role_ids,
   };
   const pw = typeof values.password === 'string' ? values.password.trim() : '';

@@ -18,6 +18,7 @@ import { useToast } from '../context/ToastContext';
 import usePermissions from '../hooks/usePermissions';
 import { PERM } from '../config/permissions';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
+import { formatAssistantBranchesCell } from '../payloads/assistantPayload';
 
 export default function AssistantsPage() {
   const navigate = useNavigate();
@@ -132,7 +133,7 @@ export default function AssistantsPage() {
       { id: 'name', label: 'Name', minWidth: 160 },
       { id: 'email', label: 'Email', minWidth: 200 },
       { id: 'phone', label: 'Phone', minWidth: 130 },
-      { id: 'branch', label: 'Branch', minWidth: 160 },
+      { id: 'branch', label: 'Branches', minWidth: 160 },
       {
         id: 'actions',
         label: 'Actions',
@@ -184,12 +185,7 @@ export default function AssistantsPage() {
     if (col.id === 'email') return row.email ?? '—';
     if (col.id === 'phone') return row.phone ?? '—';
     if (col.id === 'branch') {
-      return (
-        row.branch_name ??
-        row.branch?.name ??
-        (row.branch_id != null ? `#${row.branch_id}` : null) ??
-        '—'
-      );
+      return formatAssistantBranchesCell(row);
     }
     return '';
   }, []);

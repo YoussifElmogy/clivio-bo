@@ -40,6 +40,10 @@ import {
   reservationStatusLabel,
 } from '../constants/reservationStatus';
 import { formatAttachmentSecondaryLine, formatHhmmToAmPm } from '../utils/timeFormat';
+import {
+  isReservationInvoicePaid,
+  isReservationInvoicePaidFromRow,
+} from '../utils/reservationInvoiceStatus';
 
 const API_LIST = '/reservations';
 
@@ -205,15 +209,32 @@ export default function ReservationsPage() {
         showInfo('This row has no id.');
         return;
       }
+      let invoicePaid = isReservationInvoicePaidFromRow(row);
+      if (!invoicePaid) {
+        const patientId = rowPatientId(row);
+        if (patientId != null) {
+          try {
+            const query = new URLSearchParams({
+              patient_id: String(patientId),
+              reservation_id: String(rid),
+            }).toString();
+            const summary = await get(`/reservation-summary?${query}`);
+            invoicePaid = isReservationInvoicePaid(summary);
+          } catch {
+            invoicePaid = false;
+          }
+        }
+      }
       setActiveReservation({
         id: rid,
         label: patientCell(row),
+        invoicePaid,
       });
       setSelectedFile(null);
       setAttachmentsOpen(true);
       await refreshAttachments(rid);
     },
-    [refreshAttachments, showInfo]
+    [get, refreshAttachments, showInfo]
   );
 
   const handleUploadAttachment = useCallback(async () => {
@@ -634,23 +655,25 @@ export default function ReservationsPage() {
                             </IconButton>
                           </span>
                         </Tooltip>
-                        <Tooltip title="Delete attachment">
-                          <span>
-                            <IconButton
-                              edge="end"
-                              color="error"
-                              aria-label="Delete attachment"
-                              disabled={aid == null || attachmentsDeletingId === aid}
-                              onClick={() => handleDeleteAttachment(aid)}
-                            >
-                              {attachmentsDeletingId === aid ? (
-                                <CircularProgress size={18} thickness={5} color="inherit" />
-                              ) : (
-                                <DeleteOutlineOutlined fontSize="small" />
-                              )}
-                            </IconButton>
-                          </span>
-                        </Tooltip>
+                        {!activeReservation?.invoicePaid ? (
+                          <Tooltip title="Delete attachment">
+                            <span>
+                              <IconButton
+                                edge="end"
+                                color="error"
+                                aria-label="Delete attachment"
+                                disabled={aid == null || attachmentsDeletingId === aid}
+                                onClick={() => handleDeleteAttachment(aid)}
+                              >
+                                {attachmentsDeletingId === aid ? (
+                                  <CircularProgress size={18} thickness={5} color="inherit" />
+                                ) : (
+                                  <DeleteOutlineOutlined fontSize="small" />
+                                )}
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        ) : null}
                       </ListItemSecondaryAction>
                     </ListItem>
                   );

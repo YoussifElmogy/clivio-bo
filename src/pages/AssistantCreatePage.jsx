@@ -93,7 +93,7 @@ export default function AssistantCreatePage() {
   return (
     <FormPageShell
       title="Add assistant"
-      description="Create an assistant account, assign a branch, and choose permission roles."
+      description="Create an assistant account, assign branches, and choose permission roles."
       headerAction={
         <Button variant="outlined" onClick={() => navigate('/assistants')} sx={{ borderRadius: 2 }}>
           Back to list

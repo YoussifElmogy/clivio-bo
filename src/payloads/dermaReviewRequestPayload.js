@@ -19,6 +19,7 @@ export function dermaReviewRequestUrl(reservationId) {
  *   bodyAssignments?: Record<string, object>,
  *   prescription?: object | null,
  *   totalPrice?: number | null,
+ *   lineItems?: object[] | null,
  *   currency?: string,
  * }} input
  */
@@ -29,6 +30,7 @@ export function buildDermaReviewRequestPayload({
   bodyAssignments = {},
   prescription = null,
   totalPrice = null,
+  lineItems = null,
   currency = 'EGP',
 }) {
   const faceMapping = buildDermaFaceMappingPayloadFromAssignments(faceAssignments, {
@@ -73,8 +75,7 @@ export function buildDermaReviewRequestPayload({
     pricing: {
       total_price: totalPrice != null && Number.isFinite(Number(totalPrice)) ? Number(totalPrice) : null,
       currency,
-      /** Backend will calculate line items; null until priced. */
-      line_items: null,
+      line_items: Array.isArray(lineItems) && lineItems.length > 0 ? lineItems : null,
     },
   };
 }

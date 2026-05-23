@@ -21,6 +21,7 @@ import Inventory2Outlined from '@mui/icons-material/Inventory2Outlined';
 import FlashOnOutlined from '@mui/icons-material/FlashOnOutlined';
 import LocalHospitalRounded from '@mui/icons-material/LocalHospitalRounded';
 import PriceCheckOutlined from '@mui/icons-material/PriceCheckOutlined';
+import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
 import { useTheme } from '@mui/material/styles';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import DropdownMenu from '../DropdownMenu/DropdownMenu';
@@ -28,6 +29,7 @@ import { useAuth } from '../../context/AuthContext';
 import usePermissions from '../../hooks/usePermissions';
 import { PERM } from '../../config/permissions';
 import { isDoctorUser } from '../../utils/authRoles';
+import { canAccessInvoices } from '../../utils/invoicesAccess';
 
 const navItems = [
   { label: 'Overview', to: '/', Icon: DashboardRounded },
@@ -67,6 +69,12 @@ const navItems = [
     to: '/appointments',
     Icon: EventAvailableOutlined,
     requiresPermission: PERM.VIEW_APPOINTMENT,
+  },
+  {
+    label: 'Invoices',
+    to: '/invoices',
+    Icon: ReceiptLongOutlined,
+    invoicesNav: true,
   },
   {
     label: 'Schedules',
@@ -122,6 +130,7 @@ export default function Sidebar({ sidebarWidth = '17.778rem', onNavigate }) {
   const visibleNavItems = navItems.filter(item => {
     if (isDoctorUser(user) && !doctorOnlyNavTo.has(item.to)) return false;
     if (!isDoctorUser(user) && item.doctorOnly) return false;
+    if (item.invoicesNav) return canAccessInvoices(user);
     if (!item.requiresPermission) return true;
     return can(item.requiresPermission);
   });

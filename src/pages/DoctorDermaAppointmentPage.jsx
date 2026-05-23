@@ -7,7 +7,6 @@ import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import RateReviewOutlined from '@mui/icons-material/RateReviewOutlined';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Paper from '@mui/material/Paper';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
@@ -19,24 +18,20 @@ import DermaReviewRequestDialog from '../components/DermaMapping/DermaReviewRequ
 import ReservationSummaryContent from '../components/ReservationSummary/ReservationSummaryContent';
 import { useToast } from '../context/ToastContext';
 import { isDermaClinicMode } from '../constants/clinicMode';
+import { DERMA_APPOINTMENT_TABS } from '../constants/dermaViewMode';
 import { useAuth } from '../context/AuthContext';
 import { isDoctorUser } from '../utils/authRoles';
+import { buildDermaReviewRequestPayload } from '../payloads/dermaReviewRequestPayload';
 import {
-  buildDermaReviewRequestPayload,
-  dermaReviewRequestUrl,
-} from '../payloads/dermaReviewRequestPayload';
-
-function TabPanel({ children, value, index }) {
-  return (
-    <Box
-      role="tabpanel"
-      hidden={value !== index}
-      sx={{ pt: 3, display: value === index ? 'block' : 'none' }}
-    >
-      {children}
-    </Box>
-  );
-}
+  buildReservationPrescriptionPayload,
+  reservationPrescriptionUrl,
+} from '../payloads/reservationPrescriptionPayload';
+import {
+  RESERVATION_PRICING_URL,
+  buildReservationPricingPayload,
+  collectGeneralServiceIdsFromPrescription,
+  normalizeReservationPricingResponse,
+} from '../payloads/reservationPricingPayload';
 
 function apiErrorMessage(err, fallback) {
   const msg =
@@ -53,7 +48,7 @@ export default function DoctorDermaAppointmentPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { get, post } = useApi();
-  const { showError, showInfo, showSuccess } = useToast();
+  const { showError, showSuccess } = useToast();
   const [tab, setTab] = useState(0);
   const [patientName, setPatientName] = useState('');
   const [faceAssignments, setFaceAssignments] = useState({});
@@ -61,8 +56,44 @@ export default function DoctorDermaAppointmentPage() {
   const [prescriptionSnapshot, setPrescriptionSnapshot] = useState(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [pricingError, setPricingError] = useState(null);
+  const [reservationPricing, setReservationPricing] = useState(null);
+  const [reviewDiscount, setReviewDiscount] = useState('');
+  const [invoicePaid, setInvoicePaid] = useState(false);
 
   const patientId = useMemo(() => searchParams.get('patient_id')?.trim() || '', [searchParams]);
+
+  const handleSummaryLoaded = useCallback(({ invoicePaid: paid, discount }) => {
+    setInvoicePaid(!!paid);
+    if (paid && discount != null && discount !== '') {
+      setReviewDiscount(String(discount));
+    }
+  }, []);
+
+  const reviewViewOnly = invoicePaid;
+
+  const visibleTabs = useMemo(() => {
+    const tabs = [];
+    if (DERMA_APPOINTMENT_TABS.APPOINTMENT_SUMMARY) {
+      tabs.push({ id: 'summary', label: 'Appointment summary', icon: <DescriptionOutlined /> });
+    }
+    if (DERMA_APPOINTMENT_TABS.FACE_MAP) {
+      tabs.push({ id: 'face', label: 'Face mapping', icon: <FaceRetouchingNaturalOutlined /> });
+    }
+    if (DERMA_APPOINTMENT_TABS.BODY_MAP) {
+      tabs.push({ id: 'body', label: 'Body mapping', icon: <AccessibilityNewOutlined /> });
+    }
+    return tabs;
+  }, []);
+
+  const activeTabId = visibleTabs[tab]?.id ?? visibleTabs[0]?.id ?? null;
+
+  useEffect(() => {
+    if (tab >= visibleTabs.length) {
+      setTab(0);
+    }
+  }, [visibleTabs.length, tab]);
 
   const reviewPayload = useMemo(
     () =>
@@ -72,9 +103,17 @@ export default function DoctorDermaAppointmentPage() {
         faceAssignments,
         bodyAssignments,
         prescription: prescriptionSnapshot,
-        totalPrice: null,
+        totalPrice: reservationPricing?.grand_total ?? null,
+        lineItems: reservationPricing?.items ?? null,
       }),
-    [reservationId, patientId, faceAssignments, bodyAssignments, prescriptionSnapshot]
+    [
+      reservationId,
+      patientId,
+      faceAssignments,
+      bodyAssignments,
+      prescriptionSnapshot,
+      reservationPricing,
+    ]
   );
 
   const handleFaceAssignmentsChange = useCallback(record => {
@@ -89,26 +128,70 @@ export default function DoctorDermaAppointmentPage() {
     setPrescriptionSnapshot(snapshot);
   }, []);
 
-  const handleSubmitReviewRequest = async () => {
-    setReviewSubmitting(true);
-    try {
-      const payload = reviewPayload;
-      await post(dermaReviewRequestUrl(reservationId), payload);
-      showSuccess('Review request submitted.');
-      setReviewOpen(false);
-    } catch (err) {
-      const status = err?.status ?? err?.response?.status;
-      if (status === 404 || status === 405 || status === 501) {
-        showInfo(
-          'Review request endpoint is not ready yet. Payload is prepared — check console in development.'
-        );
-        if (import.meta.env.DEV) {
-          // eslint-disable-next-line no-console
-          console.info('[derma-review-request]', payload);
+  useEffect(() => {
+    if (!reviewOpen || !reservationId) return undefined;
+
+    let cancelled = false;
+    (async () => {
+      setPricingLoading(true);
+      setPricingError(null);
+      try {
+        const payload = buildReservationPricingPayload({
+          reservationId,
+          generalServiceIds: collectGeneralServiceIdsFromPrescription(prescriptionSnapshot),
+        });
+        const data = await post(RESERVATION_PRICING_URL, payload);
+        if (!cancelled) {
+          setReservationPricing(normalizeReservationPricingResponse(data));
         }
-        setReviewOpen(false);
+      } catch (err) {
+        if (!cancelled) {
+          setReservationPricing(null);
+          setPricingError(apiErrorMessage(err, 'Could not load pricing.'));
+        }
+      } finally {
+        if (!cancelled) setPricingLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reviewOpen, reservationId, prescriptionSnapshot]);
+
+  const handleSubmitReviewRequest = async () => {
+    if (reviewViewOnly) return;
+    const doctorId = Number(user?.id);
+    const parsedPatientId = Number(patientId);
+    if (!Number.isFinite(doctorId) || doctorId <= 0) {
+      showError('Doctor id is missing.');
+      return;
+    }
+    if (!Number.isFinite(parsedPatientId) || parsedPatientId <= 0) {
+      showError('Patient id is missing.');
+      return;
+    }
+    if (String(reviewDiscount).trim() !== '') {
+      const discountNumber = Number(reviewDiscount);
+      if (!Number.isFinite(discountNumber) || discountNumber < 0) {
+        showError('Discount must be a valid number.');
         return;
       }
+    }
+
+    setReviewSubmitting(true);
+    try {
+      const payload = buildReservationPrescriptionPayload({
+        doctorId,
+        patientId: parsedPatientId,
+        prescriptionSnapshot,
+        discount: reviewDiscount,
+      });
+      await post(reservationPrescriptionUrl(reservationId), payload);
+      showSuccess('Review request submitted.');
+      setReviewOpen(false);
+      setReviewDiscount('');
+    } catch (err) {
       showError(apiErrorMessage(err, 'Could not submit review request.'));
     } finally {
       setReviewSubmitting(false);
@@ -167,87 +250,119 @@ export default function DoctorDermaAppointmentPage() {
       }
       paperSx={{ p: { xs: 2, sm: 3 }, pb: { xs: 10, sm: 11 } }}
     >
-      <Paper variant="outlined" sx={{ borderRadius: 2, mb: 2, px: 2, py: 1.5 }}>
-        <Typography variant="body2" color="text.secondary">
-          Appointment #{reservationId}
-          {patientId ? ` · Patient #${patientId}` : ''}
+      {visibleTabs.length === 0 ? (
+        <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
+          No appointment sections are enabled. Turn on tabs in your <code>.env</code> file.
         </Typography>
-      </Paper>
+      ) : (
+        <>
+          {visibleTabs.length > 1 ? (
+            <Tabs
+              value={tab}
+              onChange={(_, v) => setTab(v)}
+              variant="scrollable"
+              scrollButtons="auto"
+              sx={{
+                borderBottom: 1,
+                borderColor: 'divider',
+                '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, minHeight: 48 },
+              }}
+            >
+              {visibleTabs.map((item, index) => (
+                <Tab
+                  key={item.id}
+                  icon={item.icon}
+                  iconPosition="start"
+                  label={item.label}
+                  value={index}
+                />
+              ))}
+            </Tabs>
+          ) : null}
 
-      <Tabs
-        value={tab}
-        onChange={(_, v) => setTab(v)}
-        variant="scrollable"
-        scrollButtons="auto"
-        sx={{
-          borderBottom: 1,
-          borderColor: 'divider',
-          '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, minHeight: 48 },
-        }}
-      >
-        <Tab icon={<DescriptionOutlined />} iconPosition="start" label="Appointment summary" />
-        <Tab icon={<FaceRetouchingNaturalOutlined />} iconPosition="start" label="Face mapping" />
-        <Tab icon={<AccessibilityNewOutlined />} iconPosition="start" label="Body mapping" />
-      </Tabs>
+          {activeTabId === 'summary' ? (
+            <Box sx={{ pt: visibleTabs.length > 1 ? 3 : 0 }}>
+              <ReservationSummaryContent
+                reservationId={reservationId}
+                patientId={patientId}
+                dermaMode
+                readOnly={invoicePaid}
+                onPrescriptionSnapshotChange={handlePrescriptionSnapshotChange}
+                onSummaryLoaded={handleSummaryLoaded}
+              />
+            </Box>
+          ) : null}
 
-      <TabPanel value={tab} index={0}>
-        <ReservationSummaryContent
-          reservationId={reservationId}
-          patientId={patientId}
-          dermaMode
-          onPrescriptionSnapshotChange={handlePrescriptionSnapshotChange}
-        />
-      </TabPanel>
+          {activeTabId === 'face' ? (
+            <Box sx={{ pt: visibleTabs.length > 1 ? 3 : 0 }}>
+              <InteractiveFaceMap
+                reservationId={reservationId}
+                patientId={patientId}
+                onAssignmentsChange={handleFaceAssignmentsChange}
+                readOnly={invoicePaid}
+              />
+            </Box>
+          ) : null}
 
-      <TabPanel value={tab} index={1}>
-        <InteractiveFaceMap
-          reservationId={reservationId}
-          patientId={patientId}
-          onAssignmentsChange={handleFaceAssignmentsChange}
-        />
-      </TabPanel>
+          {activeTabId === 'body' ? (
+            <Box sx={{ pt: visibleTabs.length > 1 ? 3 : 0 }}>
+              <InteractiveBodyMap
+                reservationId={reservationId}
+                patientId={patientId}
+                onAssignmentsChange={handleBodyAssignmentsChange}
+                readOnly={invoicePaid}
+              />
+            </Box>
+          ) : null}
+        </>
+      )}
 
-      <TabPanel value={tab} index={2}>
-        <InteractiveBodyMap
-          reservationId={reservationId}
-          patientId={patientId}
-          onAssignmentsChange={handleBodyAssignmentsChange}
-        />
-      </TabPanel>
-
-      <Box
-        sx={{
-          position: 'fixed',
-          bottom: { xs: 20, sm: 28 },
-          right: { xs: 20, sm: 32 },
-          zIndex: theme => theme.zIndex.snackbar,
-        }}
-      >
-        <Button
-          variant="contained"
-          size="large"
-          startIcon={<RateReviewOutlined />}
-          onClick={() => setReviewOpen(true)}
+      {DERMA_APPOINTMENT_TABS.APPOINTMENT_SUMMARY ? (
+        <Box
           sx={{
-            borderRadius: 2,
-            px: 3,
-            boxShadow: theme => theme.shadows[6],
+            position: 'fixed',
+            bottom: { xs: 20, sm: 28 },
+            right: { xs: 20, sm: 32 },
+            zIndex: theme => theme.zIndex.snackbar,
           }}
         >
-          Review request
-        </Button>
-      </Box>
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={<RateReviewOutlined />}
+            onClick={() => setReviewOpen(true)}
+            sx={{
+              borderRadius: 2,
+              px: 3,
+              boxShadow: theme => theme.shadows[6],
+            }}
+          >
+            {reviewViewOnly ? 'View review request' : 'Review request'}
+          </Button>
+        </Box>
+      ) : null}
 
       <DermaReviewRequestDialog
         open={reviewOpen}
-        onClose={() => !reviewSubmitting && setReviewOpen(false)}
+        onClose={() => {
+          if (!reviewSubmitting) {
+            setReviewOpen(false);
+            setReviewDiscount('');
+          }
+        }}
         patientName={patientName}
         reservationId={reservationId}
         reviewPayload={reviewPayload}
-        totalPrice={reviewPayload?.pricing?.total_price}
+        pricingItems={reservationPricing?.items ?? []}
+        pricingLoading={pricingLoading}
+        pricingError={pricingError}
+        grandTotal={reservationPricing?.grand_total ?? reservationPricing?.grand_total_raw}
         currency={reviewPayload?.pricing?.currency ?? 'EGP'}
+        discount={reviewDiscount}
+        onDiscountChange={setReviewDiscount}
         submitting={reviewSubmitting}
         onSubmit={handleSubmitReviewRequest}
+        readOnly={reviewViewOnly}
       />
     </FormPageShell>
   );

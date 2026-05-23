@@ -16,6 +16,7 @@ import {
 } from '../utils/jwt';
 import { normalizeRolesFromAuth } from '../utils/permissions';
 import { resolveClinicMode } from '../constants/clinicMode';
+import { normalizeUserBranchIds } from '../utils/userBranchIds';
 
 const AuthContext = createContext();
 
@@ -52,6 +53,7 @@ export const AuthProvider = ({ children }) => {
           id: userData.id ?? Cookies.get(USER_ID_KEY) ?? '',
           mustChangePassword: normalizeMustChangePassword(userData.mustChangePassword),
           roles: normalizeRolesFromAuth(userData.roles),
+          branch_ids: normalizeUserBranchIds(userData.branch_ids ?? userData.branchIds),
           clinic_mode: resolveClinicMode({
             clinic_mode: userData.clinic_mode,
             clinicMode: userData.clinicMode,
@@ -146,6 +148,9 @@ export const AuthProvider = ({ children }) => {
       );
 
       const rolesNormalized = normalizeRolesFromAuth(res.roles ?? res.user?.roles);
+      const branch_ids = normalizeUserBranchIds(
+        res.branch_ids ?? res.user?.branch_ids ?? res.user?.branchIds
+      );
       const clinic_mode = resolveClinicMode({
         clinic_mode: res.clinic_mode ?? res.user?.clinic_mode,
         clinicMode: res.clinicMode ?? res.user?.clinicMode,
@@ -169,6 +174,7 @@ export const AuthProvider = ({ children }) => {
           id: normalizedId,
           mustChangePassword: mustFromResponse,
           roles: rolesNormalized,
+          branch_ids,
           clinic_mode,
         };
       } else {
@@ -180,6 +186,7 @@ export const AuthProvider = ({ children }) => {
           id: normalizedId,
           mustChangePassword: mustFromResponse,
           roles: rolesNormalized,
+          branch_ids,
           clinic_mode,
         };
       }

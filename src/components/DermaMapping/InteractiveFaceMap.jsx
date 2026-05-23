@@ -29,6 +29,7 @@ import {
 import CustomFaceZonesSection from './CustomFaceZonesSection';
 import FaceMappingAssignmentsPanel from './FaceMappingAssignmentsPanel';
 import FaceZoneServiceDialog from './FaceZoneServiceDialog';
+import ViewOnlyBanner from './ViewOnlyBanner';
 
 function apiErrorMessage(err, fallback) {
   const msg =
@@ -45,7 +46,12 @@ function findZoneById(zoneId, customZones) {
   return customZones.find(z => z.id === zoneId) ?? null;
 }
 
-export default function InteractiveFaceMap({ reservationId, patientId, onAssignmentsChange }) {
+export default function InteractiveFaceMap({
+  reservationId,
+  patientId,
+  onAssignmentsChange,
+  readOnly = false,
+}) {
   const theme = useTheme();
   const { get, post, del } = useApi();
   const { showError, showSuccess } = useToast();
@@ -111,7 +117,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
 
   const persistZoneChange = useCallback(
     async ({ zone, service, products, clearEntireZone = false }) => {
-      if (!reservationId || !patientId) return;
+      if (readOnly || !reservationId || !patientId) return;
       setSaving(true);
       try {
         const record = zoneAssignmentsRef.current;
@@ -204,7 +210,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
         setSaving(false);
       }
     },
-    [reservationId, patientId, post, del, refreshMappings, showError, showSuccess]
+    [readOnly, reservationId, patientId, post, del, refreshMappings, showError, showSuccess]
   );
 
   const highlightedMapZoneIds = useMemo(() => {
@@ -269,6 +275,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
   }, [activeZone, zoneAssignments]);
 
   const handleZoneClick = zone => {
+    if (readOnly) return;
     setActiveZone(zone);
     setActiveServiceId(null);
     setDialogOpen(true);
@@ -306,7 +313,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
   };
 
   const handleEditAssignment = (assignment) => {
-    if (!assignment || saving) return;
+    if (readOnly || !assignment || saving) return;
     const zone = assignment.isCustomZone
       ? customZones.find(z => z.id === assignment.zoneId) ?? {
           id: assignment.zoneId,
@@ -323,6 +330,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
   };
 
   const handleAddCustomZone = label => {
+    if (readOnly) return;
     const id = nextCustomFaceZoneId(customZonesRef.current);
     const zone = createCustomFaceZone({ id, label });
     if (!zone) return;
@@ -330,6 +338,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
   };
 
   const handleUpdateCustomZoneLabel = (zone, label) => {
+    if (readOnly) return;
     const trimmed = label.trim();
     if (!trimmed) return;
     setCustomZones(prev =>
@@ -361,7 +370,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
   );
 
   const handleRemoveCustomZone = async zone => {
-    if (saving) return;
+    if (readOnly || saving) return;
     setSaving(true);
     try {
       await deleteZoneLinesFromServer(zone);
@@ -386,9 +395,12 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
 
   return (
     <Box sx={{ width: '100%' }}>
+      {readOnly ? <ViewOnlyBanner /> : null}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 560 }}>
-          Tap a zone on the face or add an additional zone below. Multiple services per face zone are supported.
+          {readOnly
+            ? 'Face mapping is view only for this paid appointment.'
+            : 'Tap a zone on the face or add an additional zone below. Multiple services per face zone are supported.'}
         </Typography>
         {saving ? (
           <Chip label="Saving…" size="small" color="primary" variant="outlined" />
@@ -438,12 +450,12 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
             display: 'block',
             pointerEvents: 'none',
             '& polygon': {
-              pointerEvents: saving ? 'none' : 'auto',
+              pointerEvents: readOnly || saving ? 'none' : 'auto',
               fill: 'rgba(255, 0, 0, 0)',
               stroke: 'transparent',
               strokeWidth: 2,
               transition: 'fill 0.2s ease, stroke 0.2s ease',
-              cursor: saving ? 'default' : 'pointer',
+              cursor: readOnly || saving ? 'default' : 'pointer',
               outline: 'none',
             },
             '& polygon:hover': {
@@ -466,7 +478,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
                 id={`zone-${zone.id}`}
                 data-assigned={assigned ? 'true' : 'false'}
                 points={zone.points}
-                onClick={() => !saving && handleZoneClick(zone)}
+                onClick={() => !readOnly && !saving && handleZoneClick(zone)}
                 role="button"
                 aria-label={`Zone ${zone.id}: ${zone.label}${assigned ? ', has treatment' : ''}`}
                 tabIndex={-1}
@@ -481,6 +493,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
         zoneServiceCounts={zoneServiceCounts}
         highlightedZoneIds={highlightedAdditionalZoneIds}
         disabled={saving}
+        readOnly={readOnly}
         onAddZone={handleAddCustomZone}
         onUpdateZoneLabel={handleUpdateCustomZoneLabel}
         onRemoveZone={handleRemoveCustomZone}
@@ -490,6 +503,7 @@ export default function InteractiveFaceMap({ reservationId, patientId, onAssignm
       <FaceMappingAssignmentsPanel
         assignments={assignmentList}
         disabled={saving}
+        readOnly={readOnly}
         onEditZone={handleEditAssignment}
         onRemoveService={handleUndoService}
       />

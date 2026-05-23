@@ -8,7 +8,7 @@ export const assistantCreateDefaultValues = {
   email: '',
   phone_country_code: DEFAULT_COUNTRY_CODE,
   phone: '',
-  branch_id: '',
+  branch_ids: [],
   password: '',
   role_ids: [],
 };
@@ -28,10 +28,10 @@ export function createAssistantSchema({ requirePassword = false } = {}) {
         const message = validatePhoneByCountry(this.parent?.phone_country_code, value);
         return message ? this.createError({ message }) : true;
       }),
-    branch_id: yup
-      .mixed()
-      .required('Select a branch')
-      .test('branch', 'Select a branch', v => v !== '' && v != null && !Number.isNaN(Number(v))),
+    branch_ids: yup
+      .array()
+      .of(yup.number())
+      .min(1, 'Select at least one branch'),
     password: requirePassword ? requiredUserPasswordYup() : optionalUserPasswordYup(),
     role_ids: yup
       .array()

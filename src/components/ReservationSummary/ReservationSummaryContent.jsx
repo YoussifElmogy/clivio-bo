@@ -23,10 +23,13 @@ import { formatAttachmentSecondaryLine } from '../../utils/timeFormat';
 import { parsePaginatedList } from '../../utils/parsePaginatedList';
 import {
   extractGeneralServiceIdFromSummary,
+  extractGeneralServiceIdsFromSummary,
   formatGeneralServicePrice,
   generalServicesListUrl,
   mapGeneralServiceRow,
 } from '../../payloads/generalServicePayload';
+import { isReservationInvoicePaid } from '../../utils/reservationInvoiceStatus';
+import ViewOnlyBanner from '../DermaMapping/ViewOnlyBanner';
 
 const VISIT_STATUS_OPTIONS = [
   { value: 'arrived', label: 'Arrived' },
@@ -79,14 +82,18 @@ export function ReservationSummarySkeleton() {
  *   dermaMode?: boolean,
  *   onSaveSuccess?: () => void,
  *   onPrescriptionSnapshotChange?: (snapshot: object) => void,
+ *   onSummaryLoaded?: (meta: { invoicePaid: boolean, discount: string }) => void,
+ *   readOnly?: boolean,
  * }} props
  */
 export default function ReservationSummaryContent({
   reservationId,
   patientId,
   dermaMode = false,
+  readOnly = false,
   onSaveSuccess,
   onPrescriptionSnapshotChange,
+  onSummaryLoaded,
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -96,6 +103,7 @@ export default function ReservationSummaryContent({
   const [summaryData, setSummaryData] = useState(null);
   const [statusValue, setStatusValue] = useState('');
   const [generalServiceId, setGeneralServiceId] = useState('');
+  const [summaryGeneralServiceIds, setSummaryGeneralServiceIds] = useState([]);
   const [generalServices, setGeneralServices] = useState([]);
   const [generalServicesLoading, setGeneralServicesLoading] = useState(true);
   const [discount, setDiscount] = useState('');
@@ -136,7 +144,13 @@ export default function ReservationSummaryContent({
               ? ''
               : String(rawDiscount);
           setDiscount(parsedDiscount);
-          setGeneralServiceId(extractGeneralServiceIdFromSummary(normalized));
+          const serviceIds = extractGeneralServiceIdsFromSummary(normalized);
+          setSummaryGeneralServiceIds(serviceIds);
+          setGeneralServiceId(serviceIds.length ? String(serviceIds[0]) : '');
+          onSummaryLoaded?.({
+            invoicePaid: isReservationInvoicePaid(normalized),
+            discount: parsedDiscount,
+          });
         }
       } catch (err) {
         if (!cancelled) {
@@ -157,6 +171,9 @@ export default function ReservationSummaryContent({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reservationId, patientId]);
+
+  const invoicePaid = useMemo(() => isReservationInvoicePaid(summaryData), [summaryData]);
+  const viewOnly = readOnly || invoicePaid;
 
   const handleOpenAttachment = att => {
     const url = attachmentViewUrl(att);
@@ -228,11 +245,15 @@ export default function ReservationSummaryContent({
 
   useEffect(() => {
     if (!onPrescriptionSnapshotChange || loading) return;
+    const selectedId =
+      generalServiceId !== '' && !Number.isNaN(Number(generalServiceId))
+        ? Number(generalServiceId)
+        : null;
+
     onPrescriptionSnapshotChange({
-      general_service_id:
-        generalServiceId !== '' && !Number.isNaN(Number(generalServiceId))
-          ? Number(generalServiceId)
-          : null,
+      general_service_id: selectedId,
+      general_service_ids:
+        selectedId != null ? [selectedId] : dermaMode ? [] : summaryGeneralServiceIds,
       general_service: selectedGeneralService,
       visit_type: selectedGeneralService?.name ?? '',
       medicines: medicineRows.map(row => ({
@@ -248,6 +269,7 @@ export default function ReservationSummaryContent({
     loading,
     summaryData,
     generalServiceId,
+    summaryGeneralServiceIds,
     selectedGeneralService,
     medicineRows,
     onPrescriptionSnapshotChange,
@@ -301,6 +323,7 @@ export default function ReservationSummaryContent({
   }, []);
 
   const handleSubmitPrescription = async () => {
+    if (viewOnly) return;
     const doctorId = Number(user?.id);
     const patientValue = summaryData?.patient?.id ?? patientId;
     const parsedPatientId = Number(patientValue);
@@ -361,6 +384,7 @@ export default function ReservationSummaryContent({
   };
 
   const handleAddMedicineRow = () => {
+    if (viewOnly) return;
     const nameFromSelection =
       typeof selectedMedicine === 'string'
         ? selectedMedicine.trim()
@@ -400,6 +424,7 @@ export default function ReservationSummaryContent({
 
   return (
     <Stack spacing={2.5}>
+      {viewOnly ? <ViewOnlyBanner message="Appointment summary is view only." /> : null}
       <Paper
         variant="outlined"
         sx={{
@@ -444,16 +469,18 @@ export default function ReservationSummaryContent({
                     >
                       View
                     </Button>
-                    <Button
-                      size="small"
-                      color="error"
-                      variant="outlined"
-                      disabled={deletingAttachmentId === (att.id ?? att.uuid)}
-                      onClick={() => handleDeleteAttachment(att.id ?? att.uuid)}
-                      sx={{ borderRadius: 2 }}
-                    >
-                      {deletingAttachmentId === (att.id ?? att.uuid) ? 'Deleting...' : 'Delete'}
-                    </Button>
+                    {!viewOnly ? (
+                      <Button
+                        size="small"
+                        color="error"
+                        variant="outlined"
+                        disabled={deletingAttachmentId === (att.id ?? att.uuid)}
+                        onClick={() => handleDeleteAttachment(att.id ?? att.uuid)}
+                        sx={{ borderRadius: 2 }}
+                      >
+                        {deletingAttachmentId === (att.id ?? att.uuid) ? 'Deleting...' : 'Delete'}
+                      </Button>
+                    ) : null}
                   </Stack>
                 }
               >
@@ -478,6 +505,7 @@ export default function ReservationSummaryContent({
         <Stack spacing={2}>
           <Autocomplete
             freeSolo
+            disabled={viewOnly}
             options={medicineOptions}
             value={selectedMedicine}
             onChange={(_, next) => setSelectedMedicine(next)}
@@ -499,10 +527,13 @@ export default function ReservationSummaryContent({
             placeholder="Example: twice daily after meals"
             value={medicineDescription}
             onChange={e => setMedicineDescription(e.target.value)}
+            disabled={viewOnly}
           />
-          <Button variant="outlined" onClick={handleAddMedicineRow} sx={{ alignSelf: 'flex-start', borderRadius: 2 }}>
-            Add medicine
-          </Button>
+          {!viewOnly ? (
+            <Button variant="outlined" onClick={handleAddMedicineRow} sx={{ alignSelf: 'flex-start', borderRadius: 2 }}>
+              Add medicine
+            </Button>
+          ) : null}
           <Stack spacing={1}>
             {medicineRows.length ? (
               medicineRows.map(item => (
@@ -519,13 +550,15 @@ export default function ReservationSummaryContent({
                     <Typography variant="body2" sx={{ fontWeight: 700 }}>
                       {item.name}
                     </Typography>
-                    <Button
-                      size="small"
-                      color="error"
-                      onClick={() => setMedicineRows(prev => prev.filter(row => row.id !== item.id))}
-                    >
-                      Remove
-                    </Button>
+                    {!viewOnly ? (
+                      <Button
+                        size="small"
+                        color="error"
+                        onClick={() => setMedicineRows(prev => prev.filter(row => row.id !== item.id))}
+                      >
+                        Remove
+                      </Button>
+                    ) : null}
                   </Stack>
                   <Typography variant="body2" color="text.secondary">
                     {item.description}
@@ -549,16 +582,22 @@ export default function ReservationSummaryContent({
         >
           <FormControl fullWidth size="small">
             <FormLabel sx={{ mb: 0.75, color: 'text.secondary', fontSize: '0.875rem', fontWeight: 600 }}>
-              Type
+              {dermaMode ? 'Type (optional)' : 'Type'}
             </FormLabel>
             <Select
               value={generalServiceId}
               onChange={e => setGeneralServiceId(e.target.value)}
-              disabled={generalServicesLoading || generalServices.length === 0}
+              disabled={viewOnly || generalServicesLoading || generalServices.length === 0}
               displayEmpty
             >
-              <MenuItem value="" disabled>
-                <em>{generalServicesLoading ? 'Loading services…' : 'Select service'}</em>
+              <MenuItem value="" disabled={!dermaMode}>
+                <em>
+                  {generalServicesLoading
+                    ? 'Loading services…'
+                    : dermaMode
+                      ? 'No visit type'
+                      : 'Select service'}
+                </em>
               </MenuItem>
               {generalServices.map(service => {
                 const id = String(service.id);

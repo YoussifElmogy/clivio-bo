@@ -158,7 +158,7 @@ export default function AssistantEditPage() {
         description={
           assistantName
             ? `Update ${assistantName}.`
-            : 'Update profile, branch, and permission roles.'
+            : 'Update profile, branches, and permission roles.'
         }
         headerAction={
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>

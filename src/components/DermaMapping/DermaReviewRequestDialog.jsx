@@ -2,115 +2,159 @@ import React, { useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
+import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import Divider from '@mui/material/Divider';
+import InputAdornment from '@mui/material/InputAdornment';
 import Paper from '@mui/material/Paper';
+import TextField from '@mui/material/TextField';
 import Stack from '@mui/material/Stack';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
-import { isMapBodyZoneId } from '../../constants/customBodyZones';
-import { isMapFaceZoneId } from '../../constants/customFaceZones';
-import { formatDermaZoneProductChipLabel } from '../../schemas/productSchema';
+import { reservationPricingSourceLabel } from '../../payloads/reservationPricingPayload';
 
 function formatMoney(amount, currency = 'EGP') {
-  if (amount == null || !Number.isFinite(Number(amount))) return '—';
-  return `${Number(amount).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${currency}`;
+  if (amount == null || amount === '') return '—';
+  const n = Number(amount);
+  if (!Number.isFinite(n)) {
+    const s = String(amount).trim();
+    return s ? `${s} ${currency}` : '—';
+  }
+  return `${n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${currency}`;
 }
 
-function MappingSection({ title, zones, emptyMessage, isMapZoneId = isMapFaceZoneId }) {
-  if (!zones?.length) {
+function PricingLineItemsSection({
+  items,
+  loading,
+  error,
+  grandTotal,
+  currency,
+  discount = '',
+  onDiscountChange,
+  submitting = false,
+  readOnly = false,
+}) {
+  const theme = useTheme();
+
+  if (loading) {
     return (
-      <Box>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
-          {title}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {emptyMessage}
-        </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+        <CircularProgress size={28} />
       </Box>
     );
   }
 
+  if (error) {
+    return (
+      <Typography variant="body2" color="error">
+        {error}
+      </Typography>
+    );
+  }
+
+  if (!items?.length) {
+    return (
+      <Typography variant="body2" color="text.secondary">
+        No priced items yet. Save face/body mapping, then open review again.
+      </Typography>
+    );
+  }
+
   return (
-    <Box>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-          {title}
-        </Typography>
-        <Chip label={`${zones.length} zone${zones.length === 1 ? '' : 's'}`} size="small" variant="outlined" />
-      </Stack>
-      <Stack spacing={1.25}>
-        {zones.map(zone => {
-          const serviceBlocks =
-            Array.isArray(zone.services) && zone.services.length > 0
-              ? zone.services
-              : zone.service
-                ? [{ service: zone.service, lines: zone.lines ?? [] }]
-                : [];
+    <Box sx={{ overflowX: 'auto' }}>
+      <Table size="small" sx={{ minWidth: 520 }}>
+        <TableHead>
+          <TableRow>
+            <TableCell sx={{ fontWeight: 700 }}>Source</TableCell>
+            <TableCell sx={{ fontWeight: 700 }}>Zone / service</TableCell>
+            <TableCell sx={{ fontWeight: 700 }}>Item</TableCell>
+            <TableCell sx={{ fontWeight: 700 }}>Detail</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 700 }}>
+              Unit
+            </TableCell>
+            <TableCell align="right" sx={{ fontWeight: 700 }}>
+              Total
+            </TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {items.map(row => {
+            const zoneService = [row.zone_label, row.service_name].filter(Boolean).join(' · ') || '—';
+            return (
+              <TableRow key={row.id} hover>
+                <TableCell>
+                  <Chip
+                    label={reservationPricingSourceLabel(row.source)}
+                    size="small"
+                    variant="outlined"
+                    sx={{ height: 22, fontSize: '0.7rem' }}
+                  />
+                </TableCell>
+                <TableCell sx={{ maxWidth: 140 }}>{zoneService}</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>{row.name}</TableCell>
+                <TableCell color="text.secondary">{row.detail ?? '—'}</TableCell>
+                <TableCell align="right">{formatMoney(row.unit_price ?? row.unit_price_number, currency)}</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700 }}>
+                  {formatMoney(row.total ?? row.total_number, currency)}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
 
-          const zoneKey = zone.zone_id ?? zone.zone_label ?? 'zone';
+      <TextField
+        label="Discount (optional)"
+        type="number"
+        size="small"
+        value={discount}
+        onChange={e => onDiscountChange?.(e.target.value)}
+        disabled={submitting || readOnly}
+        inputProps={{ min: 0, step: '0.01' }}
+        InputProps={{
+          readOnly: readOnly || undefined,
+          endAdornment: <InputAdornment position="end">{currency}</InputAdornment>,
+        }}
+        sx={{ mt: 3, maxWidth: 280, display: 'block' }}
+      />
 
-          return (
-            <Paper key={zoneKey} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
-              <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
-                {isMapZoneId(zone.zone_id)
-                  ? `Zone ${zone.zone_id} — ${zone.zone_label}`
-                  : zone.zone_label || 'Additional zone'}
-              </Typography>
-              <Stack spacing={1.25}>
-                {serviceBlocks.map((block, blockIdx) => {
-                  const svc = block.service ?? {};
-                  const lines = block.lines ?? [];
-                  return (
-                    <Box key={`${zoneKey}-${svc.id ?? block.id ?? blockIdx}`}>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
-                        {svc.name ?? `Service #${block.id ?? svc.id}`}
-                        {svc.category_display ? ` · ${svc.category_display}` : ''}
-                      </Typography>
-                      <Stack direction="row" flexWrap="wrap" gap={0.5} useFlexGap>
-                        {lines.map((line, idx) => (
-                          <Chip
-                            key={`${line.line_type}-${line.product_id ?? line.machine_id ?? idx}`}
-                            label={lineToChipLabel(line)}
-                            size="small"
-                            variant="outlined"
-                          />
-                        ))}
-                      </Stack>
-                    </Box>
-                  );
-                })}
-              </Stack>
-            </Paper>
-          );
-        })}
-      </Stack>
+      <Paper
+        variant="outlined"
+        sx={{
+          mt: 2,
+          p: 2.5,
+          borderRadius: 2,
+          bgcolor: alpha(theme.palette.success.main, 0.06),
+          borderColor: alpha(theme.palette.success.main, 0.35),
+        }}
+      >
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          flexWrap="wrap"
+          columnGap={4}
+          rowGap={1.5}
+          spacing={1}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            Grand total
+          </Typography>
+          <Typography variant="h5" sx={{ fontWeight: 800, color: 'success.dark' }}>
+            {formatMoney(grandTotal, currency)}
+          </Typography>
+        </Stack>
+      </Paper>
     </Box>
   );
-}
-
-function lineToChipLabel(line) {
-  if (!line) return 'Item';
-  if (line.line_type === 'machine') {
-    return formatDermaZoneProductChipLabel({
-      catalogKind: 'machine',
-      name: line.machine_name,
-      type: line.machine_type,
-      minutes: line.minutes,
-      pulses: line.pulses,
-    });
-  }
-  return formatDermaZoneProductChipLabel({
-    catalogKind: 'product',
-    name: line.product_name,
-    type: line.product_type,
-    quantity: line.quantity,
-    volume_ml: line.volume_ml,
-    machineName: line.machine_name,
-  });
 }
 
 export default function DermaReviewRequestDialog({
@@ -119,15 +163,19 @@ export default function DermaReviewRequestDialog({
   patientName,
   reservationId,
   reviewPayload,
-  totalPrice,
+  pricingItems = [],
+  pricingLoading = false,
+  pricingError = null,
+  grandTotal = null,
   currency = 'EGP',
+  discount = '',
+  onDiscountChange,
   submitting = false,
   onSubmit,
+  readOnly = false,
 }) {
   const theme = useTheme();
 
-  const faceZones = reviewPayload?.face_mapping?.zones ?? [];
-  const bodyZones = reviewPayload?.body_mapping?.zones ?? [];
   const prescription = reviewPayload?.prescription ?? {};
   const visitTypeLabel =
     reviewPayload?.general_service?.name ??
@@ -141,7 +189,7 @@ export default function DermaReviewRequestDialog({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
-        Review request
+        {readOnly ? 'View review request' : 'Review request'}
         <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 400, mt: 0.5 }}>
           {patientName ? `${patientName} · ` : ''}
           Appointment #{reservationId}
@@ -150,23 +198,6 @@ export default function DermaReviewRequestDialog({
 
       <DialogContent dividers sx={{ px: { xs: 2, sm: 3 } }}>
         <Stack spacing={3}>
-          <MappingSection
-            title="Face mapping"
-            zones={faceZones}
-            emptyMessage="No face zones selected yet."
-          />
-
-          <Divider />
-
-          <MappingSection
-            title="Body mapping"
-            zones={bodyZones}
-            emptyMessage="No body zones selected yet."
-            isMapZoneId={isMapBodyZoneId}
-          />
-
-          <Divider />
-
           <Box>
             <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
               Prescription
@@ -220,29 +251,22 @@ export default function DermaReviewRequestDialog({
 
           <Divider />
 
-          <Paper
-            variant="outlined"
-            sx={{
-              p: 2,
-              borderRadius: 2,
-              bgcolor: alpha(theme.palette.success.main, 0.06),
-              borderColor: alpha(theme.palette.success.main, 0.35),
-            }}
-          >
-            <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Total price
-              </Typography>
-              <Typography variant="h5" sx={{ fontWeight: 800, color: 'success.dark' }}>
-                {formatMoney(totalPrice, currency)}
-              </Typography>
-            </Stack>
-            {totalPrice == null ? (
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                Pricing will be calculated when you submit the review request.
-              </Typography>
-            ) : null}
-          </Paper>
+          <Box>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
+              Pricing
+            </Typography>
+            <PricingLineItemsSection
+              items={pricingItems}
+              loading={pricingLoading}
+              error={pricingError}
+              grandTotal={grandTotal}
+              currency={currency}
+              discount={discount}
+              onDiscountChange={onDiscountChange}
+              submitting={submitting}
+              readOnly={readOnly}
+            />
+          </Box>
         </Stack>
       </DialogContent>
 
@@ -250,14 +274,16 @@ export default function DermaReviewRequestDialog({
         <Button onClick={onClose} disabled={submitting} sx={{ borderRadius: 2 }}>
           Close
         </Button>
-        <Button
-          variant="contained"
-          onClick={onSubmit}
-          disabled={submitting}
-          sx={{ borderRadius: 2, minWidth: 160 }}
-        >
-          {submitting ? 'Submitting…' : 'Submit review request'}
-        </Button>
+        {!readOnly ? (
+          <Button
+            variant="contained"
+            onClick={onSubmit}
+            disabled={submitting}
+            sx={{ borderRadius: 2, minWidth: 160 }}
+          >
+            {submitting ? 'Submitting…' : 'Submit review request'}
+          </Button>
+        ) : null}
       </DialogActions>
     </Dialog>
   );
