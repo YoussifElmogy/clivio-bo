@@ -395,12 +395,10 @@ export default function InteractiveFaceMap({
 
   return (
     <Box sx={{ width: '100%' }}>
-      {readOnly ? <ViewOnlyBanner /> : null}
+      {readOnly ? <ViewOnlyBanner message="Face mapping is view only." /> : null}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 560 }}>
-          {readOnly
-            ? 'Face mapping is view only for this paid appointment.'
-            : 'Tap a zone on the face or add an additional zone below. Multiple services per face zone are supported.'}
+          Tap a zone on the face or add an additional zone below. Multiple services per face zone are supported.
         </Typography>
         {saving ? (
           <Chip label="Saving…" size="small" color="primary" variant="outlined" />

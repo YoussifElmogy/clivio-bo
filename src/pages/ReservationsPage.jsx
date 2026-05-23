@@ -18,6 +18,9 @@ import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs from 'dayjs';
+import FilterAltOutlined from '@mui/icons-material/FilterAltOutlined';
 import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
 import PaginatedTable from '../components/PaginatedTable/PaginatedTable';
@@ -47,6 +50,12 @@ import {
 } from '../utils/reservationInvoiceStatus';
 
 const API_LIST = '/reservations';
+
+const VISIT_DATE_PRESETS = [
+  { id: 'today', label: 'Today', offset: 0 },
+  { id: 'tomorrow', label: 'Tomorrow', offset: 1 },
+  { id: 'yesterday', label: 'Yesterday', offset: -1 },
+];
 
 function todayIsoDate() {
   const now = new Date();
@@ -351,6 +360,18 @@ export default function ReservationsPage() {
     setPage(0);
   }, [defaultVisitDate]);
 
+  const applyVisitDatePreset = useCallback(
+    offsetDays => {
+      const next = dayjs().add(offsetDays, 'day').format('YYYY-MM-DD');
+      setDateInput(next);
+      setAppliedDate(next);
+      setPage(0);
+    },
+    []
+  );
+
+  const visitDateValue = dateInput ? dayjs(dateInput) : null;
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -506,65 +527,98 @@ export default function ReservationsPage() {
       description="View and edit reservations. Search by patient name or mobile; filter by status or visit date."
       paperSx={{ p: { xs: 2, sm: 3 } }}
     >
-      <Stack spacing={2} sx={{ mb: 2 }}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={1.5}
-          alignItems={{ xs: 'stretch', md: 'flex-end' }}
-          flexWrap="wrap"
-          useFlexGap
-        >
-          <TextField
-            label="Search"
-            size="small"
-            value={searchInput}
-            onChange={e => setSearchInput(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                applyFilters();
-              }
-            }}
-            placeholder="Patient name or mobile"
-            sx={{ flex: { md: '1 1 220px' }, minWidth: { md: 200 } }}
-          />
-          <FormControl size="small" sx={{ minWidth: { xs: '100%', md: 160 } }}>
-            <InputLabel id="res-filter-status-label">Status</InputLabel>
-            <Select
-              labelId="res-filter-status-label"
-              label="Status"
-              value={statusInput}
-              onChange={e => setStatusInput(e.target.value)}
-            >
-              <MenuItem value="">
-                <em>All</em>
-              </MenuItem>
-              {RESERVATION_STATUS_OPTIONS.map(o => (
-                <MenuItem key={o.value} value={o.value}>
-                  {o.label}
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 2, sm: 2.5 },
+          mb: 2,
+          borderRadius: 3,
+          border: '1px solid',
+          borderColor: 'divider',
+          bgcolor: theme => (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'grey.50'),
+        }}
+      >
+        <Stack spacing={1}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <FilterAltOutlined color="primary" fontSize="small" />
+            <Box component="span" sx={{ fontWeight: 700, fontSize: '0.95rem' }}>
+              Filters
+            </Box>
+          </Stack>
+
+          <Stack direction="row" flexWrap="wrap" spacing={1} useFlexGap>
+            {VISIT_DATE_PRESETS.map(preset => (
+              <Button
+                key={preset.id}
+                size="small"
+                variant="outlined"
+                disabled={loading}
+                onClick={() => applyVisitDatePreset(preset.offset)}
+                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, mb: 2 }}
+              >
+                {preset.label}
+              </Button>
+            ))}
+          </Stack>
+
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={1}
+            alignItems={{ xs: 'stretch', md: 'flex-end' }}
+            flexWrap="wrap"
+            useFlexGap
+          >
+            <TextField
+              label="Search"
+              size="small"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  applyFilters();
+                }
+              }}
+              placeholder="Patient name or mobile"
+              sx={{ flex: { md: '1 1 220px' }, minWidth: { md: 200 } }}
+            />
+            <FormControl size="small" sx={{ minWidth: { xs: '100%', md: 160 } }}>
+              <InputLabel id="res-filter-status-label">Status</InputLabel>
+              <Select
+                labelId="res-filter-status-label"
+                label="Status"
+                value={statusInput}
+                onChange={e => setStatusInput(e.target.value)}
+              >
+                <MenuItem value="">
+                  <em>All</em>
                 </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <TextField
-            label="Visit date"
-            type="date"
-            size="small"
-            value={dateInput}
-            onChange={e => setDateInput(e.target.value)}
-            slotProps={{ inputLabel: { shrink: true } }}
-            sx={{ minWidth: { xs: '100%', md: 170 } }}
-          />
-          <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
-            <Button variant="contained" onClick={applyFilters} sx={{ borderRadius: 2 }}>
-              Apply
-            </Button>
-            <Button variant="outlined" onClick={clearFilters} sx={{ borderRadius: 2 }}>
-              Clear
-            </Button>
+                {RESERVATION_STATUS_OPTIONS.map(o => (
+                  <MenuItem key={o.value} value={o.value}>
+                    {o.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <DatePicker
+              label="Visit date"
+              value={visitDateValue?.isValid() ? visitDateValue : null}
+              onChange={v => setDateInput(v?.isValid() ? v.format('YYYY-MM-DD') : '')}
+              disabled={loading}
+              slotProps={{ textField: { size: 'small', fullWidth: true } }}
+              sx={{ minWidth: { xs: '100%', md: 180 } }}
+            />
+            <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+              <Button variant="contained" onClick={applyFilters} sx={{ borderRadius: 2 }}>
+                Apply
+              </Button>
+              <Button variant="outlined" onClick={clearFilters} sx={{ borderRadius: 2 }}>
+                Clear
+              </Button>
+            </Stack>
           </Stack>
         </Stack>
-      </Stack>
+      </Paper>
 
       <PaginatedTable
         columns={columns}

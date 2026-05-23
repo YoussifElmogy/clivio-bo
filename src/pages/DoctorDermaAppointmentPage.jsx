@@ -20,7 +20,7 @@ import { useToast } from '../context/ToastContext';
 import { isDermaClinicMode } from '../constants/clinicMode';
 import { DERMA_APPOINTMENT_TABS } from '../constants/dermaViewMode';
 import { useAuth } from '../context/AuthContext';
-import { isDoctorUser } from '../utils/authRoles';
+import { isDoctorUser, isSuperAdminUser } from '../utils/authRoles';
 import { buildDermaReviewRequestPayload } from '../payloads/dermaReviewRequestPayload';
 import {
   buildReservationPrescriptionPayload,
@@ -49,6 +49,8 @@ export default function DoctorDermaAppointmentPage() {
   const { user } = useAuth();
   const { get, post } = useApi();
   const { showError, showSuccess } = useToast();
+  const isDoctor = isDoctorUser(user);
+  const isSuperAdmin = isSuperAdminUser(user);
   const [tab, setTab] = useState(0);
   const [patientName, setPatientName] = useState('');
   const [faceAssignments, setFaceAssignments] = useState({});
@@ -63,6 +65,11 @@ export default function DoctorDermaAppointmentPage() {
   const [invoicePaid, setInvoicePaid] = useState(false);
 
   const patientId = useMemo(() => searchParams.get('patient_id')?.trim() || '', [searchParams]);
+  const fromPatientProfile = searchParams.get('from') === 'patient-profile';
+  const backPath =
+    fromPatientProfile && patientId
+      ? `/patients/${encodeURIComponent(patientId)}/profile`
+      : '/appointments';
 
   const handleSummaryLoaded = useCallback(({ invoicePaid: paid, discount }) => {
     setInvoicePaid(!!paid);
@@ -71,7 +78,8 @@ export default function DoctorDermaAppointmentPage() {
     }
   }, []);
 
-  const reviewViewOnly = invoicePaid;
+  const reviewViewOnly = invoicePaid || isSuperAdmin;
+  const appointmentViewOnly = reviewViewOnly;
 
   const visibleTabs = useMemo(() => {
     const tabs = [];
@@ -197,7 +205,8 @@ export default function DoctorDermaAppointmentPage() {
   };
 
   useEffect(() => {
-    if (!isDoctorUser(user) || !isDermaClinicMode(user)) {
+    const canAccess = (isDoctor || isSuperAdmin) && isDermaClinicMode(user);
+    if (!canAccess) {
       navigate('/appointments', { replace: true });
       return;
     }
@@ -226,24 +235,28 @@ export default function DoctorDermaAppointmentPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reservationId, patientId, navigate, showError, user]);
+  }, [reservationId, patientId, navigate, showError, user, isDoctor, isSuperAdmin]);
 
   return (
     <FormPageShell
-      title="Derma appointment"
+      title={isSuperAdmin ? 'View appointment' : 'Derma appointment'}
       description={
         patientName
-          ? `Treatment mapping for ${patientName}.`
-          : 'Map face and body zones for this visit.'
+          ? isSuperAdmin
+            ? `Read-only view for ${patientName}.`
+            : `Treatment mapping for ${patientName}.`
+          : isSuperAdmin
+            ? 'Read-only appointment summary and mapping.'
+            : 'Map face and body zones for this visit.'
       }
       headerAction={
         <Button
           variant="outlined"
           startIcon={<ArrowBackRounded />}
-          onClick={() => navigate('/appointments')}
+          onClick={() => navigate(backPath)}
           sx={{ borderRadius: 2 }}
         >
-          Back to appointments
+          {fromPatientProfile ? 'Back to patient profile' : 'Back to appointments'}
         </Button>
       }
       paperSx={{ p: { xs: 2, sm: 3 }, pb: { xs: 10, sm: 11 } }}
@@ -284,7 +297,7 @@ export default function DoctorDermaAppointmentPage() {
                 reservationId={reservationId}
                 patientId={patientId}
                 dermaMode
-                readOnly={invoicePaid}
+                readOnly={appointmentViewOnly}
                 onPrescriptionSnapshotChange={handlePrescriptionSnapshotChange}
                 onSummaryLoaded={handleSummaryLoaded}
               />
@@ -297,7 +310,7 @@ export default function DoctorDermaAppointmentPage() {
                 reservationId={reservationId}
                 patientId={patientId}
                 onAssignmentsChange={handleFaceAssignmentsChange}
-                readOnly={invoicePaid}
+                readOnly={appointmentViewOnly}
               />
             </Box>
           ) : null}
@@ -308,7 +321,7 @@ export default function DoctorDermaAppointmentPage() {
                 reservationId={reservationId}
                 patientId={patientId}
                 onAssignmentsChange={handleBodyAssignmentsChange}
-                readOnly={invoicePaid}
+                readOnly={appointmentViewOnly}
               />
             </Box>
           ) : null}

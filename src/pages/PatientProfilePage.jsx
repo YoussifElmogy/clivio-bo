@@ -112,7 +112,7 @@ export default function PatientProfilePage() {
   const { showError, showInfo } = useToast();
   const { can } = usePermissions();
   const isDoctor = isDoctorUser(user);
-  const blockAppointmentRowNavigation = isSuperAdminUser(user) || isAssistantUser(user);
+  const blockAppointmentRowNavigation = isAssistantUser(user);
   const canEditAppointment = can(PERM.EDIT_APPOINTMENT);
   const canViewAppointment = can(PERM.VIEW_APPOINTMENT);
 
@@ -254,6 +254,16 @@ export default function PatientProfilePage() {
             patientId: pid,
             user,
           })
+        );
+        return;
+      }
+      if (isSuperAdminUser(user)) {
+        navigate(
+          `${getDoctorAppointmentViewPath({
+            reservationId: rid,
+            patientId: pid,
+            user,
+          })}&from=patient-profile`
         );
         return;
       }
@@ -530,7 +540,9 @@ export default function PatientProfilePage() {
               ? 'Appointments are listed for reference only. Use Appointments in the sidebar to open or change a booking.'
               : isDoctor
                 ? 'Tap a row to open the appointment (summary or derma mapping).'
-                : canEditAppointment
+                : isSuperAdminUser(user)
+                  ? 'Tap a row to view the appointment summary, face map, and body map.'
+                  : canEditAppointment
                   ? 'Tap a row to edit the appointment.'
                   : canViewAppointment
                     ? 'Tap a row to view appointment details.'
