@@ -16,10 +16,16 @@ export function normalizeInvoicesList(data) {
   return { rows: parsed.rows, total, mode };
 }
 
+export const INVOICES_BRANCH_FILTER_ALL = 'all';
+
 export function buildInvoicesListQuery({ branchId, page, pageSize }) {
   const params = new URLSearchParams();
-  if (branchId != null && branchId !== '') {
-    params.set('branch_id', String(branchId));
+  const branchKey =
+    branchId != null && branchId !== '' && String(branchId) !== INVOICES_BRANCH_FILTER_ALL
+      ? String(branchId)
+      : '';
+  if (branchKey) {
+    params.set('branch_id', branchKey);
   }
   params.set('page', String(page));
   params.set('page_size', String(pageSize));

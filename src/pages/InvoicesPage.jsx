@@ -24,10 +24,12 @@ import CustomLoader from '../components/CustomLoader/CustomLoader';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { canPayInvoices } from '../utils/invoicesAccess';
+import { isSuperAdminUser } from '../utils/authRoles';
 import { getUserBranchIds } from '../utils/userBranchIds';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import {
   buildInvoicesListQuery,
+  INVOICES_BRANCH_FILTER_ALL,
   formatInvoiceMoney,
   invoicePayUrl,
   invoiceStatusLabel,
@@ -61,8 +63,10 @@ export default function InvoicesPage() {
   const { get, post } = useApi();
   const { showError, showSuccess, showInfo } = useToast();
 
+  const isSuperAdmin = useMemo(() => isSuperAdminUser(user), [user]);
   const userBranchIds = useMemo(() => getUserBranchIds(user), [user]);
   const canPay = useMemo(() => canPayInvoices(user), [user]);
+  const canUseInvoices = isSuperAdmin || userBranchIds.length > 0;
 
   const [branchOptions, setBranchOptions] = useState([]);
   const [branchFilter, setBranchFilter] = useState('');
@@ -78,7 +82,7 @@ export default function InvoicesPage() {
   const [paySubmitting, setPaySubmitting] = useState(false);
 
   useEffect(() => {
-    if (!userBranchIds.length) {
+    if (!canUseInvoices) {
       setBranchOptions([]);
       setBranchFilter('');
       setBranchesLoading(false);
@@ -92,18 +96,28 @@ export default function InvoicesPage() {
         const data = await get('/branches?page=1&page_size=100');
         if (cancelled) return;
         const { rows: allBranches } = parsePaginatedList(data, { listKeys: ['branches'] });
-        const allowed = allBranches.filter(b => userBranchIds.includes(Number(b.id)));
+        const allowed = isSuperAdmin
+          ? allBranches
+          : allBranches.filter(b => userBranchIds.includes(Number(b.id)));
         setBranchOptions(allowed);
         setBranchFilter(prev => {
+          if (isSuperAdmin) {
+            if (prev === INVOICES_BRANCH_FILTER_ALL) return prev;
+            if (prev !== '' && allowed.some(b => String(b.id) === String(prev))) return prev;
+            return INVOICES_BRANCH_FILTER_ALL;
+          }
           if (prev !== '' && userBranchIds.includes(Number(prev))) return prev;
           return allowed.length ? String(allowed[0].id) : String(userBranchIds[0]);
         });
       } catch {
         if (!cancelled) {
-          setBranchOptions(
-            userBranchIds.map(id => ({ id, name: `Branch #${id}` }))
-          );
-          setBranchFilter(String(userBranchIds[0]));
+          if (isSuperAdmin) {
+            setBranchOptions([]);
+            setBranchFilter(INVOICES_BRANCH_FILTER_ALL);
+          } else {
+            setBranchOptions(userBranchIds.map(id => ({ id, name: `Branch #${id}` })));
+            setBranchFilter(String(userBranchIds[0]));
+          }
         }
       } finally {
         if (!cancelled) setBranchesLoading(false);
@@ -114,10 +128,10 @@ export default function InvoicesPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userBranchIds.join(',')]);
+  }, [canUseInvoices, isSuperAdmin, userBranchIds.join(',')]);
 
   useEffect(() => {
-    if (!userBranchIds.length || branchFilter === '') {
+    if (!canUseInvoices || branchFilter === '') {
       setLoading(false);
       setRows([]);
       setTotalCount(0);
@@ -159,7 +173,7 @@ export default function InvoicesPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchFilter, page, rowsPerPage, listVersion, userBranchIds.length]);
+  }, [branchFilter, page, rowsPerPage, listVersion, canUseInvoices]);
 
   const handleBranchFilterChange = useCallback(value => {
     setBranchFilter(value);
@@ -290,7 +304,7 @@ export default function InvoicesPage() {
     return '';
   }, []);
 
-  if (!userBranchIds.length) {
+  if (!canUseInvoices) {
     return (
       <FormPageShell title="Invoices" paperSx={{ p: { xs: 2, sm: 3 } }}>
         <Typography variant="body2" color="text.secondary">
@@ -305,7 +319,11 @@ export default function InvoicesPage() {
       <CustomLoader active={paySubmitting} />
       <FormPageShell
         title={`Invoices (${count})`}
-        description="Filter by branch, view invoice PDFs, and mark pending invoices as paid."
+        description={
+          isSuperAdmin
+            ? 'View all invoices or filter by branch. Open PDFs and mark pending invoices as paid.'
+            : 'Filter by branch, view invoice PDFs, and mark pending invoices as paid.'
+        }
         paperSx={{ p: { xs: 2, sm: 3 } }}
       >
         <Stack
@@ -322,12 +340,15 @@ export default function InvoicesPage() {
               value={branchFilter}
               onChange={e => handleBranchFilterChange(e.target.value)}
             >
+              {isSuperAdmin ? (
+                <MenuItem value={INVOICES_BRANCH_FILTER_ALL}>All branches</MenuItem>
+              ) : null}
               {branchOptions.map(b => (
                 <MenuItem key={b.id} value={String(b.id)}>
                   {b.name?.trim() || `Branch #${b.id}`}
                 </MenuItem>
               ))}
-              {branchOptions.length === 0
+              {!isSuperAdmin && branchOptions.length === 0
                 ? userBranchIds.map(id => (
                     <MenuItem key={id} value={String(id)}>
                       Branch #{id}
@@ -344,7 +365,11 @@ export default function InvoicesPage() {
           loading={loading || branchesLoading}
           skeletonRows={rowsPerPage}
           emptyMessage={
-            branchFilter ? 'No invoices for this branch.' : 'Select a branch to load invoices.'
+            branchFilter === INVOICES_BRANCH_FILTER_ALL
+              ? 'No invoices found.'
+              : branchFilter
+                ? 'No invoices for this branch.'
+                : 'Select a branch to load invoices.'
           }
           page={page}
           rowsPerPage={rowsPerPage}
