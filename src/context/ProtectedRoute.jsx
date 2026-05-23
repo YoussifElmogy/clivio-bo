@@ -5,7 +5,7 @@ import { useAuth } from './AuthContext';
 import { useLocation, Navigate } from 'react-router-dom';
 import { REQUIRED_PASSWORD_CHANGE_PATH } from '../constants/authRoutes';
 import usePermissions from '../hooks/usePermissions';
-import { isDoctorUser } from '../utils/authRoles';
+import { isDoctorUser, isSuperAdminUser } from '../utils/authRoles';
 import { canAccessInvoices } from '../utils/invoicesAccess';
 
 function listRequiredPermissions(requiresPermission) {
@@ -21,8 +21,15 @@ function listRequiredPermissions(requiresPermission) {
  * @param {string|string[]} [requiresPermission] - values like PERM.VIEW_PATIENT; array = all required
  * @param {boolean} [doctorOnly] - when true, only doctor role can access
  * @param {boolean} [invoicesAccess] - assistants with branch_ids or view_invoice permission
+ * @param {boolean} [superAdminOnly] - when true, only super admin role can access
  */
-const ProtectedRoute = ({ children, requiresPermission, doctorOnly = false, invoicesAccess = false }) => {
+const ProtectedRoute = ({
+  children,
+  requiresPermission,
+  doctorOnly = false,
+  invoicesAccess = false,
+  superAdminOnly = false,
+}) => {
   const { isAuthenticated, mustChangePassword, user } = useAuth();
   const { can } = usePermissions();
   const location = useLocation();
@@ -61,6 +68,10 @@ const ProtectedRoute = ({ children, requiresPermission, doctorOnly = false, invo
 
   if (doctorOnly && !isDoctorUser(user)) {
     return <Navigate to="/" replace />;
+  }
+
+  if (superAdminOnly && !isSuperAdminUser(user)) {
+    return <Navigate to="/appointments" replace />;
   }
 
   return children;

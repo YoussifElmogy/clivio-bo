@@ -60,7 +60,7 @@ const appRouter = createBrowserRouter([
       {
         index: true,
         element: (
-          <ProtectedRoute>
+          <ProtectedRoute superAdminOnly>
             <Overview />
           </ProtectedRoute>
         ),

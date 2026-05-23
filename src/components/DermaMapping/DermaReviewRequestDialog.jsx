@@ -279,6 +279,11 @@ export default function DermaReviewRequestDialog({
             variant="contained"
             onClick={onSubmit}
             disabled={submitting}
+            startIcon={
+              submitting ? (
+                <CircularProgress size={18} thickness={5} color="inherit" aria-hidden />
+              ) : null
+            }
             sx={{ borderRadius: 2, minWidth: 160 }}
           >
             {submitting ? 'Submitting…' : 'Submit review request'}

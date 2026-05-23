@@ -28,11 +28,11 @@ import DropdownMenu from '../DropdownMenu/DropdownMenu';
 import { useAuth } from '../../context/AuthContext';
 import usePermissions from '../../hooks/usePermissions';
 import { PERM } from '../../config/permissions';
-import { isDoctorUser } from '../../utils/authRoles';
+import { isDoctorUser, isSuperAdminUser } from '../../utils/authRoles';
 import { canAccessInvoices } from '../../utils/invoicesAccess';
 
 const navItems = [
-  { label: 'Overview', to: '/', Icon: DashboardRounded },
+  { label: 'Overview', to: '/', Icon: DashboardRounded, superAdminOnly: true },
   {
     label: 'Doctors',
     to: '/doctors',
@@ -128,6 +128,7 @@ export default function Sidebar({ sidebarWidth = '17.778rem', onNavigate }) {
     '/general-services',
   ]);
   const visibleNavItems = navItems.filter(item => {
+    if (item.superAdminOnly && !isSuperAdminUser(user)) return false;
     if (isDoctorUser(user) && !doctorOnlyNavTo.has(item.to)) return false;
     if (!isDoctorUser(user) && item.doctorOnly) return false;
     if (item.invoicesNav) return canAccessInvoices(user);
@@ -198,7 +199,9 @@ export default function Sidebar({ sidebarWidth = '17.778rem', onNavigate }) {
       sx={{ width: sidebarWidth, flexShrink: 0 }}
     >
       <NavLink
-        to={isDoctorUser(user) ? '/appointments' : '/'}
+        to={
+          isDoctorUser(user) || !isSuperAdminUser(user) ? '/appointments' : '/'
+        }
         style={{ textDecoration: 'none' }}
         onClick={clearDocumentsPreserve}
       >

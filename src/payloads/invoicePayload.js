@@ -17,8 +17,15 @@ export function normalizeInvoicesList(data) {
 }
 
 export const INVOICES_BRANCH_FILTER_ALL = 'all';
+export const INVOICES_STATUS_FILTER_ALL = '';
 
-export function buildInvoicesListQuery({ branchId, page, pageSize }) {
+export const INVOICE_STATUS_FILTER_OPTIONS = [
+  { value: INVOICES_STATUS_FILTER_ALL, label: 'All statuses' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'paid', label: 'Paid' },
+];
+
+export function buildInvoicesListQuery({ branchId, status, page, pageSize }) {
   const params = new URLSearchParams();
   const branchKey =
     branchId != null && branchId !== '' && String(branchId) !== INVOICES_BRANCH_FILTER_ALL
@@ -26,6 +33,10 @@ export function buildInvoicesListQuery({ branchId, page, pageSize }) {
       : '';
   if (branchKey) {
     params.set('branch_id', branchKey);
+  }
+  const statusKey = String(status ?? '').trim().toLowerCase();
+  if (statusKey === 'pending' || statusKey === 'paid') {
+    params.set('status', statusKey);
   }
   params.set('page', String(page));
   params.set('page_size', String(pageSize));

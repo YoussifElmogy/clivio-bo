@@ -30,6 +30,7 @@ import { parsePaginatedList } from '../utils/parsePaginatedList';
 import {
   buildInvoicesListQuery,
   INVOICES_BRANCH_FILTER_ALL,
+  INVOICE_STATUS_FILTER_OPTIONS,
   formatInvoiceMoney,
   invoicePayUrl,
   invoiceStatusLabel,
@@ -70,6 +71,7 @@ export default function InvoicesPage() {
 
   const [branchOptions, setBranchOptions] = useState([]);
   const [branchFilter, setBranchFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [branchesLoading, setBranchesLoading] = useState(true);
   const [rows, setRows] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -144,6 +146,7 @@ export default function InvoicesPage() {
       try {
         const query = buildInvoicesListQuery({
           branchId: branchFilter,
+          status: statusFilter,
           page: page + 1,
           pageSize: rowsPerPage,
         });
@@ -173,10 +176,16 @@ export default function InvoicesPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchFilter, page, rowsPerPage, listVersion, canUseInvoices]);
+  }, [branchFilter, statusFilter, page, rowsPerPage, listVersion, canUseInvoices]);
 
   const handleBranchFilterChange = useCallback(value => {
     setBranchFilter(value);
+    setPage(0);
+    setListVersion(v => v + 1);
+  }, []);
+
+  const handleStatusFilterChange = useCallback(value => {
+    setStatusFilter(value);
     setPage(0);
     setListVersion(v => v + 1);
   }, []);
@@ -321,8 +330,8 @@ export default function InvoicesPage() {
         title={`Invoices (${count})`}
         description={
           isSuperAdmin
-            ? 'View all invoices or filter by branch. Open PDFs and mark pending invoices as paid.'
-            : 'Filter by branch, view invoice PDFs, and mark pending invoices as paid.'
+            ? 'View all invoices or filter by branch and status. Open PDFs and mark pending invoices as paid.'
+            : 'Filter by branch and status, view invoice PDFs, and mark pending invoices as paid.'
         }
         paperSx={{ p: { xs: 2, sm: 3 } }}
       >
@@ -357,6 +366,21 @@ export default function InvoicesPage() {
                 : null}
             </Select>
           </FormControl>
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
+            <InputLabel id="invoices-status-filter-label">Status</InputLabel>
+            <Select
+              labelId="invoices-status-filter-label"
+              label="Status"
+              value={statusFilter}
+              onChange={e => handleStatusFilterChange(e.target.value)}
+            >
+              {INVOICE_STATUS_FILTER_OPTIONS.map(opt => (
+                <MenuItem key={opt.value || 'all'} value={opt.value}>
+                  {opt.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </Stack>
 
         <PaginatedTable
@@ -366,9 +390,13 @@ export default function InvoicesPage() {
           skeletonRows={rowsPerPage}
           emptyMessage={
             branchFilter === INVOICES_BRANCH_FILTER_ALL
-              ? 'No invoices found.'
+              ? statusFilter
+                ? `No ${statusFilter} invoices found.`
+                : 'No invoices found.'
               : branchFilter
-                ? 'No invoices for this branch.'
+                ? statusFilter
+                  ? `No ${statusFilter} invoices for this branch.`
+                  : 'No invoices for this branch.'
                 : 'Select a branch to load invoices.'
           }
           page={page}

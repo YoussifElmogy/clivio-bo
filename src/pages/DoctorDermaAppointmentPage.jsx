@@ -189,11 +189,9 @@ export default function DoctorDermaAppointmentPage() {
       });
       await post(reservationPrescriptionUrl(reservationId), payload);
       showSuccess('Review request submitted.');
-      setReviewOpen(false);
-      setReviewDiscount('');
+      navigate('/appointments', { replace: true });
     } catch (err) {
       showError(apiErrorMessage(err, 'Could not submit review request.'));
-    } finally {
       setReviewSubmitting(false);
     }
   };

@@ -32,10 +32,11 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import usePermissions from '../hooks/usePermissions';
 import { PERM } from '../config/permissions';
-import { isDoctorUser } from '../utils/authRoles';
+import { isAssistantUser, isDoctorUser, isSuperAdminUser } from '../utils/authRoles';
 import { getDoctorAppointmentViewPath } from '../utils/doctorAppointmentNavigation';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import {
+  RESERVATION_STATUS,
   RESERVATION_STATUS_OPTIONS,
   reservationStatusLabel,
 } from '../constants/reservationStatus';
@@ -78,6 +79,16 @@ function patientCell(row) {
   const b = String(row.last_name ?? '').trim();
   if (a || b) return [a, b].filter(Boolean).join(' ');
   return row.patient_id != null ? `Patient #${row.patient_id}` : '—';
+}
+
+function isFinishedReservation(row) {
+  return String(row?.status ?? '').trim().toLowerCase() === RESERVATION_STATUS.FINISHED;
+}
+
+/** Super admins and assistants cannot edit appointments once status is finished. */
+function blocksStaffEditOnFinished(user, row) {
+  if (!isFinishedReservation(row)) return false;
+  return isSuperAdminUser(user) || isAssistantUser(user);
 }
 
 function patientMobileCell(row) {
@@ -400,6 +411,13 @@ export default function ReservationsPage() {
         minWidth: 120,
         render: row => {
           const rid = row.id ?? row.uuid;
+          const editBlockedFinished = blocksStaffEditOnFinished(user, row);
+          const canEditRow = canEditAppointment && !editBlockedFinished;
+          const editTooltip = !canEditAppointment
+            ? 'No permission'
+            : editBlockedFinished
+              ? 'Finished appointments cannot be edited'
+              : 'Edit';
           return (
             <>
               <Tooltip title={canEditAppointment ? 'Attachments' : 'No permission'}>
@@ -435,7 +453,7 @@ export default function ReservationsPage() {
                   </span>
                 </Tooltip>
               ) : (
-                <Tooltip title={canEditAppointment ? 'Edit' : 'No permission'}>
+                <Tooltip title={editTooltip}>
                   <span>
                     <IconButton
                       size="small"
@@ -445,7 +463,7 @@ export default function ReservationsPage() {
                         e.stopPropagation();
                         if (rid != null) navigate(`/appointments/${encodeURIComponent(rid)}/edit`);
                       }}
-                      disabled={!canEditAppointment}
+                      disabled={!canEditRow}
                     >
                       <EditOutlined fontSize="small" />
                     </IconButton>
@@ -457,7 +475,7 @@ export default function ReservationsPage() {
         },
       },
     ],
-    [navigate, canEditAppointment, isDoctor, openAttachmentsDrawer, openReservationSummary]
+    [navigate, canEditAppointment, isDoctor, openAttachmentsDrawer, openReservationSummary, user]
   );
 
   const getCellValue = useCallback((row, col) => {
