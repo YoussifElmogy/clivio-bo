@@ -16,7 +16,10 @@ import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined';
+import InfoOutlined from '@mui/icons-material/InfoOutlined';
 import PaymentsOutlined from '@mui/icons-material/PaymentsOutlined';
+import InputAdornment from '@mui/material/InputAdornment';
+import TextField from '@mui/material/TextField';
 import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
 import PaginatedTable from '../components/PaginatedTable/PaginatedTable';
@@ -32,11 +35,15 @@ import {
   INVOICES_BRANCH_FILTER_ALL,
   INVOICE_STATUS_FILTER_OPTIONS,
   formatInvoiceMoney,
+  invoiceDefaultPayAmount,
+  invoiceMaxPayAmount,
   invoicePayUrl,
   invoiceStatusLabel,
+  invoiceTypeLabel,
   invoiceViewUrl,
   isInvoicePaidStatus,
   normalizeInvoicesList,
+  validateInvoicePayAmount,
 } from '../payloads/invoicePayload';
 
 function formatInvoiceDate(iso) {
@@ -57,6 +64,19 @@ function statusChipColor(status) {
   if (s === 'paid') return 'success';
   if (s === 'pending') return 'warning';
   return 'default';
+}
+
+function InvoiceInfoRow({ label, value }) {
+  return (
+    <Stack direction="row" justifyContent="space-between" spacing={2} sx={{ py: 0.75 }}>
+      <Typography variant="body2" color="text.secondary">
+        {label}
+      </Typography>
+      <Typography variant="body2" sx={{ fontWeight: 600, textAlign: 'right' }}>
+        {value}
+      </Typography>
+    </Stack>
+  );
 }
 
 export default function InvoicesPage() {
@@ -81,7 +101,9 @@ export default function InvoicesPage() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [listVersion, setListVersion] = useState(0);
   const [payTarget, setPayTarget] = useState(null);
+  const [payAmount, setPayAmount] = useState('');
   const [paySubmitting, setPaySubmitting] = useState(false);
+  const [infoTarget, setInfoTarget] = useState(null);
 
   useEffect(() => {
     if (!canUseInvoices) {
@@ -202,26 +224,42 @@ export default function InvoicesPage() {
     [showInfo]
   );
 
+  const handleOpenPay = useCallback(row => {
+    const id = row.id ?? row.uuid;
+    if (id == null) return;
+    setPayTarget(row);
+    const defaultAmount = invoiceDefaultPayAmount(row);
+    setPayAmount(defaultAmount === '' ? '' : String(defaultAmount));
+  }, []);
+
   const handleConfirmPay = useCallback(async () => {
     if (!payTarget?.id) return;
     setPaySubmitting(true);
     try {
-      await post(invoicePayUrl(payTarget.id));
-      showSuccess('Invoice marked as paid.');
+      const result = validateInvoicePayAmount(payAmount, payTarget);
+      if (!result.ok) {
+        showError(result.message);
+        setPaySubmitting(false);
+        return;
+      }
+      await post(invoicePayUrl(payTarget.id), result.payload);
+      showSuccess('Payment recorded.');
       setPayTarget(null);
+      setPayAmount('');
       setListVersion(v => v + 1);
     } catch (err) {
-      const msg =
-        err?.detail ||
-        err?.response?.data?.detail ||
-        err?.response?.data?.message ||
-        err?.message ||
-        'Could not mark invoice as paid.';
-      showError(typeof msg === 'string' ? msg : 'Could not mark invoice as paid.');
+      showError(
+        err?.validationMessage ||
+          err?.detail ||
+          err?.response?.data?.detail ||
+          err?.response?.data?.message ||
+          err?.message ||
+          'Could not record payment.'
+      );
     } finally {
       setPaySubmitting(false);
     }
-  }, [payTarget, post, showError, showSuccess]);
+  }, [payAmount, payTarget, post, showError, showSuccess]);
 
   const count = listMode === 'server' ? totalCount : rows.length;
   const paginatedRows = useMemo(() => {
@@ -239,18 +277,29 @@ export default function InvoicesPage() {
       { id: 'subtotal', label: 'Subtotal', minWidth: 100, align: 'right' },
       { id: 'discount', label: 'Discount', minWidth: 100, align: 'right' },
       { id: 'total', label: 'Total', minWidth: 100, align: 'right' },
+      { id: 'paid_amount', label: 'Paid', minWidth: 100, align: 'right' },
       { id: 'created', label: 'Created', minWidth: 150 },
       {
         id: 'actions',
         label: 'Actions',
         align: 'right',
-        minWidth: 120,
+        minWidth: 150,
         render: row => {
           const id = row.id ?? row.uuid;
           const paid = isInvoicePaidStatus(row.status);
           const hasUrl = Boolean(invoiceViewUrl(row));
           return (
             <>
+              <Tooltip title="Patient invoice info">
+                <IconButton
+                  size="small"
+                  color="info"
+                  aria-label="Patient invoice info"
+                  onClick={() => setInfoTarget(row)}
+                >
+                  <InfoOutlined fontSize="small" />
+                </IconButton>
+              </Tooltip>
               <Tooltip title={hasUrl ? 'View invoice PDF' : 'No invoice URL'}>
                 <span>
                   <IconButton
@@ -264,19 +313,14 @@ export default function InvoicesPage() {
                   </IconButton>
                 </span>
               </Tooltip>
-              <Tooltip title={paid ? 'Already paid' : canPay ? 'Mark as paid' : 'No permission'}>
+              <Tooltip title={paid ? 'Already paid' : canPay ? 'Record payment' : 'No permission'}>
                 <span>
                   <IconButton
                     size="small"
                     color="success"
-                    aria-label="Mark invoice paid"
+                    aria-label="Record invoice payment"
                     disabled={!canPay || paid || id == null}
-                    onClick={() =>
-                      setPayTarget({
-                        id,
-                        patientName: row.patient_name ?? `Invoice #${id}`,
-                      })
-                    }
+                    onClick={() => handleOpenPay(row)}
                   >
                     <PaymentsOutlined fontSize="small" />
                   </IconButton>
@@ -287,7 +331,7 @@ export default function InvoicesPage() {
         },
       },
     ],
-    [canPay, handleViewInvoice]
+    [canPay, handleOpenPay, handleViewInvoice]
   );
 
   const getCellValue = useCallback((row, col) => {
@@ -309,6 +353,7 @@ export default function InvoicesPage() {
     if (col.id === 'subtotal') return formatInvoiceMoney(row.subtotal);
     if (col.id === 'discount') return formatInvoiceMoney(row.discount);
     if (col.id === 'total') return formatInvoiceMoney(row.total);
+    if (col.id === 'paid_amount') return formatInvoiceMoney(row.paid_amount);
     if (col.id === 'created') return formatInvoiceDate(row.created_at);
     return '';
   }, []);
@@ -413,35 +458,132 @@ export default function InvoicesPage() {
       </FormPageShell>
 
       <Dialog
-        open={Boolean(payTarget)}
-        onClose={() => !paySubmitting && setPayTarget(null)}
-        aria-labelledby="pay-invoice-dialog-title"
+        open={Boolean(infoTarget)}
+        onClose={() => setInfoTarget(null)}
+        aria-labelledby="invoice-info-dialog-title"
+        maxWidth="xs"
+        fullWidth
       >
-        <DialogTitle id="pay-invoice-dialog-title">Mark invoice as paid?</DialogTitle>
-        <DialogContent>
-          {payTarget ? (
-            <Typography variant="body2">
-              Confirm payment for <strong>{payTarget.patientName}</strong>. This will call the pay
-              endpoint and update the invoice status.
-            </Typography>
+        <DialogTitle id="invoice-info-dialog-title">Patient invoice info</DialogTitle>
+        <DialogContent dividers>
+          {infoTarget ? (
+            <Box>
+              <InvoiceInfoRow
+                label="Invoice #"
+                value={infoTarget.id != null ? `#${infoTarget.id}` : '—'}
+              />
+              <InvoiceInfoRow label="Patient" value={infoTarget.patient_name ?? '—'} />
+              <InvoiceInfoRow label="Type" value={invoiceTypeLabel(infoTarget.type)} />
+              <InvoiceInfoRow label="Status" value={invoiceStatusLabel(infoTarget.status)} />
+              <InvoiceInfoRow label="Total" value={formatInvoiceMoney(infoTarget.total)} />
+              <InvoiceInfoRow label="Paid amount" value={formatInvoiceMoney(infoTarget.paid_amount)} />
+              <InvoiceInfoRow label="Remaining" value={formatInvoiceMoney(infoTarget.remaining)} />
+              <InvoiceInfoRow
+                label="Previous remaining"
+                value={formatInvoiceMoney(infoTarget.previous_remaining)}
+              />
+              {infoTarget.branch_name ? (
+                <InvoiceInfoRow label="Branch" value={infoTarget.branch_name} />
+              ) : null}
+              {infoTarget.doctor_name ? (
+                <InvoiceInfoRow label="Doctor" value={infoTarget.doctor_name} />
+              ) : null}
+              {infoTarget.created_at ? (
+                <InvoiceInfoRow label="Created" value={formatInvoiceDate(infoTarget.created_at)} />
+              ) : null}
+            </Box>
           ) : null}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setPayTarget(null)} disabled={paySubmitting}>
+          <Button onClick={() => setInfoTarget(null)} sx={{ borderRadius: 2 }}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(payTarget)}
+        onClose={() => {
+          if (!paySubmitting) {
+            setPayTarget(null);
+            setPayAmount('');
+          }
+        }}
+        aria-labelledby="pay-invoice-dialog-title"
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle id="pay-invoice-dialog-title">Record payment</DialogTitle>
+        <DialogContent>
+          {payTarget ? (
+            <Stack spacing={2} sx={{ pt: 0.5 }}>
+              <Typography variant="body2">
+                Patient: <strong>{payTarget.patient_name ?? `Invoice #${payTarget.id}`}</strong>
+              </Typography>
+              <Stack spacing={0.5}>
+                <Typography variant="body2" color="text.secondary">
+                  Total: {formatInvoiceMoney(payTarget.total)}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Already paid: {formatInvoiceMoney(payTarget.paid_amount)}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Remaining: {formatInvoiceMoney(payTarget.remaining)}
+                </Typography>
+                {payTarget.previous_remaining != null && payTarget.previous_remaining !== '' ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Previous remaining: {formatInvoiceMoney(payTarget.previous_remaining)}
+                  </Typography>
+                ) : null}
+              </Stack>
+              <TextField
+                label="Amount paid"
+                type="number"
+                size="small"
+                fullWidth
+                required
+                value={payAmount}
+                onChange={e => setPayAmount(e.target.value)}
+                disabled={paySubmitting}
+                inputProps={{
+                  min: 0.01,
+                  max: invoiceMaxPayAmount(payTarget) ?? undefined,
+                  step: '0.01',
+                }}
+                InputProps={{
+                  endAdornment: <InputAdornment position="end">EGP</InputAdornment>,
+                }}
+                helperText={
+                  invoiceMaxPayAmount(payTarget) != null
+                    ? `Maximum: ${formatInvoiceMoney(invoiceMaxPayAmount(payTarget))} (total + previous remaining)`
+                    : 'Enter the amount received for this payment.'
+                }
+              />
+            </Stack>
+          ) : null}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => {
+              setPayTarget(null);
+              setPayAmount('');
+            }}
+            disabled={paySubmitting}
+          >
             Cancel
           </Button>
           <Button
             variant="contained"
             color="success"
             onClick={handleConfirmPay}
-            disabled={paySubmitting}
+            disabled={paySubmitting || String(payAmount).trim() === ''}
             startIcon={
               paySubmitting ? (
                 <CircularProgress size={18} thickness={5} color="inherit" aria-hidden />
               ) : null
             }
           >
-            {paySubmitting ? 'Processing…' : 'Mark as paid'}
+            {paySubmitting ? 'Processing…' : 'Confirm payment'}
           </Button>
         </DialogActions>
       </Dialog>

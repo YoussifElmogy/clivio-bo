@@ -5,11 +5,13 @@ export function extractInvoiceStatus(data) {
   return String(raw).trim().toLowerCase();
 }
 
+/** Invoice statuses that lock appointment editing (paid or partially paid). */
 export function isReservationInvoicePaid(dataOrStatus) {
-  if (typeof dataOrStatus === 'string') {
-    return dataOrStatus.trim().toLowerCase() === 'paid';
-  }
-  return extractInvoiceStatus(dataOrStatus) === 'paid';
+  const status =
+    typeof dataOrStatus === 'string'
+      ? dataOrStatus.trim().toLowerCase()
+      : extractInvoiceStatus(dataOrStatus);
+  return status === 'paid' || status === 'partial';
 }
 
 export function isReservationInvoicePaidFromRow(row) {
