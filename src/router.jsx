@@ -1,11 +1,9 @@
-import React from 'react';
+import React, { lazy } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import Layout from './layout/Layout.jsx';
 import ProtectedRoute from './context/ProtectedRoute.jsx';
-import RouteErrorPage from './components/RouteErrorPage/RouteErrorPage.jsx';
 import { REQUIRED_PASSWORD_CHANGE_PATH } from './constants/authRoutes.js';
 import { PERM } from './config/permissions.js';
-import { lazyWithRetry as lazy } from './utils/lazyWithRetry.js';
 
 // Lazy load page components for code splitting
 const Overview = lazy(() => import('./pages/Overview.jsx'));
@@ -56,9 +54,8 @@ const ChangePasswordPage = lazy(() => import('./pages/ChangePasswordPage.jsx'));
 
 const appRouter = createBrowserRouter([
   {
-    path: '/',
+    path: '/',    
     element: <Layout />,
-    errorElement: <RouteErrorPage />,
     children: [
       {
         index: true,
@@ -403,12 +400,10 @@ const appRouter = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,
-    errorElement: <RouteErrorPage />,
   },
   {
     path: REQUIRED_PASSWORD_CHANGE_PATH,
     element: <RequiredPasswordChangePage />,
-    errorElement: <RouteErrorPage />,
   },
 ]);
 
