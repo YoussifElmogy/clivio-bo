@@ -19,6 +19,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
+import { buildUsedPackagesReviewSummary } from '../../payloads/appointmentLaserPackagesPayload';
 import { reservationPricingSourceLabel } from '../../payloads/reservationPricingPayload';
 
 function formatMoney(amount, currency = 'EGP') {
@@ -157,6 +158,83 @@ function PricingLineItemsSection({
   );
 }
 
+function LaserPackagesReviewSection({
+  usedPackages = [],
+  pulsePackages = [],
+  areaPackages = [],
+}) {
+  const theme = useTheme();
+  const summary = useMemo(
+    () => buildUsedPackagesReviewSummary(usedPackages, pulsePackages, areaPackages),
+    [usedPackages, pulsePackages, areaPackages]
+  );
+
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2,
+        borderRadius: 2,
+        bgcolor: alpha(theme.palette.warning.main, 0.04),
+      }}
+    >
+      {!summary.hasSelections ? (
+        <Typography variant="body2" color="text.secondary">
+          No laser packages selected for this visit.
+        </Typography>
+      ) : (
+        <Stack spacing={2}>
+          {summary.pulseItems.length > 0 ? (
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.75 }}>
+                Pulse packages
+              </Typography>
+              <Stack spacing={0.75}>
+                {summary.pulseItems.map(item => (
+                  <Stack
+                    key={`pulse-${item.record_id}`}
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="flex-start"
+                    spacing={2}
+                    flexWrap="wrap"
+                    useFlexGap
+                  >
+                    <Typography variant="body2">{item.title}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {item.used_pulses > 0
+                        ? `${item.used_pulses.toLocaleString()} pulses`
+                        : '—'}
+                      {item.remaining_pulses > 0
+                        ? ` · ${item.remaining_pulses.toLocaleString()} remaining`
+                        : ''}
+                    </Typography>
+                  </Stack>
+                ))}
+              </Stack>
+            </Box>
+          ) : null}
+
+          {summary.areaItems.length > 0 ? (
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.75 }}>
+                Area packages
+              </Typography>
+              <Stack spacing={0.75}>
+                {summary.areaItems.map(item => (
+                  <Typography key={`area-${item.record_id}`} variant="body2">
+                    · {item.title}
+                  </Typography>
+                ))}
+              </Stack>
+            </Box>
+          ) : null}
+        </Stack>
+      )}
+    </Paper>
+  );
+}
+
 export default function DermaReviewRequestDialog({
   open,
   onClose,
@@ -173,6 +251,10 @@ export default function DermaReviewRequestDialog({
   submitting = false,
   onSubmit,
   readOnly = false,
+  showLaserPackages = false,
+  usedPackages = [],
+  pulsePackages = [],
+  areaPackages = [],
 }) {
   const theme = useTheme();
 
@@ -248,6 +330,22 @@ export default function DermaReviewRequestDialog({
               </Stack>
             </Paper>
           </Box>
+
+          {showLaserPackages ? (
+            <>
+              <Divider />
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
+                  Laser packages
+                </Typography>
+                <LaserPackagesReviewSection
+                  usedPackages={usedPackages}
+                  pulsePackages={pulsePackages}
+                  areaPackages={areaPackages}
+                />
+              </Box>
+            </>
+          ) : null}
 
           <Divider />
 

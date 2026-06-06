@@ -7,27 +7,22 @@ import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
 import AssistantForm from '../forms/AssistantForm/AssistantForm';
 import { useToast } from '../context/ToastContext';
-import { useAuth } from '../context/AuthContext';
-import { isSuperAdminUser } from '../utils/authRoles';
 import { createAssistantSchema, assistantCreateDefaultValues } from '../schemas/assistantSchema';
 import { buildAssistantCreatePayload, parseAssistantRolesResponse } from '../payloads/assistantPayload';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 
 export default function AssistantCreatePage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { get, post } = useApi();
   const { showSuccess, showError, showWarning } = useToast();
   const [branches, setBranches] = useState([]);
   const [roles, setRoles] = useState([]);
   const [initialLoad, setInitialLoad] = useState(true);
 
-  const isSuperAdmin = useMemo(() => isSuperAdminUser(user), [user]);
-
   const resolver = useMemo(
     () => (values, context, options) =>
-      yupResolver(createAssistantSchema({ requirePassword: isSuperAdmin }))(values, context, options),
-    [isSuperAdmin]
+      yupResolver(createAssistantSchema({ requirePassword: true }))(values, context, options),
+    []
   );
 
   const methods = useForm({
@@ -106,7 +101,7 @@ export default function AssistantCreatePage() {
           branches={branches}
           roles={roles}
           isLoading={initialLoad}
-          showPasswordField={isSuperAdmin}
+          showPasswordField
           onSubmit={onSubmit}
           submitLabel="Create assistant"
         />

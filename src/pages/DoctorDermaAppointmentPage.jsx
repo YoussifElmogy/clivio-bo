@@ -4,6 +4,7 @@ import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
 import FaceRetouchingNaturalOutlined from '@mui/icons-material/FaceRetouchingNaturalOutlined';
 import AccessibilityNewOutlined from '@mui/icons-material/AccessibilityNewOutlined';
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
+import FlashOnOutlined from '@mui/icons-material/FlashOnOutlined';
 import RateReviewOutlined from '@mui/icons-material/RateReviewOutlined';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -14,6 +15,7 @@ import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
 import InteractiveBodyMap from '../components/DermaMapping/InteractiveBodyMap';
 import InteractiveFaceMap from '../components/DermaMapping/InteractiveFaceMap';
+import AppointmentLaserPackagesTab from '../components/DermaMapping/AppointmentLaserPackagesTab';
 import DermaReviewRequestDialog from '../components/DermaMapping/DermaReviewRequestDialog';
 import ReservationSummaryContent from '../components/ReservationSummary/ReservationSummaryContent';
 import { useToast } from '../context/ToastContext';
@@ -22,6 +24,7 @@ import { DERMA_APPOINTMENT_TABS } from '../constants/dermaViewMode';
 import { useAuth } from '../context/AuthContext';
 import { isDoctorUser, isSuperAdminUser } from '../utils/authRoles';
 import { buildDermaReviewRequestPayload } from '../payloads/dermaReviewRequestPayload';
+import { normalizePatientProfilePackages } from '../payloads/appointmentLaserPackagesPayload';
 import {
   buildReservationPrescriptionPayload,
   reservationPrescriptionUrl,
@@ -63,6 +66,10 @@ export default function DoctorDermaAppointmentPage() {
   const [reservationPricing, setReservationPricing] = useState(null);
   const [reviewDiscount, setReviewDiscount] = useState('');
   const [invoicePaid, setInvoicePaid] = useState(false);
+  const [patientPackagesLoading, setPatientPackagesLoading] = useState(false);
+  const [pulsePackages, setPulsePackages] = useState([]);
+  const [areaPackages, setAreaPackages] = useState([]);
+  const [usedPackages, setUsedPackages] = useState([]);
 
   const patientId = useMemo(() => searchParams.get('patient_id')?.trim() || '', [searchParams]);
   const fromPatientProfile = searchParams.get('from') === 'patient-profile';
@@ -91,6 +98,9 @@ export default function DoctorDermaAppointmentPage() {
     }
     if (DERMA_APPOINTMENT_TABS.BODY_MAP) {
       tabs.push({ id: 'body', label: 'Body mapping', icon: <AccessibilityNewOutlined /> });
+    }
+    if (DERMA_APPOINTMENT_TABS.LASER_PACKAGES) {
+      tabs.push({ id: 'laser', label: 'Laser packages', icon: <FlashOnOutlined /> });
     }
     return tabs;
   }, []);
@@ -194,12 +204,14 @@ export default function DoctorDermaAppointmentPage() {
         patientId: parsedPatientId,
         prescriptionSnapshot,
         discount: reviewDiscount,
+        usedPackages,
+        pulsePackages,
       });
       await post(reservationPrescriptionUrl(reservationId), payload);
       showSuccess('Review request submitted.');
       navigate('/appointments', { replace: true });
     } catch (err) {
-      showError(apiErrorMessage(err, 'Could not submit review request.'));
+      showError(err?.validationMessage || apiErrorMessage(err, 'Could not submit review request.'));
       setReviewSubmitting(false);
     }
   };
@@ -222,13 +234,25 @@ export default function DoctorDermaAppointmentPage() {
     }
     let cancelled = false;
     (async () => {
+      setPatientPackagesLoading(DERMA_APPOINTMENT_TABS.LASER_PACKAGES);
       try {
         const data = await get(`/patient-profile?patient_id=${encodeURIComponent(patientId)}`);
         if (cancelled) return;
         const name = data?.patient?.name?.trim?.();
         if (name) setPatientName(name);
+        if (DERMA_APPOINTMENT_TABS.LASER_PACKAGES) {
+          const { pulsePackages: pulse, areaPackages: area } = normalizePatientProfilePackages(data);
+          setPulsePackages(pulse);
+          setAreaPackages(area);
+        }
       } catch {
-        if (!cancelled) setPatientName('');
+        if (!cancelled) {
+          setPatientName('');
+          setPulsePackages([]);
+          setAreaPackages([]);
+        }
+      } finally {
+        if (!cancelled) setPatientPackagesLoading(false);
       }
     })();
     return () => {
@@ -325,6 +349,19 @@ export default function DoctorDermaAppointmentPage() {
               />
             </Box>
           ) : null}
+
+          {activeTabId === 'laser' ? (
+            <Box sx={{ pt: visibleTabs.length > 1 ? 3 : 0 }}>
+              <AppointmentLaserPackagesTab
+                pulsePackages={pulsePackages}
+                areaPackages={areaPackages}
+                loading={patientPackagesLoading}
+                value={usedPackages}
+                onChange={setUsedPackages}
+                readOnly={appointmentViewOnly}
+              />
+            </Box>
+          ) : null}
         </>
       )}
 
@@ -374,6 +411,10 @@ export default function DoctorDermaAppointmentPage() {
         submitting={reviewSubmitting}
         onSubmit={handleSubmitReviewRequest}
         readOnly={reviewViewOnly}
+        showLaserPackages={DERMA_APPOINTMENT_TABS.LASER_PACKAGES}
+        usedPackages={usedPackages}
+        pulsePackages={pulsePackages}
+        areaPackages={areaPackages}
       />
     </FormPageShell>
   );

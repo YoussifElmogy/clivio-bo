@@ -6,9 +6,7 @@ import Button from '@mui/material/Button';
 import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
 import DoctorForm from '../forms/DoctorForm/DoctorForm';
-import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { isSuperAdminUser } from '../utils/authRoles';
 import {
   createDoctorCreateSchema,
   doctorCreateDefaultValues,
@@ -18,17 +16,14 @@ import { parsePaginatedList } from '../utils/parsePaginatedList';
 
 export default function DoctorCreatePage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { get, post } = useApi();
   const { showSuccess, showError, showWarning } = useToast();
   const [branches, setBranches] = useState([]);
   const [loadingBranches, setLoadingBranches] = useState(true);
 
-  const isSuperAdmin = useMemo(() => isSuperAdminUser(user), [user]);
-
   const schema = useMemo(
-    () => createDoctorCreateSchema(branches, { requirePassword: isSuperAdmin }),
-    [branches, isSuperAdmin]
+    () => createDoctorCreateSchema(branches, { requirePassword: true }),
+    [branches]
   );
 
   const resolver = useMemo(
@@ -98,7 +93,7 @@ export default function DoctorCreatePage() {
         <DoctorForm
           branches={branches}
           isLoading={loadingBranches}
-          showPasswordField={isSuperAdmin}
+          showPasswordField
           onSubmit={onSubmit}
           submitLabel="Create doctor"
         />

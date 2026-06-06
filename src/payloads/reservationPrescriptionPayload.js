@@ -1,3 +1,4 @@
+import { validateUsedPackagesForSubmit } from './appointmentLaserPackagesPayload';
 import { collectGeneralServiceIdsFromPrescription } from './reservationPricingPayload';
 
 /**
@@ -36,6 +37,8 @@ export function buildPrescriptionMedicinesForApi(medicines) {
  *   patientId: number|string,
  *   prescriptionSnapshot?: object | null,
  *   discount?: number|string,
+ *   usedPackages?: object[] | null,
+ *   pulsePackages?: object[] | null,
  * }} input
  */
 export function buildReservationPrescriptionPayload({
@@ -43,6 +46,8 @@ export function buildReservationPrescriptionPayload({
   patientId,
   prescriptionSnapshot = null,
   discount,
+  usedPackages = null,
+  pulsePackages = null,
 }) {
   const did = Number(doctorId);
   const pid = Number(patientId);
@@ -61,6 +66,18 @@ export function buildReservationPrescriptionPayload({
 
   const parsedDiscount = parseDiscount(discount);
   if (parsedDiscount != null) payload.discount = parsedDiscount;
+
+  const packageResult = validateUsedPackagesForSubmit(usedPackages, {
+    pulsePackages: Array.isArray(pulsePackages) ? pulsePackages : [],
+  });
+  if (!packageResult.ok) {
+    const err = new Error(packageResult.message || 'Invalid laser package selection.');
+    err.validationMessage = packageResult.message;
+    throw err;
+  }
+  if (packageResult.used_packages.length > 0) {
+    payload.used_packages = packageResult.used_packages;
+  }
 
   return payload;
 }
