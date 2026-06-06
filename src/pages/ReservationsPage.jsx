@@ -254,7 +254,7 @@ export default function ReservationsPage() {
       setAttachmentsOpen(true);
       await refreshAttachments(rid);
     },
-    [get, refreshAttachments, showInfo]
+    [refreshAttachments, showInfo]
   );
 
   const handleUploadAttachment = useCallback(async () => {

@@ -12,6 +12,11 @@ import { AuthProvider } from './context/AuthContext.jsx';
 import { ToastProvider } from './context/ToastContext.jsx';
 import { clinicTheme } from './theme/clinicTheme.js';
 
+window.addEventListener('vite:preloadError', event => {
+  event.preventDefault();
+  window.location.reload();
+});
+
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ThemeProvider theme={clinicTheme}>

@@ -116,7 +116,7 @@ export default function DoctorDermaAppointmentPage() {
     return () => {
       cancelled = true;
     };
-  }, [reservationId, patientId, get]);
+  }, [reservationId, patientId]);
 
   const reviewViewOnly = invoicePaid || isSuperAdmin;
   const appointmentViewOnly = reviewViewOnly;
