@@ -62,6 +62,7 @@ function formatInvoiceDate(iso) {
 function statusChipColor(status) {
   const s = String(status ?? '').toLowerCase();
   if (s === 'paid') return 'success';
+  if (s === 'partial' || s === 'partially_paid') return 'info';
   if (s === 'pending') return 'warning';
   return 'default';
 }

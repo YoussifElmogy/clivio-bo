@@ -23,6 +23,7 @@ import { isDermaClinicMode } from '../constants/clinicMode';
 import { DERMA_APPOINTMENT_TABS } from '../constants/dermaViewMode';
 import { useAuth } from '../context/AuthContext';
 import { isDoctorUser, isSuperAdminUser } from '../utils/authRoles';
+import { isReservationInvoicePaid } from '../utils/reservationInvoiceStatus';
 import { buildDermaReviewRequestPayload } from '../payloads/dermaReviewRequestPayload';
 import { normalizePatientProfilePackages } from '../payloads/appointmentLaserPackagesPayload';
 import {
@@ -84,6 +85,38 @@ export default function DoctorDermaAppointmentPage() {
       setReviewDiscount(String(discount));
     }
   }, []);
+
+  useEffect(() => {
+    if (!reservationId || !patientId) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const query = new URLSearchParams({
+          patient_id: String(patientId),
+          reservation_id: String(reservationId),
+        }).toString();
+        const data = await get(`/reservation-summary?${query}`);
+        if (cancelled) return;
+        const locked = isReservationInvoicePaid(data);
+        setInvoicePaid(locked);
+        if (locked) {
+          const rawDiscount =
+            data?.reservation?.discount ??
+            data?.reservation?.discount_amount ??
+            data?.discount ??
+            '';
+          if (rawDiscount !== '' && rawDiscount != null && !Number.isNaN(Number(rawDiscount))) {
+            setReviewDiscount(String(rawDiscount));
+          }
+        }
+      } catch {
+        // Summary tab will retry; keep editable until status is known.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [reservationId, patientId, get]);
 
   const reviewViewOnly = invoicePaid || isSuperAdmin;
   const appointmentViewOnly = reviewViewOnly;

@@ -116,7 +116,7 @@ export function invoiceStatusLabel(status) {
     .trim()
     .toLowerCase();
   if (s === 'paid') return 'Paid';
-  if (s === 'partial') return 'Partial';
+  if (s === 'partial' || s === 'partially_paid') return 'Partial';
   if (s === 'pending') return 'Pending';
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : '—';
 }
