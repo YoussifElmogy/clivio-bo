@@ -1,35 +1,40 @@
 import { lazy } from 'react';
+import {
+  clearChunkReloadFlag,
+  isChunkLoadError,
+  recoverFromChunkError,
+} from './chunkLoadRecovery';
 
-const CHUNK_RELOAD_KEY = 'clivio_chunk_reload_attempted';
-
-function isChunkLoadError(error) {
-  const message = String(error?.message ?? error ?? '').toLowerCase();
-  return (
-    message.includes('failed to fetch dynamically imported module') ||
-    message.includes('importing a module script failed') ||
-    message.includes('error loading dynamically imported module')
-  );
-}
+const RETRY_DELAY_MS = 400;
 
 /**
- * Lazy-load a route chunk; on stale deploy / missing chunk, reload once then retry.
+ * Lazy-load a route chunk; retry briefly, then cache-bust reload on stale deploy.
  */
 export function lazyWithRetry(importFn) {
   return lazy(async () => {
-    const alreadyReloaded = sessionStorage.getItem(CHUNK_RELOAD_KEY) === 'true';
+    let lastError;
 
-    try {
-      const module = await importFn();
-      sessionStorage.removeItem(CHUNK_RELOAD_KEY);
-      return module;
-    } catch (error) {
-      if (isChunkLoadError(error) && !alreadyReloaded) {
-        sessionStorage.setItem(CHUNK_RELOAD_KEY, 'true');
-        window.location.reload();
-        return new Promise(() => {});
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const module = await importFn();
+        clearChunkReloadFlag();
+        return module;
+      } catch (error) {
+        lastError = error;
+        if (!isChunkLoadError(error)) {
+          throw error;
+        }
+        if (attempt === 0) {
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+        }
       }
-      throw error;
     }
+
+    if (recoverFromChunkError()) {
+      return new Promise(() => {});
+    }
+
+    throw lastError;
   });
 }
 

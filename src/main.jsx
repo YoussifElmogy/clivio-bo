@@ -11,11 +11,9 @@ import CustomLoader from './components/skeletons/CustomLoader.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { ToastProvider } from './context/ToastContext.jsx';
 import { clinicTheme } from './theme/clinicTheme.js';
+import { registerChunkLoadRecovery } from './utils/chunkLoadRecovery.js';
 
-window.addEventListener('vite:preloadError', event => {
-  event.preventDefault();
-  window.location.reload();
-});
+registerChunkLoadRecovery();
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
