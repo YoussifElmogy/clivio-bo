@@ -531,11 +531,6 @@ export default function InvoicesPage() {
                 <Typography variant="body2" color="text.secondary">
                   Remaining: {formatInvoiceMoney(payTarget.remaining)}
                 </Typography>
-                {payTarget.previous_remaining != null && payTarget.previous_remaining !== '' ? (
-                  <Typography variant="body2" color="text.secondary">
-                    Previous remaining: {formatInvoiceMoney(payTarget.previous_remaining)}
-                  </Typography>
-                ) : null}
               </Stack>
               <TextField
                 label="Amount paid"
@@ -556,7 +551,7 @@ export default function InvoicesPage() {
                 }}
                 helperText={
                   invoiceMaxPayAmount(payTarget) != null
-                    ? `Maximum: ${formatInvoiceMoney(invoiceMaxPayAmount(payTarget))} (total + previous remaining)`
+                    ? `Maximum: ${formatInvoiceMoney(invoiceMaxPayAmount(payTarget))} (remaining balance)`
                     : 'Enter the amount received for this payment.'
                 }
               />

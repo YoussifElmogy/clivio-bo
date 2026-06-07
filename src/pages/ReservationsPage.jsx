@@ -353,12 +353,12 @@ export default function ReservationsPage() {
   const clearFilters = useCallback(() => {
     setSearchInput('');
     setStatusInput('');
-    setDateInput(defaultVisitDate);
+    setDateInput('');
     setAppliedSearch('');
     setAppliedStatus('');
-    setAppliedDate(defaultVisitDate);
+    setAppliedDate('');
     setPage(0);
-  }, [defaultVisitDate]);
+  }, []);
 
   const applyVisitDatePreset = useCallback(
     offsetDays => {

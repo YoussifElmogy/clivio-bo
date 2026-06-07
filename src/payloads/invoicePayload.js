@@ -59,10 +59,15 @@ export function buildInvoicePayPayload(amountPaid) {
 }
 
 export function invoiceMaxPayAmount(row) {
-  const total = parseInvoiceMoneyNumber(row?.total) ?? 0;
-  const previousRemaining = parseInvoiceMoneyNumber(row?.previous_remaining) ?? 0;
-  const max = total + previousRemaining;
-  return max > 0 ? max : null;
+  const remaining = parseInvoiceMoneyNumber(row?.remaining);
+  if (remaining != null && remaining > 0) return remaining;
+  const total = parseInvoiceMoneyNumber(row?.total);
+  const paid = parseInvoiceMoneyNumber(row?.paid_amount) ?? 0;
+  if (total != null && total > 0) {
+    const derivedRemaining = total - paid;
+    return derivedRemaining > 0 ? derivedRemaining : null;
+  }
+  return null;
 }
 
 export function validateInvoicePayAmount(amountPaid, row) {
@@ -71,7 +76,7 @@ export function validateInvoicePayAmount(amountPaid, row) {
   if (max != null && payload.amount_paid > max) {
     return {
       ok: false,
-      message: `Amount paid cannot exceed total + previous remaining (${formatInvoiceMoney(max)}).`,
+      message: `Amount paid cannot exceed remaining (${formatInvoiceMoney(max)}).`,
     };
   }
   return { ok: true, payload };
