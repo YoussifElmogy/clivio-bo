@@ -22,6 +22,7 @@ import { useToast } from '../context/ToastContext';
 import usePermissions from '../hooks/usePermissions';
 import { PERM } from '../config/permissions';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
+import { formatMoneyAmount } from '../utils/formatMoney';
 
 function buildListQuery(page, rowsPerPage) {
   const params = new URLSearchParams();
@@ -183,7 +184,7 @@ function PulsePackagesTab() {
 
   const getCellValue = useCallback((row, col) => {
     if (col.id === 'pulses') return row.pulses ?? '—';
-    if (col.id === 'price') return row.price ?? '—';
+    if (col.id === 'price') return formatMoneyAmount(row.price) ?? '—';
     if (col.id === 'description') return row.description?.trim?.() || '—';
     return '';
   }, []);
@@ -405,7 +406,7 @@ function AreaPackagesTab() {
 
   const getCellValue = useCallback((row, col) => {
     if (col.id === 'name') return row.name?.trim?.() || '—';
-    if (col.id === 'price') return row.price ?? '—';
+    if (col.id === 'price') return formatMoneyAmount(row.price) ?? '—';
     if (col.id === 'description') return row.description?.trim?.() || '—';
     return '';
   }, []);

@@ -28,6 +28,7 @@ import usePermissions from '../hooks/usePermissions';
 import { PERM } from '../config/permissions';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import { servicesCatalogUrl } from '../utils/servicesCatalogUrl';
+import { formatMoneyAmount } from '../utils/formatMoney';
 
 function buildProductsListQuery(page, rowsPerPage, nameTrimmed, serviceId) {
   const params = new URLSearchParams();
@@ -244,7 +245,7 @@ export default function InjectablesInventoryPanel({ onListCountChange } = {}) {
     if (col.id === 'type') return row.type?.trim?.() || '—';
     if (col.id === 'quantity') return row.quantity ?? '—';
     if (col.id === 'volume') return row.volume != null && row.volume !== '' ? row.volume : '—';
-    if (col.id === 'price') return row.price != null && row.price !== '' ? row.price : '—';
+    if (col.id === 'price') return formatMoneyAmount(row.price) ?? '—';
     return '';
   }, []);
 

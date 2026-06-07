@@ -1,4 +1,5 @@
 import { generalServiceDefaultValues } from '../schemas/generalServiceSchema';
+import { formatMoneyAmount } from '../utils/formatMoney';
 
 /** Page size when loading services for dropdowns (appointment summary, etc.). */
 export const GENERAL_SERVICES_CATALOG_PAGE_SIZE = 200;
@@ -13,10 +14,7 @@ export function generalServicesListUrl(doctorId, { page = 1, pageSize = GENERAL_
 }
 
 export function formatGeneralServicePrice(value) {
-  if (value == null || value === '') return '';
-  const n = Number(value);
-  if (!Number.isFinite(n)) return String(value);
-  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return formatMoneyAmount(value) ?? '';
 }
 
 function formatPriceForApi(value) {

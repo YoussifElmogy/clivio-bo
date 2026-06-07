@@ -29,6 +29,7 @@ export default function AnalyticsFilters({
   onEndDateChange,
   onBranchChange,
   onPreset,
+  onClear,
 }) {
   const start = startDate ? dayjs(startDate) : null;
   const end = endDate ? dayjs(endDate) : null;
@@ -107,6 +108,14 @@ export default function AnalyticsFilters({
               ))}
             </Select>
           </FormControl>
+          <Button
+            variant="outlined"
+            onClick={onClear}
+            disabled={loading}
+            sx={{ borderRadius: 2, flexShrink: 0, alignSelf: { xs: 'stretch', md: 'center' } }}
+          >
+            Clear filters
+          </Button>
         </Stack>
       </Stack>
     </Paper>

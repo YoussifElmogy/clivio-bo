@@ -6,3 +6,9 @@ export function servicesCatalogUrl(category) {
   params.set('category', category);
   return `/services?${params.toString()}`;
 }
+
+/** All services for patient / invoice filters. */
+export function allServicesCatalogUrl() {
+  const params = new URLSearchParams({ page: '1', page_size: '500' });
+  return `/services?${params.toString()}`;
+}

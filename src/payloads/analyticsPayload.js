@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import { reservationStatusLabel } from '../constants/reservationStatus';
+import { formatMoney } from '../utils/formatMoney';
 
 export const ANALYTICS_BRANCH_FILTER_ALL = 'all';
 
@@ -25,10 +26,7 @@ export function buildAnalyticsQuery({ startDate, endDate, branchId }) {
 }
 
 export function formatAnalyticsMoney(value, currency = 'EGP') {
-  if (value == null || value === '') return '—';
-  const n = Number(value);
-  if (!Number.isFinite(n)) return String(value);
-  return `${n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${currency}`;
+  return formatMoney(value, currency);
 }
 
 export function parseAnalyticsNumber(value) {

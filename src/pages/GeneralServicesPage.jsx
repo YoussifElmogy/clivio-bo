@@ -18,6 +18,7 @@ import CustomLoader from '../components/CustomLoader/CustomLoader';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
+import { formatGeneralServicePrice } from '../payloads/generalServicePayload';
 
 function buildGeneralServicesListQuery(page, rowsPerPage, doctorId) {
   const params = new URLSearchParams();
@@ -25,13 +26,6 @@ function buildGeneralServicesListQuery(page, rowsPerPage, doctorId) {
   params.set('page_size', String(rowsPerPage));
   params.set('doctor_id', String(doctorId));
   return params.toString();
-}
-
-function formatPrice(value) {
-  if (value == null || value === '') return '—';
-  const n = Number(value);
-  if (!Number.isFinite(n)) return String(value);
-  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export default function GeneralServicesPage() {
@@ -185,7 +179,7 @@ export default function GeneralServicesPage() {
 
   const getCellValue = useCallback((row, col) => {
     if (col.id === 'name') return row.name?.trim?.() || '—';
-    if (col.id === 'price') return formatPrice(row.price);
+    if (col.id === 'price') return formatGeneralServicePrice(row.price) || '—';
     return '';
   }, []);
 

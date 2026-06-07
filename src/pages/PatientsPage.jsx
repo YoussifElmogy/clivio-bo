@@ -2,6 +2,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
@@ -27,7 +31,10 @@ import { useAuth } from '../context/AuthContext';
 import usePermissions from '../hooks/usePermissions';
 import { PERM } from '../config/permissions';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
+import { allServicesCatalogUrl } from '../utils/servicesCatalogUrl';
 import { isDoctorUser } from '../utils/authRoles';
+
+const PATIENTS_SERVICE_FILTER_ALL = '';
 
 function normalizePatientsList(data) {
   const parsed = parsePaginatedList(data, { listKeys: ['patients', 'results'] });
@@ -64,11 +71,14 @@ function formatDob(value) {
   return s.length >= 10 ? s.slice(0, 10) : s;
 }
 
-/** List URL: `patients?search=…` when filtering, plus `page` & `page_size` for pagination. */
-function buildPatientsListQuery(page, rowsPerPage, searchTrimmed) {
+/** List URL: `patients?search=…&service_id=…` plus `page` & `page_size`. */
+function buildPatientsListQuery(page, rowsPerPage, searchTrimmed, serviceId) {
   const params = new URLSearchParams();
   if (searchTrimmed) {
     params.set('search', searchTrimmed);
+  }
+  if (serviceId !== '' && serviceId != null) {
+    params.set('service_id', String(serviceId));
   }
   params.set('page', String(page + 1));
   params.set('page_size', String(rowsPerPage));
@@ -97,15 +107,22 @@ export default function PatientsPage() {
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
+  const [serviceFilter, setServiceFilter] = useState(PATIENTS_SERVICE_FILTER_ALL);
+  const [appliedServiceId, setAppliedServiceId] = useState(PATIENTS_SERVICE_FILTER_ALL);
+  const [serviceOptions, setServiceOptions] = useState([]);
+  const [servicesLoading, setServicesLoading] = useState(true);
 
   const applySearch = useCallback(() => {
     setAppliedSearch(searchInput.trim());
+    setAppliedServiceId(serviceFilter);
     setPage(0);
-  }, [searchInput]);
+  }, [searchInput, serviceFilter]);
 
   const clearSearch = useCallback(() => {
     setSearchInput('');
     setAppliedSearch('');
+    setServiceFilter(PATIENTS_SERVICE_FILTER_ALL);
+    setAppliedServiceId(PATIENTS_SERVICE_FILTER_ALL);
     setPage(0);
   }, []);
 
@@ -124,10 +141,30 @@ export default function PatientsPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      try {
+        const data = await get(allServicesCatalogUrl());
+        if (cancelled) return;
+        const parsed = parsePaginatedList(data, { listKeys: ['services', 'results'] });
+        setServiceOptions(parsed.rows);
+      } catch {
+        if (!cancelled) setServiceOptions([]);
+      } finally {
+        if (!cancelled) setServicesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
       setLoading(true);
       try {
         const q = appliedSearch.trim();
-        const query = buildPatientsListQuery(page, rowsPerPage, q);
+        const query = buildPatientsListQuery(page, rowsPerPage, q, appliedServiceId);
         const data = await get(`/patients?${query}`);
         if (cancelled) return;
         const { rows: nextRows, total, mode } = normalizePatientsList(data);
@@ -156,7 +193,7 @@ export default function PatientsPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, rowsPerPage, listVersion, appliedSearch]);
+  }, [page, rowsPerPage, listVersion, appliedSearch, appliedServiceId]);
 
   const handleConfirmDelete = useCallback(async () => {
     if (deleteTarget == null) return;
@@ -347,10 +384,11 @@ export default function PatientsPage() {
           direction={{ xs: 'column', sm: 'row' }}
           spacing={1.5}
           alignItems={{ xs: 'stretch', sm: 'center' }}
+          flexWrap="wrap"
+          useFlexGap
           sx={{ mb: 2 }}
         >
           <TextField
-            fullWidth
             size="small"
             placeholder="Search by name or mobile…"
             value={searchInput}
@@ -383,8 +421,34 @@ export default function PatientsPage() {
                 ) : null,
               },
             }}
-            sx={{ flex: 1, minWidth: 0, maxWidth: { sm: 520 } }}
+            sx={{ flex: { sm: '1 1 220px' }, minWidth: { sm: 200 }, maxWidth: { sm: 520 } }}
           />
+          <FormControl
+            size="small"
+            sx={{ minWidth: { xs: '100%', sm: 220 } }}
+            disabled={servicesLoading}
+          >
+            <InputLabel id="patients-service-filter-label">Service</InputLabel>
+            <Select
+              labelId="patients-service-filter-label"
+              label="Service"
+              value={serviceFilter}
+              onChange={e => setServiceFilter(e.target.value)}
+            >
+              <MenuItem value={PATIENTS_SERVICE_FILTER_ALL}>
+                <em>All services</em>
+              </MenuItem>
+              {serviceOptions.map(service => {
+                const id = service.id ?? service.uuid;
+                if (id == null) return null;
+                return (
+                  <MenuItem key={id} value={String(id)}>
+                    {service.name?.trim() || `Service #${id}`}
+                  </MenuItem>
+                );
+              })}
+            </Select>
+          </FormControl>
           <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
             <Button variant="contained" onClick={applySearch} sx={{ borderRadius: 2, px: 2.5 }}>
               Apply

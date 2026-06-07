@@ -1,4 +1,5 @@
 import { parsePaginatedList } from '../utils/parsePaginatedList';
+import { formatMoney } from '../utils/formatMoney';
 
 export function normalizeInvoicesList(data) {
   const parsed = parsePaginatedList(data, { listKeys: ['invoices', 'results'] });
@@ -26,7 +27,7 @@ export const INVOICE_STATUS_FILTER_OPTIONS = [
   { value: 'paid', label: 'Paid' },
 ];
 
-export function buildInvoicesListQuery({ branchId, status, page, pageSize }) {
+export function buildInvoicesListQuery({ branchId, status, search, visitDate, page, pageSize }) {
   const params = new URLSearchParams();
   const branchKey =
     branchId != null && branchId !== '' && String(branchId) !== INVOICES_BRANCH_FILTER_ALL
@@ -39,9 +40,43 @@ export function buildInvoicesListQuery({ branchId, status, page, pageSize }) {
   if (statusKey === 'pending' || statusKey === 'partial' || statusKey === 'paid') {
     params.set('status', statusKey);
   }
+  const searchKey = String(search ?? '').trim();
+  if (searchKey) {
+    params.set('search', searchKey);
+  }
+  const visitDateKey = String(visitDate ?? '').trim();
+  if (visitDateKey) {
+    params.set('visit_date', visitDateKey);
+  }
   params.set('page', String(page));
   params.set('page_size', String(pageSize));
   return params.toString();
+}
+
+export function formatInvoiceVisitDate(value) {
+  if (value == null || value === '') return '—';
+  const s = String(value).trim();
+  if (!s) return '—';
+  if (s.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const d = new Date(`${s.slice(0, 10)}T12:00:00`);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    }
+    return s.slice(0, 10);
+  }
+  const d = new Date(s);
+  if (!Number.isNaN(d.getTime())) {
+    return d.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  }
+  return s;
 }
 
 export function invoicePayUrl(invoiceId) {
@@ -106,14 +141,7 @@ export function invoiceTypeLabel(type) {
 }
 
 export function formatInvoiceMoney(value, currency = 'EGP') {
-  if (value == null || value === '') return '—';
-  const s = String(value).trim();
-  if (!s) return '—';
-  const n = Number(s);
-  if (Number.isFinite(n)) {
-    return `${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
-  }
-  return s;
+  return formatMoney(value, currency);
 }
 
 export function invoiceStatusLabel(status) {

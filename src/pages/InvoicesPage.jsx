@@ -18,8 +18,11 @@ import Typography from '@mui/material/Typography';
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined';
 import InfoOutlined from '@mui/icons-material/InfoOutlined';
 import PaymentsOutlined from '@mui/icons-material/PaymentsOutlined';
+import SearchOutlined from '@mui/icons-material/SearchOutlined';
 import InputAdornment from '@mui/material/InputAdornment';
 import TextField from '@mui/material/TextField';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs from 'dayjs';
 import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
 import PaginatedTable from '../components/PaginatedTable/PaginatedTable';
@@ -35,6 +38,7 @@ import {
   INVOICES_BRANCH_FILTER_ALL,
   INVOICE_STATUS_FILTER_OPTIONS,
   formatInvoiceMoney,
+  formatInvoiceVisitDate,
   invoiceDefaultPayAmount,
   invoiceMaxPayAmount,
   invoicePayUrl,
@@ -93,6 +97,9 @@ export default function InvoicesPage() {
   const [branchOptions, setBranchOptions] = useState([]);
   const [branchFilter, setBranchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [visitDateFilter, setVisitDateFilter] = useState('');
   const [branchesLoading, setBranchesLoading] = useState(true);
   const [rows, setRows] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -170,6 +177,8 @@ export default function InvoicesPage() {
         const query = buildInvoicesListQuery({
           branchId: branchFilter,
           status: statusFilter,
+          search: appliedSearch,
+          visitDate: visitDateFilter,
           page: page + 1,
           pageSize: rowsPerPage,
         });
@@ -199,7 +208,7 @@ export default function InvoicesPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchFilter, statusFilter, page, rowsPerPage, listVersion, canUseInvoices]);
+  }, [branchFilter, statusFilter, appliedSearch, visitDateFilter, page, rowsPerPage, listVersion, canUseInvoices]);
 
   const handleBranchFilterChange = useCallback(value => {
     setBranchFilter(value);
@@ -212,6 +221,34 @@ export default function InvoicesPage() {
     setPage(0);
     setListVersion(v => v + 1);
   }, []);
+
+  const handleVisitDateFilterChange = useCallback(value => {
+    setVisitDateFilter(value);
+    setPage(0);
+    setListVersion(v => v + 1);
+  }, []);
+
+  const applyPatientSearch = useCallback(() => {
+    setAppliedSearch(searchInput.trim());
+    setPage(0);
+    setListVersion(v => v + 1);
+  }, [searchInput]);
+
+  const clearFilters = useCallback(() => {
+    setSearchInput('');
+    setAppliedSearch('');
+    setStatusFilter('');
+    setVisitDateFilter('');
+    if (isSuperAdmin) {
+      setBranchFilter(INVOICES_BRANCH_FILTER_ALL);
+    } else if (branchOptions.length > 0) {
+      setBranchFilter(String(branchOptions[0].id));
+    } else if (userBranchIds.length > 0) {
+      setBranchFilter(String(userBranchIds[0]));
+    }
+    setPage(0);
+    setListVersion(v => v + 1);
+  }, [isSuperAdmin, branchOptions, userBranchIds]);
 
   const handleViewInvoice = useCallback(
     row => {
@@ -270,7 +307,6 @@ export default function InvoicesPage() {
 
   const columns = useMemo(
     () => [
-      { id: 'id', label: 'Invoice #', minWidth: 90 },
       { id: 'patient', label: 'Patient', minWidth: 140 },
       { id: 'branch', label: 'Branch', minWidth: 120 },
       { id: 'doctor', label: 'Doctor', minWidth: 130 },
@@ -279,7 +315,7 @@ export default function InvoicesPage() {
       { id: 'discount', label: 'Discount', minWidth: 100, align: 'right' },
       { id: 'total', label: 'Total', minWidth: 100, align: 'right' },
       { id: 'paid_amount', label: 'Paid', minWidth: 100, align: 'right' },
-      { id: 'created', label: 'Created', minWidth: 150 },
+      { id: 'visit_date', label: 'Visit date', minWidth: 120 },
       {
         id: 'actions',
         label: 'Actions',
@@ -336,7 +372,6 @@ export default function InvoicesPage() {
   );
 
   const getCellValue = useCallback((row, col) => {
-    if (col.id === 'id') return row.id != null ? `#${row.id}` : '—';
     if (col.id === 'patient') return row.patient_name ?? '—';
     if (col.id === 'branch') return row.branch_name ?? '—';
     if (col.id === 'doctor') return row.doctor_name ?? '—';
@@ -355,7 +390,7 @@ export default function InvoicesPage() {
     if (col.id === 'discount') return formatInvoiceMoney(row.discount);
     if (col.id === 'total') return formatInvoiceMoney(row.total);
     if (col.id === 'paid_amount') return formatInvoiceMoney(row.paid_amount);
-    if (col.id === 'created') return formatInvoiceDate(row.created_at);
+    if (col.id === 'visit_date') return formatInvoiceVisitDate(row.visit_date);
     return '';
   }, []);
 
@@ -376,8 +411,8 @@ export default function InvoicesPage() {
         title={`Invoices (${count})`}
         description={
           isSuperAdmin
-            ? 'View all invoices or filter by branch and status. Open PDFs and mark pending invoices as paid.'
-            : 'Filter by branch and status, view invoice PDFs, and mark pending invoices as paid.'
+            ? 'View all invoices or filter by branch, status, patient, or visit date.'
+            : 'Filter invoices by branch, status, patient, or visit date.'
         }
         paperSx={{ p: { xs: 2, sm: 3 } }}
       >
@@ -385,48 +420,96 @@ export default function InvoicesPage() {
           direction={{ xs: 'column', sm: 'row' }}
           spacing={2}
           alignItems={{ xs: 'stretch', sm: 'center' }}
+          flexWrap="wrap"
+          useFlexGap
           sx={{ mb: 2.5 }}
         >
+          <TextField
+            size="small"
+            label="Search patient"
+            placeholder="Patient name or mobile"
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                applyPatientSearch();
+              }
+            }}
+            sx={{ width: { xs: '100%', sm: 220 }, flexShrink: 0 }}
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      aria-label="Search patients"
+                      onClick={applyPatientSearch}
+                      edge="end"
+                    >
+                      <SearchOutlined fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
+          />
           <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 260 } }} disabled={branchesLoading}>
-            <InputLabel id="invoices-branch-filter-label">Branch</InputLabel>
-            <Select
-              labelId="invoices-branch-filter-label"
-              label="Branch"
-              value={branchFilter}
-              onChange={e => handleBranchFilterChange(e.target.value)}
-            >
-              {isSuperAdmin ? (
-                <MenuItem value={INVOICES_BRANCH_FILTER_ALL}>All branches</MenuItem>
-              ) : null}
-              {branchOptions.map(b => (
-                <MenuItem key={b.id} value={String(b.id)}>
-                  {b.name?.trim() || `Branch #${b.id}`}
-                </MenuItem>
-              ))}
-              {!isSuperAdmin && branchOptions.length === 0
-                ? userBranchIds.map(id => (
-                    <MenuItem key={id} value={String(id)}>
-                      Branch #{id}
-                    </MenuItem>
-                  ))
-                : null}
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
-            <InputLabel id="invoices-status-filter-label">Status</InputLabel>
-            <Select
-              labelId="invoices-status-filter-label"
-              label="Status"
-              value={statusFilter}
-              onChange={e => handleStatusFilterChange(e.target.value)}
-            >
-              {INVOICE_STATUS_FILTER_OPTIONS.map(opt => (
-                <MenuItem key={opt.value || 'all'} value={opt.value}>
-                  {opt.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+              <InputLabel id="invoices-branch-filter-label">Branch</InputLabel>
+              <Select
+                labelId="invoices-branch-filter-label"
+                label="Branch"
+                value={branchFilter}
+                onChange={e => handleBranchFilterChange(e.target.value)}
+              >
+                {isSuperAdmin ? (
+                  <MenuItem value={INVOICES_BRANCH_FILTER_ALL}>All branches</MenuItem>
+                ) : null}
+                {branchOptions.map(b => (
+                  <MenuItem key={b.id} value={String(b.id)}>
+                    {b.name?.trim() || `Branch #${b.id}`}
+                  </MenuItem>
+                ))}
+                {!isSuperAdmin && branchOptions.length === 0
+                  ? userBranchIds.map(id => (
+                      <MenuItem key={id} value={String(id)}>
+                        Branch #{id}
+                      </MenuItem>
+                    ))
+                  : null}
+              </Select>
+            </FormControl>
+            <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
+              <InputLabel id="invoices-status-filter-label">Status</InputLabel>
+              <Select
+                labelId="invoices-status-filter-label"
+                label="Status"
+                value={statusFilter}
+                onChange={e => handleStatusFilterChange(e.target.value)}
+              >
+                {INVOICE_STATUS_FILTER_OPTIONS.map(opt => (
+                  <MenuItem key={opt.value || 'all'} value={opt.value}>
+                    {opt.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          <DatePicker
+            label="Visit date"
+            value={visitDateFilter && dayjs(visitDateFilter).isValid() ? dayjs(visitDateFilter) : null}
+            onChange={v => handleVisitDateFilterChange(v?.isValid?.() ? v.format('YYYY-MM-DD') : '')}
+            disabled={loading || branchesLoading}
+            slotProps={{ textField: { size: 'small', fullWidth: true } }}
+            sx={{ width: { xs: '100%', sm: 180 }, flexShrink: 0 }}
+          />
+          <Button
+            variant="outlined"
+            onClick={clearFilters}
+            disabled={loading || branchesLoading}
+            sx={{ borderRadius: 2, flexShrink: 0, alignSelf: { xs: 'stretch', sm: 'center' } }}
+          >
+            Clear filters
+          </Button>
         </Stack>
 
         <PaginatedTable
@@ -479,10 +562,6 @@ export default function InvoicesPage() {
               <InvoiceInfoRow label="Total" value={formatInvoiceMoney(infoTarget.total)} />
               <InvoiceInfoRow label="Paid amount" value={formatInvoiceMoney(infoTarget.paid_amount)} />
               <InvoiceInfoRow label="Remaining" value={formatInvoiceMoney(infoTarget.remaining)} />
-              <InvoiceInfoRow
-                label="Previous remaining"
-                value={formatInvoiceMoney(infoTarget.previous_remaining)}
-              />
               {infoTarget.branch_name ? (
                 <InvoiceInfoRow label="Branch" value={infoTarget.branch_name} />
               ) : null}

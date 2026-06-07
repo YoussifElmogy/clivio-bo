@@ -119,6 +119,13 @@ export default function Overview() {
     setEndDate(next.endDate);
   }, []);
 
+  const handleClearFilters = useCallback(() => {
+    const next = defaultAnalyticsDateRange();
+    setStartDate(next.startDate);
+    setEndDate(next.endDate);
+    setBranchId(ANALYTICS_BRANCH_FILTER_ALL);
+  }, []);
+
   const periodLabel = useMemo(() => {
     if (!startDate || !endDate) return '';
     return `${dayjs(startDate).format('MMM D, YYYY')} – ${dayjs(endDate).format('MMM D, YYYY')}`;
@@ -190,6 +197,7 @@ export default function Overview() {
         onEndDateChange={setEndDate}
         onBranchChange={setBranchId}
         onPreset={handlePreset}
+        onClear={handleClearFilters}
       />
 
       <AnalyticsSummaryCards overview={overview} loading={loading} />

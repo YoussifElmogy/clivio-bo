@@ -28,6 +28,7 @@ import usePermissions from '../hooks/usePermissions';
 import { PERM } from '../config/permissions';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import { servicesCatalogUrl } from '../utils/servicesCatalogUrl';
+import { formatMoneyAmount } from '../utils/formatMoney';
 
 function buildMachinesListQuery(page, rowsPerPage, nameTrimmed, serviceId) {
   const params = new URLSearchParams();
@@ -248,7 +249,7 @@ export default function MachinesInventoryPanel({ onListCountChange } = {}) {
     if (col.id === 'name') return row.name?.trim?.() || '—';
     if (col.id === 'service') return row.service_name?.trim?.() || row.service?.name?.trim?.() || '—';
     if (col.id === 'type') return row.type?.trim?.() || '—';
-    if (col.id === 'price') return row.price != null && row.price !== '' ? row.price : '—';
+    if (col.id === 'price') return formatMoneyAmount(row.price) ?? '—';
     if (col.id === 'latest_maintenance_date')
       return formatMaintenanceDateCell(row.latest_maintenance_date);
     return '';

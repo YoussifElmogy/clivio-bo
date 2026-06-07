@@ -17,12 +17,8 @@ import {
   clampPulseUsedInput,
   pulsePackageTitle,
 } from '../../payloads/appointmentLaserPackagesPayload';
+import { formatMoneyAmount } from '../../utils/formatMoney';
 import ViewOnlyBanner from './ViewOnlyBanner';
-
-function formatPrice(value) {
-  const raw = value != null ? String(value).trim() : '';
-  return raw || null;
-}
 
 function SelectablePackageCard({ selected, disabled, onToggle, children, sx }) {
   const theme = useTheme();
@@ -85,7 +81,7 @@ function CardCheckIcon({ selected, disabled }) {
 }
 
 function PulsePackageCard({ pkg, selected, usedPulses, readOnly, onToggle, onUsedPulsesChange }) {
-  const price = formatPrice(pkg.price);
+  const price = formatMoneyAmount(pkg.price);
   const remaining = Number(pkg.remaining_pulses) || 0;
   const total = Number(pkg.total_pulses) || 0;
   const noRemaining = remaining <= 0;
@@ -138,7 +134,7 @@ function PulsePackageCard({ pkg, selected, usedPulses, readOnly, onToggle, onUse
 }
 
 function AreaPackageCard({ pkg, selected, readOnly, onToggle }) {
-  const price = formatPrice(pkg.price);
+  const price = formatMoneyAmount(pkg.price);
   const used = Boolean(pkg.is_used);
   const disabled = readOnly || used;
 

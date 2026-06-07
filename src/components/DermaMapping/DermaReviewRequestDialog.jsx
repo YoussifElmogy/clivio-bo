@@ -21,16 +21,7 @@ import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
 import { buildUsedPackagesReviewSummary } from '../../payloads/appointmentLaserPackagesPayload';
 import { reservationPricingSourceLabel } from '../../payloads/reservationPricingPayload';
-
-function formatMoney(amount, currency = 'EGP') {
-  if (amount == null || amount === '') return '—';
-  const n = Number(amount);
-  if (!Number.isFinite(n)) {
-    const s = String(amount).trim();
-    return s ? `${s} ${currency}` : '—';
-  }
-  return `${n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${currency}`;
-}
+import { formatMoney } from '../../utils/formatMoney';
 
 function PricingLineItemsSection({
   items,
