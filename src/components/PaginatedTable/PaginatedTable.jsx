@@ -73,7 +73,7 @@ export default function PaginatedTable({
                     backgroundImage: `linear-gradient(180deg, ${theme.palette.background.paper} 0%, rgba(15, 118, 110, 0.04) 100%)`,
                   }}
                 >
-                  {col.label}
+              {col.renderHeader ? col.renderHeader() : col.label}
                 </TableCell>
               ))}
             </TableRow>

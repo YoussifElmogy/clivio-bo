@@ -21,14 +21,22 @@ export function splitPhoneNumber(rawPhone) {
   }
 
   const compact = raw.replace(/[^\d+]/g, '');
+  const compactDigits = digitsOnly(raw);
   const option = [...COUNTRY_OPTIONS]
     .sort((a, b) => b.code.length - a.code.length)
-    .find(x => compact.startsWith(x.code));
+    .find(x => {
+      const codeDigits = x.code.replace(/^\+/, '');
+      return compact.startsWith(x.code) || compactDigits.startsWith(codeDigits);
+    });
 
   if (option) {
+    const codeDigits = option.code.replace(/^\+/, '');
+    const national = compact.startsWith(option.code)
+      ? compact.slice(option.code.length)
+      : compactDigits.slice(codeDigits.length);
     return {
       countryCode: option.code,
-      nationalNumber: normalizeNationalNumber(compact.slice(option.code.length)),
+      nationalNumber: normalizeNationalNumber(national),
     };
   }
 
@@ -42,7 +50,7 @@ export function buildInternationalPhone(countryCode, nationalNumber) {
   const cc = normalizeCountryCode(countryCode);
   const national = normalizeNationalNumber(nationalNumber);
   if (!national) return '';
-  return `${cc}${national}`;
+  return `${cc}${national}`.replace(/^\+/, '');
 }
 
 export function validatePhoneByCountry(countryCode, nationalNumber) {
