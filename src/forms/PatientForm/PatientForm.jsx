@@ -298,7 +298,7 @@ export default function PatientForm({
             id="patient-mobile"
             label="Mobile number"
             required
-            placeholder="100 111 2233"
+            placeholder="1099036435"
             disabled={isSubmitting}
             countryError={errors.mobile_country_code}
             numberError={errors.mobile_number}

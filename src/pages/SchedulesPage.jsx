@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -6,6 +6,7 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
+import { alpha } from '@mui/material/styles';
 import FormControl from '@mui/material/FormControl';
 import Grid from '@mui/material/Grid';
 import InputLabel from '@mui/material/InputLabel';
@@ -17,6 +18,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
+import ScheduleBookAppointmentDrawer from '../components/Schedules/ScheduleBookAppointmentDrawer';
 import { useToast } from '../context/ToastContext';
 import { formatHhmmToAmPm } from '../utils/timeFormat';
 
@@ -183,6 +185,18 @@ export default function SchedulesPage() {
 
   const [optionsBranches, setOptionsBranches] = useState([]);
   const [catalogDoctors, setCatalogDoctors] = useState([]);
+  const [bookDrawerOpen, setBookDrawerOpen] = useState(false);
+  const [bookContext, setBookContext] = useState(null);
+  const [availabilityRefreshKey, setAvailabilityRefreshKey] = useState(0);
+
+  const openBookDrawer = useCallback((ctx) => {
+    setBookContext(ctx);
+    setBookDrawerOpen(true);
+  }, []);
+
+  const handleAppointmentBooked = useCallback(() => {
+    setAvailabilityRefreshKey(k => k + 1);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -278,7 +292,7 @@ export default function SchedulesPage() {
     };
     // `get` changes identity each render from useApi hook.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appliedDate, appliedBranchId, appliedDoctorId]);
+  }, [appliedDate, appliedBranchId, appliedDoctorId, availabilityRefreshKey]);
 
   const displayedDate = availability.date || appliedDate;
   const doctorOptions = useMemo(
@@ -464,6 +478,32 @@ export default function SchedulesPage() {
                                         }`}
                                         color={isAvailable ? 'success' : 'error'}
                                         variant={isAvailable ? 'outlined' : 'filled'}
+                                        onClick={
+                                          isAvailable
+                                            ? () =>
+                                                openBookDrawer({
+                                                  branchId: branch?.id,
+                                                  branchName: branch?.name || '',
+                                                  doctorId: doctor?.id,
+                                                  doctorName: doctor?.name || '',
+                                                  doctorSpecialty: doctor?.specialty || '',
+                                                  date: displayedDate,
+                                                  slot: hhmm,
+                                                })
+                                            : undefined
+                                        }
+                                        sx={
+                                          isAvailable
+                                            ? theme => ({
+                                                cursor: 'pointer',
+                                                '&:hover': {
+                                                  bgcolor: alpha(theme.palette.success.main, 0.14),
+                                                  borderColor: theme.palette.success.main,
+                                                  color: theme.palette.success.dark,
+                                                },
+                                              })
+                                            : undefined
+                                        }
                                       />
                                     );
                                   })}
@@ -481,6 +521,12 @@ export default function SchedulesPage() {
           })}
         </Stack>
       )}
+      <ScheduleBookAppointmentDrawer
+        open={bookDrawerOpen}
+        context={bookContext}
+        onClose={() => setBookDrawerOpen(false)}
+        onBooked={handleAppointmentBooked}
+      />
     </FormPageShell>
   );
 }

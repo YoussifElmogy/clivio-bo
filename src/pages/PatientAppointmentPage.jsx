@@ -18,6 +18,10 @@ import { useToast } from '../context/ToastContext';
 import { useAppointmentCatalog } from '../hooks/useAppointmentCatalog';
 import { usePatientAppointmentForm } from '../hooks/usePatientAppointmentForm';
 import { patientAppointmentDefaultValues } from '../schemas/patientAppointmentSchema';
+import {
+  buildReservationCreatePayload,
+  RESERVATIONS_CREATE_URL,
+} from '../payloads/reservationBookPayload';
 
 function patientDisplayName(data) {
   if (!data) return '';
@@ -131,13 +135,14 @@ export default function PatientAppointmentPage() {
       return;
     }
     try {
-      await post('/reservations', {
-        patient_id: Number(pid),
-        branch_id: Number(values.branchId),
-        doctor_id: Number(values.doctorId),
-        date_of_visit: String(values.appointmentDay ?? '').trim(),
-        slot: String(values.appointmentTime ?? '').trim().slice(0, 5),
+      const payload = buildReservationCreatePayload({
+        patientId: pid,
+        branchId: values.branchId,
+        doctorId: values.doctorId,
+        dateOfVisit: values.appointmentDay,
+        slot: values.appointmentTime,
       });
+      await post(RESERVATIONS_CREATE_URL, payload);
       showSuccess('Appointment saved.');
       navigate('/patients');
     } catch (err) {

@@ -7,6 +7,7 @@ import Select from '@mui/material/Select';
 import TextField from '@mui/material/TextField';
 import FormFieldLabel from '../FormFieldLabel/FormFieldLabel';
 import { COUNTRY_OPTIONS, DEFAULT_COUNTRY_CODE } from '../../constants/countryPhoneOptions';
+import { nationalPhoneMaxLength, nationalPhonePlaceholder, sanitizeNationalPhoneInput } from '../../utils/phoneNumber';
 
 export default function PhoneNumberField({
   control,
@@ -28,7 +29,16 @@ export default function PhoneNumberField({
         <Controller
           name={countryCodeName}
           control={control}
-          render={({ field: countryField }) => (
+          render={({ field: countryField }) => {
+            const countryCode = countryField.value || DEFAULT_COUNTRY_CODE;
+            const resolvedPlaceholder = nationalPhonePlaceholder(countryCode) || placeholder;
+            const maxLength = nationalPhoneMaxLength(countryCode);
+
+            const handleNumberChange = nextValue => {
+              numberField.onChange(sanitizeNationalPhoneInput(countryCode, nextValue));
+            };
+
+            return (
             <Box>
               <FormFieldLabel htmlFor={id} required={required}>
                 {label}
@@ -40,19 +50,28 @@ export default function PhoneNumberField({
                 fullWidth
                 type="tel"
                 autoComplete="tel-national"
-                placeholder={placeholder}
+                placeholder={resolvedPlaceholder}
                 value={numberField.value ?? ''}
-                onChange={e => numberField.onChange(e.target.value)}
+                onChange={e => handleNumberChange(e.target.value)}
+                onPaste={e => {
+                  e.preventDefault();
+                  handleNumberChange(e.clipboardData?.getData('text') ?? '');
+                }}
                 error={Boolean(numberError) || Boolean(countryError)}
                 helperText={numberError?.message || countryError?.message}
                 disabled={disabled}
                 slotProps={{
                   input: {
+                    inputProps: { maxLength },
                     startAdornment: (
                       <InputAdornment position="start" sx={{ mr: 0.5 }}>
                         <Select
                           value={countryField.value || DEFAULT_COUNTRY_CODE}
-                          onChange={e => countryField.onChange(e.target.value)}
+                          onChange={e => {
+                            const nextCode = e.target.value;
+                            countryField.onChange(nextCode);
+                            handleNumberChange(numberField.value ?? '');
+                          }}
                           variant="standard"
                           disableUnderline
                           displayEmpty
@@ -103,7 +122,8 @@ export default function PhoneNumberField({
                 }}
               />
             </Box>
-          )}
+            );
+          }}
         />
       )}
     />
