@@ -53,6 +53,14 @@ export function buildInternationalPhone(countryCode, nationalNumber) {
   return `${cc}${national}`.replace(/^\+/, '');
 }
 
+/** Same as buildInternationalPhone but keeps the leading `+` (e.g. patient API). */
+export function buildInternationalPhoneWithPlus(countryCode, nationalNumber) {
+  const cc = normalizeCountryCode(countryCode);
+  const national = normalizeNationalNumber(nationalNumber);
+  if (!national) return '';
+  return `${cc}${national}`;
+}
+
 export function validatePhoneByCountry(countryCode, nationalNumber) {
   const cc = normalizeCountryCode(countryCode);
   const national = normalizeNationalNumber(nationalNumber);

@@ -44,7 +44,7 @@ function mergePackagesFromApiRow(row) {
   return { pulse_package_ids, area_package_ids };
 }
 import {
-  buildInternationalPhone,
+  buildInternationalPhoneWithPlus,
   splitPhoneNumber,
 } from '../utils/phoneNumber';
 
@@ -94,7 +94,10 @@ export function buildPatientCreatePayload(values) {
   const body = {
     first_name: values.first_name.trim(),
     last_name: values.last_name.trim(),
-    mobile_number: buildInternationalPhone(values.mobile_country_code, values.mobile_number),
+    mobile_number: buildInternationalPhoneWithPlus(
+      values.mobile_country_code,
+      values.mobile_number
+    ),
     date_of_birth: values.date_of_birth.trim(),
     is_for_self: Boolean(values.is_for_self),
   };
@@ -110,7 +113,10 @@ export function buildPatientUpdatePayload(values) {
   return {
     first_name: values.first_name.trim(),
     last_name: values.last_name.trim(),
-    mobile_number: buildInternationalPhone(values.mobile_country_code, values.mobile_number),
+    mobile_number: buildInternationalPhoneWithPlus(
+      values.mobile_country_code,
+      values.mobile_number
+    ),
     date_of_birth: values.date_of_birth.trim(),
     medical_notes: (values.medical_notes ?? '').trim(),
     packages: buildPatientPackagesFromValues(values),
