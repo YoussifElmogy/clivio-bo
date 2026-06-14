@@ -38,7 +38,7 @@ import usePermissions from '../hooks/usePermissions';
 import { PERM } from '../config/permissions';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import { allServicesCatalogUrl } from '../utils/servicesCatalogUrl';
-import { isDoctorUser } from '../utils/authRoles';
+import { isAssistantUser, isDoctorUser, isSuperAdminUser } from '../utils/authRoles';
 import { buildSmsSendPayload, SMS_SEND_URL } from '../payloads/smsPayload';
 
 const PATIENTS_SERVICE_FILTER_ALL = '';
@@ -116,6 +116,7 @@ export default function PatientsPage() {
   const { showError, showInfo, showSuccess } = useToast();
   const { can } = usePermissions();
   const isDoctor = isDoctorUser(user);
+  const canSendSms = isSuperAdminUser(user) || isAssistantUser(user);
   const canAddPatient = can(PERM.ADD_PATIENT);
   const canEditPatient = can(PERM.EDIT_PATIENT);
   const canDeletePatient = can(PERM.DELETE_PATIENT);
@@ -361,43 +362,44 @@ export default function PatientsPage() {
   }, [post, selectedRecipients, showError, showSuccess, smsMessage]);
 
   const columns = useMemo(() => {
-    const base = [
-      {
-        id: 'select',
-        label: '',
-        minWidth: 48,
-        align: 'center',
-        renderHeader: () => (
+    const selectColumn = {
+      id: 'select',
+      label: '',
+      minWidth: 48,
+      align: 'center',
+      renderHeader: () => (
+        <Checkbox
+          size="small"
+          checked={allPageSelected}
+          indeterminate={somePageSelected}
+          onChange={e => toggleSelectAllOnPage(e.target.checked)}
+          onClick={e => e.stopPropagation()}
+          disabled={pageSelectableIds.length === 0}
+          inputProps={{ 'aria-label': 'Select all patients on this page' }}
+        />
+      ),
+      render: row => {
+        const id = patientRowId(row);
+        const key = id != null ? String(id) : '';
+        return (
           <Checkbox
             size="small"
-            checked={allPageSelected}
-            indeterminate={somePageSelected}
-            onChange={e => toggleSelectAllOnPage(e.target.checked)}
+            checked={Boolean(key && selectedById[key])}
+            onChange={e => {
+              e.stopPropagation();
+              togglePatientSelection(row, e.target.checked);
+            }}
             onClick={e => e.stopPropagation()}
-            disabled={pageSelectableIds.length === 0}
-            inputProps={{ 'aria-label': 'Select all patients on this page' }}
+            disabled={id == null}
+            inputProps={{
+              'aria-label': `Select ${patientFullName(row) || patientMobile(row) || 'patient'}`,
+            }}
           />
-        ),
-        render: row => {
-          const id = patientRowId(row);
-          const key = id != null ? String(id) : '';
-          return (
-            <Checkbox
-              size="small"
-              checked={Boolean(key && selectedById[key])}
-              onChange={e => {
-                e.stopPropagation();
-                togglePatientSelection(row, e.target.checked);
-              }}
-              onClick={e => e.stopPropagation()}
-              disabled={id == null}
-              inputProps={{
-                'aria-label': `Select ${patientFullName(row) || patientMobile(row) || 'patient'}`,
-              }}
-            />
-          );
-        },
+        );
       },
+    };
+    const base = [
+      ...(canSendSms ? [selectColumn] : []),
       { id: 'name', label: 'Name', minWidth: 180 },
       { id: 'mobile', label: 'Mobile', minWidth: 140 },
       { id: 'dob', label: 'Date of birth', minWidth: 120 },
@@ -488,6 +490,7 @@ export default function PatientsPage() {
     ];
   }, [
     allPageSelected,
+    canSendSms,
     isDoctor,
     navigate,
     pageSelectableIds.length,
@@ -611,7 +614,7 @@ export default function PatientsPage() {
           </Stack>
         </Stack>
 
-        {selectedCount > 0 ? (
+        {canSendSms && selectedCount > 0 ? (
           <Paper
             variant="outlined"
             sx={{
@@ -701,20 +704,22 @@ export default function PatientsPage() {
           </DialogActions>
         </Dialog>
 
-        <PatientSmsSendDialog
-          open={smsOpen}
-          recipients={selectedRecipients}
-          message={smsMessage}
-          submitting={smsSubmitting}
-          onClose={() => {
-            if (!smsSubmitting) {
-              setSmsOpen(false);
-              setSmsMessage('');
-            }
-          }}
-          onMessageChange={setSmsMessage}
-          onSubmit={handleSendSms}
-        />
+        {canSendSms ? (
+          <PatientSmsSendDialog
+            open={smsOpen}
+            recipients={selectedRecipients}
+            message={smsMessage}
+            submitting={smsSubmitting}
+            onClose={() => {
+              if (!smsSubmitting) {
+                setSmsOpen(false);
+                setSmsMessage('');
+              }
+            }}
+            onMessageChange={setSmsMessage}
+            onSubmit={handleSendSms}
+          />
+        ) : null}
       </FormPageShell>
     </>
   );

@@ -16,6 +16,11 @@ export const RESERVATION_STATUS_OPTIONS = [
   { value: RESERVATION_STATUS.CANCELED, label: 'Canceled' },
 ];
 
+/** Appointments list filter — canceled is excluded from filter choices. */
+export const RESERVATION_STATUS_FILTER_OPTIONS = RESERVATION_STATUS_OPTIONS.filter(
+  o => o.value !== RESERVATION_STATUS.CANCELED
+);
+
 export function reservationStatusLabel(value) {
   const v = String(value ?? '').toLowerCase();
   const row = RESERVATION_STATUS_OPTIONS.find(o => o.value === v);

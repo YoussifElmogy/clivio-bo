@@ -209,17 +209,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = async () => {
-    try {
-      await post('/auth/logout');
-    } catch {
-      // Optional endpoint — ignore failures
-    } finally {
-      setIsAuthenticated(false);
-      setUser({});
-      clearAuthCookies();
-      window.location.href = '/login';
-    }
+  const logout = () => {
+    setIsAuthenticated(false);
+    setUser({});
+    clearAuthCookies();
+    window.location.href = '/login';
   };
 
   const updateUser = updatedUserData => {

@@ -40,7 +40,7 @@ import { getDoctorAppointmentViewPath } from '../utils/doctorAppointmentNavigati
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import {
   RESERVATION_STATUS,
-  RESERVATION_STATUS_OPTIONS,
+  RESERVATION_STATUS_FILTER_OPTIONS,
   reservationStatusLabel,
 } from '../constants/reservationStatus';
 import { formatAttachmentSecondaryLine, formatHhmmToAmPm } from '../utils/timeFormat';
@@ -593,7 +593,7 @@ export default function ReservationsPage() {
                 <MenuItem value="">
                   <em>All</em>
                 </MenuItem>
-                {RESERVATION_STATUS_OPTIONS.map(o => (
+                {RESERVATION_STATUS_FILTER_OPTIONS.map(o => (
                   <MenuItem key={o.value} value={o.value}>
                     {o.label}
                   </MenuItem>
