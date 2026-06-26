@@ -9,8 +9,10 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
+import Paper from '@mui/material/Paper';
 import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
@@ -18,13 +20,13 @@ import Typography from '@mui/material/Typography';
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined';
 import InfoOutlined from '@mui/icons-material/InfoOutlined';
 import PaymentsOutlined from '@mui/icons-material/PaymentsOutlined';
-import SearchOutlined from '@mui/icons-material/SearchOutlined';
-import InputAdornment from '@mui/material/InputAdornment';
+import FilterAltOutlined from '@mui/icons-material/FilterAltOutlined';
 import TextField from '@mui/material/TextField';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
+import InvoicePaymentSummaryDrawer from '../components/Invoices/InvoicePaymentSummaryDrawer';
 import PaginatedTable from '../components/PaginatedTable/PaginatedTable';
 import CustomLoader from '../components/CustomLoader/CustomLoader';
 import { useToast } from '../context/ToastContext';
@@ -41,6 +43,8 @@ import {
   formatInvoiceVisitDate,
   invoiceDefaultPayAmount,
   invoiceMaxPayAmount,
+  INVOICE_PAYMENT_TYPE_DEFAULT,
+  INVOICE_PAYMENT_TYPE_OPTIONS,
   invoicePayUrl,
   invoiceStatusLabel,
   invoiceTypeLabel,
@@ -71,6 +75,11 @@ function statusChipColor(status) {
   return 'default';
 }
 
+const VISIT_DATE_PRESETS = [
+  { id: 'today', label: 'Today', offset: 0 },
+  { id: 'yesterday', label: 'Yesterday', offset: -1 },
+];
+
 function InvoiceInfoRow({ label, value }) {
   return (
     <Stack direction="row" justifyContent="space-between" spacing={2} sx={{ py: 0.75 }}>
@@ -96,10 +105,12 @@ export default function InvoicesPage() {
 
   const [branchOptions, setBranchOptions] = useState([]);
   const [branchFilter, setBranchFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusInput, setStatusInput] = useState('');
+  const [appliedStatus, setAppliedStatus] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
-  const [visitDateFilter, setVisitDateFilter] = useState('');
+  const [visitDateInput, setVisitDateInput] = useState('');
+  const [appliedVisitDate, setAppliedVisitDate] = useState('');
   const [branchesLoading, setBranchesLoading] = useState(true);
   const [rows, setRows] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -110,8 +121,10 @@ export default function InvoicesPage() {
   const [listVersion, setListVersion] = useState(0);
   const [payTarget, setPayTarget] = useState(null);
   const [payAmount, setPayAmount] = useState('');
+  const [payPaymentType, setPayPaymentType] = useState(INVOICE_PAYMENT_TYPE_DEFAULT);
   const [paySubmitting, setPaySubmitting] = useState(false);
   const [infoTarget, setInfoTarget] = useState(null);
+  const [paymentSummaryOpen, setPaymentSummaryOpen] = useState(false);
 
   useEffect(() => {
     if (!canUseInvoices) {
@@ -176,9 +189,9 @@ export default function InvoicesPage() {
       try {
         const query = buildInvoicesListQuery({
           branchId: branchFilter,
-          status: statusFilter,
+          status: appliedStatus,
           search: appliedSearch,
-          visitDate: visitDateFilter,
+          visitDate: appliedVisitDate,
           page: page + 1,
           pageSize: rowsPerPage,
         });
@@ -208,7 +221,7 @@ export default function InvoicesPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchFilter, statusFilter, appliedSearch, visitDateFilter, page, rowsPerPage, listVersion, canUseInvoices]);
+  }, [branchFilter, appliedStatus, appliedSearch, appliedVisitDate, page, rowsPerPage, listVersion, canUseInvoices]);
 
   const handleBranchFilterChange = useCallback(value => {
     setBranchFilter(value);
@@ -216,29 +229,29 @@ export default function InvoicesPage() {
     setListVersion(v => v + 1);
   }, []);
 
-  const handleStatusFilterChange = useCallback(value => {
-    setStatusFilter(value);
-    setPage(0);
-    setListVersion(v => v + 1);
-  }, []);
-
-  const handleVisitDateFilterChange = useCallback(value => {
-    setVisitDateFilter(value);
-    setPage(0);
-    setListVersion(v => v + 1);
-  }, []);
-
-  const applyPatientSearch = useCallback(() => {
+  const applyFilters = useCallback(() => {
     setAppliedSearch(searchInput.trim());
+    setAppliedStatus(statusInput.trim());
+    setAppliedVisitDate(visitDateInput.trim());
     setPage(0);
     setListVersion(v => v + 1);
-  }, [searchInput]);
+  }, [searchInput, statusInput, visitDateInput]);
+
+  const applyVisitDatePreset = useCallback(offsetDays => {
+    const next = dayjs().add(offsetDays, 'day').format('YYYY-MM-DD');
+    setVisitDateInput(next);
+    setAppliedVisitDate(next);
+    setPage(0);
+    setListVersion(v => v + 1);
+  }, []);
 
   const clearFilters = useCallback(() => {
     setSearchInput('');
     setAppliedSearch('');
-    setStatusFilter('');
-    setVisitDateFilter('');
+    setStatusInput('');
+    setAppliedStatus('');
+    setVisitDateInput('');
+    setAppliedVisitDate('');
     if (isSuperAdmin) {
       setBranchFilter(INVOICES_BRANCH_FILTER_ALL);
     } else if (branchOptions.length > 0) {
@@ -249,6 +262,8 @@ export default function InvoicesPage() {
     setPage(0);
     setListVersion(v => v + 1);
   }, [isSuperAdmin, branchOptions, userBranchIds]);
+
+  const visitDateValue = visitDateInput ? dayjs(visitDateInput) : null;
 
   const handleViewInvoice = useCallback(
     row => {
@@ -268,13 +283,14 @@ export default function InvoicesPage() {
     setPayTarget(row);
     const defaultAmount = invoiceDefaultPayAmount(row);
     setPayAmount(defaultAmount === '' ? '' : String(defaultAmount));
+    setPayPaymentType(INVOICE_PAYMENT_TYPE_DEFAULT);
   }, []);
 
   const handleConfirmPay = useCallback(async () => {
     if (!payTarget?.id) return;
     setPaySubmitting(true);
     try {
-      const result = validateInvoicePayAmount(payAmount, payTarget);
+      const result = validateInvoicePayAmount(payAmount, payTarget, payPaymentType);
       if (!result.ok) {
         showError(result.message);
         setPaySubmitting(false);
@@ -284,6 +300,7 @@ export default function InvoicesPage() {
       showSuccess('Payment recorded.');
       setPayTarget(null);
       setPayAmount('');
+      setPayPaymentType(INVOICE_PAYMENT_TYPE_DEFAULT);
       setListVersion(v => v + 1);
     } catch (err) {
       showError(
@@ -297,7 +314,7 @@ export default function InvoicesPage() {
     } finally {
       setPaySubmitting(false);
     }
-  }, [payAmount, payTarget, post, showError, showSuccess]);
+  }, [payAmount, payPaymentType, payTarget, post, showError, showSuccess]);
 
   const count = listMode === 'server' ? totalCount : rows.length;
   const paginatedRows = useMemo(() => {
@@ -416,101 +433,143 @@ export default function InvoicesPage() {
         }
         paperSx={{ p: { xs: 2, sm: 3 } }}
       >
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={2}
-          alignItems={{ xs: 'stretch', sm: 'center' }}
-          flexWrap="wrap"
-          useFlexGap
-          sx={{ mb: 2.5 }}
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 2, sm: 2.5 },
+            mb: 2,
+            borderRadius: 3,
+            border: '1px solid',
+            borderColor: 'divider',
+            bgcolor: theme => (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'grey.50'),
+          }}
         >
-          <TextField
-            size="small"
-            label="Search patient"
-            placeholder="Patient name or mobile"
-            value={searchInput}
-            onChange={e => setSearchInput(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                applyPatientSearch();
-              }
-            }}
-            sx={{ width: { xs: '100%', sm: 220 }, flexShrink: 0 }}
-            slotProps={{
-              input: {
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      size="small"
-                      aria-label="Search patients"
-                      onClick={applyPatientSearch}
-                      edge="end"
-                    >
-                      <SearchOutlined fontSize="small" />
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              },
-            }}
-          />
-          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 260 } }} disabled={branchesLoading}>
-              <InputLabel id="invoices-branch-filter-label">Branch</InputLabel>
-              <Select
-                labelId="invoices-branch-filter-label"
-                label="Branch"
-                value={branchFilter}
-                onChange={e => handleBranchFilterChange(e.target.value)}
+          <Stack spacing={1}>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <FilterAltOutlined color="primary" fontSize="small" />
+              <Box component="span" sx={{ fontWeight: 700, fontSize: '0.95rem' }}>
+                Filters
+              </Box>
+            </Stack>
+
+            <Stack direction="row" flexWrap="wrap" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+              {VISIT_DATE_PRESETS.map(preset => (
+                <Button
+                  key={preset.id}
+                  size="small"
+                  variant="outlined"
+                  disabled={loading || branchesLoading}
+                  onClick={() => applyVisitDatePreset(preset.offset)}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, mb: 2 }}
+                >
+                  {preset.label}
+                </Button>
+              ))}
+            </Stack>
+
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={2}
+              alignItems={{ xs: 'stretch', md: 'flex-end' }}
+              flexWrap="wrap"
+              useFlexGap
+              sx={{ flexWrap: 'wrap', mb: 2 }}
+            >
+              <TextField
+                label="Search"
+                size="small"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    applyFilters();
+                  }
+                }}
+                placeholder="Patient name or mobile"
+              />
+              <FormControl
+                size="small"
+                sx={{ minWidth: { xs: '100%', md: 200 } }}
+                disabled={branchesLoading}
               >
-                {isSuperAdmin ? (
-                  <MenuItem value={INVOICES_BRANCH_FILTER_ALL}>All branches</MenuItem>
-                ) : null}
-                {branchOptions.map(b => (
-                  <MenuItem key={b.id} value={String(b.id)}>
-                    {b.name?.trim() || `Branch #${b.id}`}
-                  </MenuItem>
-                ))}
-                {!isSuperAdmin && branchOptions.length === 0
-                  ? userBranchIds.map(id => (
-                      <MenuItem key={id} value={String(id)}>
-                        Branch #{id}
-                      </MenuItem>
-                    ))
-                  : null}
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
-              <InputLabel id="invoices-status-filter-label">Status</InputLabel>
-              <Select
-                labelId="invoices-status-filter-label"
-                label="Status"
-                value={statusFilter}
-                onChange={e => handleStatusFilterChange(e.target.value)}
-              >
-                {INVOICE_STATUS_FILTER_OPTIONS.map(opt => (
-                  <MenuItem key={opt.value || 'all'} value={opt.value}>
-                    {opt.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          <DatePicker
-            label="Visit date"
-            value={visitDateFilter && dayjs(visitDateFilter).isValid() ? dayjs(visitDateFilter) : null}
-            onChange={v => handleVisitDateFilterChange(v?.isValid?.() ? v.format('YYYY-MM-DD') : '')}
-            disabled={loading || branchesLoading}
-            slotProps={{ textField: { size: 'small', fullWidth: true } }}
-            sx={{ width: { xs: '100%', sm: 180 }, flexShrink: 0 }}
-          />
-          <Button
-            variant="outlined"
-            onClick={clearFilters}
-            disabled={loading || branchesLoading}
-            sx={{ borderRadius: 2, flexShrink: 0, alignSelf: { xs: 'stretch', sm: 'center' } }}
-          >
-            Clear filters
-          </Button>
-        </Stack>
+                <InputLabel id="invoices-branch-filter-label">Branch</InputLabel>
+                <Select
+                  labelId="invoices-branch-filter-label"
+                  label="Branch"
+                  value={branchFilter}
+                  onChange={e => handleBranchFilterChange(e.target.value)}
+                >
+                  {isSuperAdmin ? (
+                    <MenuItem value={INVOICES_BRANCH_FILTER_ALL}>All branches</MenuItem>
+                  ) : null}
+                  {branchOptions.map(b => (
+                    <MenuItem key={b.id} value={String(b.id)}>
+                      {b.name?.trim() || `Branch #${b.id}`}
+                    </MenuItem>
+                  ))}
+                  {!isSuperAdmin && branchOptions.length === 0
+                    ? userBranchIds.map(id => (
+                        <MenuItem key={id} value={String(id)}>
+                          Branch #{id}
+                        </MenuItem>
+                      ))
+                    : null}
+                </Select>
+              </FormControl>
+              <FormControl size="small" sx={{ minWidth: { xs: '100%', md: 160 } }}>
+                <InputLabel id="invoices-status-filter-label">Status</InputLabel>
+                <Select
+                  labelId="invoices-status-filter-label"
+                  label="Status"
+                  value={statusInput}
+                  onChange={e => setStatusInput(e.target.value)}
+                >
+                  {INVOICE_STATUS_FILTER_OPTIONS.map(opt => (
+                    <MenuItem key={opt.value || 'all'} value={opt.value}>
+                      {opt.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <DatePicker
+                label="Visit date"
+                value={visitDateValue?.isValid() ? visitDateValue : null}
+                onChange={v => setVisitDateInput(v?.isValid?.() ? v.format('YYYY-MM-DD') : '')}
+                disabled={loading || branchesLoading}
+                slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                sx={{ minWidth: { xs: '100%', md: 180 , maxWidth: 220} }}
+              />
+              <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }} flexWrap="wrap" useFlexGap>
+                <Button
+                  variant="contained"
+                  onClick={applyFilters}
+                  disabled={loading || branchesLoading}
+                  sx={{ borderRadius: 2 }}
+                >
+                  Apply
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={clearFilters}
+                  disabled={loading || branchesLoading}
+                  sx={{ borderRadius: 2 }}
+                >
+                  Clear
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<PaymentsOutlined />}
+                  onClick={() => setPaymentSummaryOpen(true)}
+                  disabled={branchesLoading}
+                  sx={{ borderRadius: 2 }}
+                >
+                  Payment info
+                </Button>
+              </Stack>
+            </Stack>
+          </Stack>
+        </Paper>
 
         <PaginatedTable
           columns={columns}
@@ -519,12 +578,12 @@ export default function InvoicesPage() {
           skeletonRows={rowsPerPage}
           emptyMessage={
             branchFilter === INVOICES_BRANCH_FILTER_ALL
-              ? statusFilter
-                ? `No ${statusFilter} invoices found.`
+              ? appliedStatus
+                ? `No ${appliedStatus} invoices found.`
                 : 'No invoices found.'
               : branchFilter
-                ? statusFilter
-                  ? `No ${statusFilter} invoices for this branch.`
+                ? appliedStatus
+                  ? `No ${appliedStatus} invoices for this branch.`
                   : 'No invoices for this branch.'
                 : 'Select a branch to load invoices.'
           }
@@ -587,6 +646,7 @@ export default function InvoicesPage() {
           if (!paySubmitting) {
             setPayTarget(null);
             setPayAmount('');
+            setPayPaymentType(INVOICE_PAYMENT_TYPE_DEFAULT);
           }
         }}
         aria-labelledby="pay-invoice-dialog-title"
@@ -611,6 +671,22 @@ export default function InvoicesPage() {
                   Remaining: {formatInvoiceMoney(payTarget.remaining)}
                 </Typography>
               </Stack>
+              <FormControl size="small" fullWidth required>
+                <InputLabel id="pay-invoice-type-label">Payment type</InputLabel>
+                <Select
+                  labelId="pay-invoice-type-label"
+                  label="Payment type"
+                  value={payPaymentType}
+                  onChange={e => setPayPaymentType(Number(e.target.value))}
+                  disabled={paySubmitting}
+                >
+                  {INVOICE_PAYMENT_TYPE_OPTIONS.map(o => (
+                    <MenuItem key={o.value} value={o.value}>
+                      {o.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
               <TextField
                 label="Amount paid"
                 type="number"
@@ -642,6 +718,7 @@ export default function InvoicesPage() {
             onClick={() => {
               setPayTarget(null);
               setPayAmount('');
+              setPayPaymentType(INVOICE_PAYMENT_TYPE_DEFAULT);
             }}
             disabled={paySubmitting}
           >
@@ -662,6 +739,11 @@ export default function InvoicesPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <InvoicePaymentSummaryDrawer
+        open={paymentSummaryOpen}
+        onClose={() => setPaymentSummaryOpen(false)}
+      />
     </>
   );
 }

@@ -83,14 +83,121 @@ export function invoicePayUrl(invoiceId) {
   return `/invoices/${encodeURIComponent(invoiceId)}/pay`;
 }
 
-export function buildInvoicePayPayload(amountPaid) {
+/** Backend invoice payment_type values. */
+export const INVOICE_PAYMENT_TYPE = {
+  INSTAPAY: 1,
+  CASH: 2,
+  VISA: 3,
+};
+
+export const INVOICE_PAYMENT_TYPE_OPTIONS = [
+  { value: INVOICE_PAYMENT_TYPE.CASH, label: 'Cash' },
+  { value: INVOICE_PAYMENT_TYPE.INSTAPAY, label: 'Instapay' },
+  { value: INVOICE_PAYMENT_TYPE.VISA, label: 'Visa' },
+];
+
+export const INVOICE_PAYMENT_TYPE_DEFAULT = INVOICE_PAYMENT_TYPE.CASH;
+
+export const INVOICE_PAYMENT_TYPE_FILTER_ALL = 'all';
+
+export const INVOICE_PAYMENT_TYPE_FILTER_OPTIONS = [
+  { value: INVOICE_PAYMENT_TYPE_FILTER_ALL, label: 'All types' },
+  ...INVOICE_PAYMENT_TYPE_OPTIONS,
+];
+
+export const INVOICE_DAILY_SUMMARY_URL = '/invoices/daily-summary';
+
+function isoDateOnly(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Default summary range: today (from and to). */
+export function defaultInvoiceSummaryDateRange() {
+  const today = isoDateOnly(new Date());
+  return { dateFrom: today, dateTo: today };
+}
+
+export function buildInvoiceDailySummaryQuery({ dateFrom, dateTo }) {
+  const params = new URLSearchParams();
+  const from = String(dateFrom ?? '').trim();
+  const to = String(dateTo ?? '').trim();
+  if (from) params.set('date_from', from);
+  if (to) params.set('date_to', to);
+  return params.toString();
+}
+
+export function normalizeInvoiceDailySummary(data) {
+  if (!data || typeof data !== 'object') {
+    return { date_from: '', date_to: '', total: null, breakdown: [] };
+  }
+  const breakdown = Array.isArray(data.breakdown)
+    ? data.breakdown.map(row => ({
+        payment_type: Number(row.payment_type),
+        payment_type_label:
+          String(row.payment_type_label ?? '').trim() ||
+          INVOICE_PAYMENT_TYPE_OPTIONS.find(o => o.value === Number(row.payment_type))?.label ||
+          '—',
+        total: row.total,
+      }))
+    : [];
+  return {
+    date_from: String(data.date_from ?? '').trim(),
+    date_to: String(data.date_to ?? '').trim(),
+    total: data.total,
+    breakdown,
+  };
+}
+
+export function filterInvoiceSummaryBreakdown(breakdown, paymentTypeFilter) {
+  if (!Array.isArray(breakdown)) return [];
+  if (
+    paymentTypeFilter === INVOICE_PAYMENT_TYPE_FILTER_ALL ||
+    paymentTypeFilter === '' ||
+    paymentTypeFilter == null
+  ) {
+    return breakdown;
+  }
+  const pt = Number(paymentTypeFilter);
+  return breakdown.filter(row => row.payment_type === pt);
+}
+
+/** Grand total for display — API total when showing all types, else sum of filtered rows. */
+export function invoiceSummaryDisplayTotal(summary, paymentTypeFilter) {
+  if (!summary) return null;
+  const filtered = filterInvoiceSummaryBreakdown(summary.breakdown, paymentTypeFilter);
+  const showAll =
+    paymentTypeFilter === INVOICE_PAYMENT_TYPE_FILTER_ALL ||
+    paymentTypeFilter === '' ||
+    paymentTypeFilter == null;
+  if (showAll) return summary.total;
+  if (filtered.length === 0) return '0';
+  if (filtered.length === 1) return filtered[0].total;
+  const sum = filtered.reduce((acc, row) => acc + (parseInvoiceMoneyNumber(row.total) ?? 0), 0);
+  return sum;
+}
+
+export function formatInvoiceSummaryDateLabel(iso) {
+  return formatInvoiceVisitDate(iso);
+}
+
+export function buildInvoicePayPayload(amountPaid, paymentType) {
   const n = Number(amountPaid);
   if (!Number.isFinite(n) || n <= 0) {
     const err = new Error('Enter a valid amount paid.');
     err.validationMessage = 'Enter a valid amount paid.';
     throw err;
   }
-  return { amount_paid: Number(n.toFixed(2)) };
+  const pt = Number(paymentType);
+  const allowed = INVOICE_PAYMENT_TYPE_OPTIONS.map(o => o.value);
+  if (!allowed.includes(pt)) {
+    const err = new Error('Select a payment type.');
+    err.validationMessage = 'Select a payment type.';
+    throw err;
+  }
+  return { amount_paid: Number(n.toFixed(2)), payment_type: pt };
 }
 
 export function invoiceMaxPayAmount(row) {
@@ -105,8 +212,8 @@ export function invoiceMaxPayAmount(row) {
   return null;
 }
 
-export function validateInvoicePayAmount(amountPaid, row) {
-  const payload = buildInvoicePayPayload(amountPaid);
+export function validateInvoicePayAmount(amountPaid, row, paymentType) {
+  const payload = buildInvoicePayPayload(amountPaid, paymentType);
   const max = invoiceMaxPayAmount(row);
   if (max != null && payload.amount_paid > max) {
     return {
