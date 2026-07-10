@@ -64,6 +64,11 @@ export function buildReservationPrescriptionPayload({
     payload.general_service_ids = general_service_ids;
   }
 
+  const servicePrice = prescriptionSnapshot?.general_service_price;
+  if (servicePrice != null && servicePrice !== '' && !Number.isNaN(Number(servicePrice))) {
+    payload.general_service_price = Number(Number(servicePrice).toFixed(2));
+  }
+
   const parsedDiscount = parseDiscount(discount);
   if (parsedDiscount != null) payload.discount = parsedDiscount;
 

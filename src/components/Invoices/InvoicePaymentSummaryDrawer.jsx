@@ -14,7 +14,16 @@ import Typography from '@mui/material/Typography';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 import useApi from '../../configs/useApi';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { PERM } from '../../config/permissions';
+import usePermissions from '../../hooks/usePermissions';
+import { isAssistantUser } from '../../utils/authRoles';
+import {
+  DOCTOR_FILTER_ALL,
+  doctorSelectOptions,
+  fetchAllDoctors,
+} from '../../utils/doctorsCatalog';
 import {
   buildInvoiceDailySummaryQuery,
   defaultInvoiceSummaryDateRange,
@@ -26,6 +35,7 @@ import {
   INVOICE_PAYMENT_TYPE_FILTER_OPTIONS,
   invoiceSummaryDisplayTotal,
   normalizeInvoiceDailySummary,
+  restrictedInvoiceSummaryDateRange,
 } from '../../payloads/invoicePayload';
 
 function SummaryRow({ label, value, highlight = false }) {
@@ -61,27 +71,79 @@ function SummaryRow({ label, value, highlight = false }) {
  * @param {{ open: boolean, onClose: () => void }} props
  */
 export default function InvoicePaymentSummaryDrawer({ open, onClose }) {
+  const { user } = useAuth();
+  const { can } = usePermissions();
   const { get } = useApi();
   const { showError } = useToast();
 
-  const defaults = useMemo(() => defaultInvoiceSummaryDateRange(), []);
+  const limitedPaymentInfoDates = useMemo(
+    () => isAssistantUser(user) && !can(PERM.PAYMENT_INFO),
+    [user, can]
+  );
 
-  const [dateFrom, setDateFrom] = useState(defaults.dateFrom);
-  const [dateTo, setDateTo] = useState(defaults.dateTo);
+  const initialRange = useMemo(
+    () =>
+      limitedPaymentInfoDates
+        ? restrictedInvoiceSummaryDateRange()
+        : defaultInvoiceSummaryDateRange(),
+    [limitedPaymentInfoDates]
+  );
+
+  const dateBounds = useMemo(() => {
+    if (!limitedPaymentInfoDates) return null;
+    const range = restrictedInvoiceSummaryDateRange();
+    return {
+      min: dayjs(range.dateFrom),
+      max: dayjs(range.dateTo),
+      range,
+    };
+  }, [limitedPaymentInfoDates]);
+
+  const [dateFrom, setDateFrom] = useState(initialRange.dateFrom);
+  const [dateTo, setDateTo] = useState(initialRange.dateTo);
+  const [doctorId, setDoctorId] = useState(DOCTOR_FILTER_ALL);
   const [paymentTypeFilter, setPaymentTypeFilter] = useState(INVOICE_PAYMENT_TYPE_FILTER_ALL);
+  const [catalogDoctors, setCatalogDoctors] = useState([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(false);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const doctorOptions = useMemo(
+    () => doctorSelectOptions(catalogDoctors, 'all'),
+    [catalogDoctors]
+  );
 
   const resetFilters = useCallback(() => {
     setDateFrom('');
     setDateTo('');
+    setDoctorId(DOCTOR_FILTER_ALL);
     setPaymentTypeFilter(INVOICE_PAYMENT_TYPE_FILTER_ALL);
   }, []);
 
+  const clampSummaryDate = useCallback(
+    iso => {
+      const key = String(iso ?? '').trim();
+      if (!key || !dateBounds) return key;
+      const d = dayjs(key);
+      if (!d.isValid()) return key;
+      if (d.isBefore(dateBounds.min, 'day')) return dateBounds.min.format('YYYY-MM-DD');
+      if (d.isAfter(dateBounds.max, 'day')) return dateBounds.max.format('YYYY-MM-DD');
+      return key;
+    },
+    [dateBounds]
+  );
+
   const fetchSummary = useCallback(
-    async (from, to) => {
-      const fromKey = String(from ?? '').trim();
-      const toKey = String(to ?? '').trim();
+    async (from, to, doctor) => {
+      let fromKey = String(from ?? '').trim();
+      let toKey = String(to ?? '').trim();
+      const doctorKey = String(doctor ?? '').trim();
+
+      if (limitedPaymentInfoDates) {
+        const range = restrictedInvoiceSummaryDateRange();
+        fromKey = fromKey ? clampSummaryDate(fromKey) : range.dateFrom;
+        toKey = toKey ? clampSummaryDate(toKey) : range.dateTo;
+      }
 
       if ((fromKey && !toKey) || (!fromKey && toKey)) {
         showError('Select both date from and date to, or clear both.');
@@ -94,7 +156,11 @@ export default function InvoicePaymentSummaryDrawer({ open, onClose }) {
 
       setLoading(true);
       try {
-        const query = buildInvoiceDailySummaryQuery({ dateFrom: fromKey, dateTo: toKey });
+        const query = buildInvoiceDailySummaryQuery({
+          dateFrom: fromKey,
+          dateTo: toKey,
+          doctorId: doctorKey,
+        });
         const url = query
           ? `${INVOICE_DAILY_SUMMARY_URL}?${query}`
           : INVOICE_DAILY_SUMMARY_URL;
@@ -113,27 +179,65 @@ export default function InvoicePaymentSummaryDrawer({ open, onClose }) {
         setLoading(false);
       }
     },
-    [get, showError]
+    [get, showError, limitedPaymentInfoDates, clampSummaryDate]
   );
 
   useEffect(() => {
-    if (!open) return;
-    const range = defaultInvoiceSummaryDateRange();
-    setDateFrom(range.dateFrom);
-    setDateTo(range.dateTo);
-    setPaymentTypeFilter(INVOICE_PAYMENT_TYPE_FILTER_ALL);
-    fetchSummary(range.dateFrom, range.dateTo);
+    if (!open) return undefined;
+
+    let cancelled = false;
+    (async () => {
+      setDoctorsLoading(true);
+      try {
+        const doctorsRows = await fetchAllDoctors(get);
+        if (!cancelled) setCatalogDoctors(doctorsRows);
+      } catch {
+        if (!cancelled) setCatalogDoctors([]);
+      } finally {
+        if (!cancelled) setDoctorsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const range = limitedPaymentInfoDates
+      ? restrictedInvoiceSummaryDateRange()
+      : defaultInvoiceSummaryDateRange();
+    setDateFrom(range.dateFrom);
+    setDateTo(range.dateTo);
+    setDoctorId(DOCTOR_FILTER_ALL);
+    setPaymentTypeFilter(INVOICE_PAYMENT_TYPE_FILTER_ALL);
+    fetchSummary(range.dateFrom, range.dateTo, DOCTOR_FILTER_ALL);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, limitedPaymentInfoDates]);
+
   const handleApply = () => {
-    fetchSummary(dateFrom, dateTo);
+    const nextFrom = clampSummaryDate(dateFrom);
+    const nextTo = clampSummaryDate(dateTo);
+    if (nextFrom !== dateFrom) setDateFrom(nextFrom);
+    if (nextTo !== dateTo) setDateTo(nextTo);
+    fetchSummary(nextFrom, nextTo, doctorId);
   };
 
   const handleClearFilters = () => {
+    if (limitedPaymentInfoDates) {
+      const range = restrictedInvoiceSummaryDateRange();
+      setDateFrom(range.dateFrom);
+      setDateTo(range.dateTo);
+      setDoctorId(DOCTOR_FILTER_ALL);
+      setPaymentTypeFilter(INVOICE_PAYMENT_TYPE_FILTER_ALL);
+      fetchSummary(range.dateFrom, range.dateTo, DOCTOR_FILTER_ALL);
+      return;
+    }
     resetFilters();
     setSummary(null);
-    fetchSummary('', '');
+    fetchSummary('', '', DOCTOR_FILTER_ALL);
   };
 
   const filteredBreakdown = useMemo(
@@ -167,18 +271,65 @@ export default function InvoicePaymentSummaryDrawer({ open, onClose }) {
           <DatePicker
             label="Date from"
             value={dateFrom && dayjs(dateFrom).isValid() ? dayjs(dateFrom) : null}
-            onChange={v => setDateFrom(v?.isValid?.() ? v.format('YYYY-MM-DD') : '')}
+            onChange={v => {
+              if (!v?.isValid?.()) {
+                if (limitedPaymentInfoDates) {
+                  setDateFrom(dateBounds?.range.dateFrom ?? restrictedInvoiceSummaryDateRange().dateFrom);
+                } else {
+                  setDateFrom('');
+                }
+                return;
+              }
+              setDateFrom(clampSummaryDate(v.format('YYYY-MM-DD')));
+            }}
             disabled={loading}
+            minDate={dateBounds?.min}
+            maxDate={
+              dateBounds?.max ??
+              (dateTo && dayjs(dateTo).isValid() ? dayjs(dateTo) : undefined)
+            }
             slotProps={{ textField: { size: 'small', fullWidth: true } }}
           />
           <DatePicker
             label="Date to"
             value={dateTo && dayjs(dateTo).isValid() ? dayjs(dateTo) : null}
-            onChange={v => setDateTo(v?.isValid?.() ? v.format('YYYY-MM-DD') : '')}
+            onChange={v => {
+              if (!v?.isValid?.()) {
+                if (limitedPaymentInfoDates) {
+                  setDateTo(dateBounds?.range.dateTo ?? restrictedInvoiceSummaryDateRange().dateTo);
+                } else {
+                  setDateTo('');
+                }
+                return;
+              }
+              setDateTo(clampSummaryDate(v.format('YYYY-MM-DD')));
+            }}
             disabled={loading}
-            minDate={dateFrom && dayjs(dateFrom).isValid() ? dayjs(dateFrom) : undefined}
+            minDate={
+              dateBounds?.min ??
+              (dateFrom && dayjs(dateFrom).isValid() ? dayjs(dateFrom) : undefined)
+            }
+            maxDate={dateBounds?.max}
             slotProps={{ textField: { size: 'small', fullWidth: true } }}
           />
+          <FormControl size="small" fullWidth disabled={loading || doctorsLoading}>
+            <InputLabel id="payment-summary-doctor-label">Doctor</InputLabel>
+            <Select
+              labelId="payment-summary-doctor-label"
+              label="Doctor"
+              value={doctorId}
+              onChange={e => setDoctorId(e.target.value)}
+            >
+              <MenuItem value={DOCTOR_FILTER_ALL}>
+                <em>All doctors</em>
+              </MenuItem>
+              {doctorOptions.map(d => (
+                <MenuItem key={d.id} value={d.id}>
+                  {d.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
           <FormControl size="small" fullWidth disabled={loading}>
             <InputLabel id="payment-summary-type-label">Payment type</InputLabel>
             <Select
@@ -240,6 +391,21 @@ export default function InvoicePaymentSummaryDrawer({ open, onClose }) {
                   highlight
                 />
               </Paper>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                  General service fees
+                </Typography>
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                  <SummaryRow
+                    label="Total clinic fees"
+                    value={formatInvoiceMoney(summary.total_clinic_fees) || '—'}
+                  />
+                  <SummaryRow
+                    label="Total doctor fees"
+                    value={formatInvoiceMoney(summary.total_doctor_fees) || '—'}
+                  />
+                </Paper>
+              </Box>
             </Stack>
           )}
         </Box>

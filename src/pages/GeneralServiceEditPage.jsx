@@ -14,15 +14,22 @@ import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
 import CustomLoader from '../components/CustomLoader/CustomLoader';
 import GeneralServiceForm from '../forms/GeneralServiceForm/GeneralServiceForm';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { generalServiceDefaultValues, generalServiceSchema } from '../schemas/generalServiceSchema';
+import {
+  generalServiceDefaultValues,
+  generalServiceEditSchema,
+} from '../schemas/generalServiceSchema';
 import { buildGeneralServicePayload, mergeGeneralServiceFromApi } from '../payloads/generalServicePayload';
 
 function FormSkeleton() {
   return (
     <Stack spacing={2.5}>
       <Skeleton variant="rounded" height={56} />
-      <Skeleton variant="rounded" height={56} sx={{ width: { xs: '100%', sm: '50%' } }} />
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5}>
+        <Skeleton variant="rounded" height={56} sx={{ flex: 1 }} />
+        <Skeleton variant="rounded" height={56} sx={{ flex: 1 }} />
+      </Stack>
       <Skeleton variant="rounded" width={170} height={44} />
     </Stack>
   );
@@ -31,6 +38,7 @@ function FormSkeleton() {
 export default function GeneralServiceEditPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { get, patch, del } = useApi();
   const { showSuccess, showError } = useToast();
   const [initialLoad, setInitialLoad] = useState(true);
@@ -39,7 +47,7 @@ export default function GeneralServiceEditPage() {
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
   const resolver = useMemo(
-    () => (values, context, options) => yupResolver(generalServiceSchema)(values, context, options),
+    () => (values, context, options) => yupResolver(generalServiceEditSchema)(values, context, options),
     []
   );
   const methods = useForm({
@@ -62,7 +70,15 @@ export default function GeneralServiceEditPage() {
         const data = await get(`/general-services/${encodeURIComponent(id)}`);
         if (cancelled) return;
         const merged = mergeGeneralServiceFromApi(data);
-        reset(merged);
+        reset({
+          ...merged,
+          doctor:
+            merged.doctor !== '' && merged.doctor != null
+              ? merged.doctor
+              : user?.id != null
+                ? Number(user.id)
+                : '',
+        });
         setDisplayName(merged.name || 'Service');
       } catch (err) {
         if (!cancelled) {
@@ -90,7 +106,7 @@ export default function GeneralServiceEditPage() {
     try {
       await patch(
         `/general-services/${encodeURIComponent(id)}`,
-        buildGeneralServicePayload(values, { includeDoctorId: false })
+        buildGeneralServicePayload(values, { includeDoctorId: false, forUpdate: true })
       );
       showSuccess('General service updated.');
       navigate('/general-services', { replace: false });
@@ -131,7 +147,7 @@ export default function GeneralServiceEditPage() {
       <CustomLoader active={deleteSubmitting} />
       <FormPageShell
         title="Edit general service"
-        description={displayName ? `Update ${displayName}.` : 'Update service details.'}
+        description={displayName ? `Update ${displayName} or clinic fees.` : 'Update service details.'}
         headerAction={
           <Stack direction="row" spacing={1} useFlexGap>
             <Button

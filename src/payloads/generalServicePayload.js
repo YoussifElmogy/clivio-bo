@@ -17,31 +17,48 @@ export function formatGeneralServicePrice(value) {
   return formatMoneyAmount(value) ?? '';
 }
 
-function formatPriceForApi(value) {
+function formatOptionalMoneyForApi(value) {
+  if (value === '' || value == null) return null;
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return null;
   return n.toFixed(2);
 }
 
+function parseOptionalMoneyFromApi(value) {
+  if (value === '' || value == null) return '';
+  const n = Number(value);
+  return Number.isFinite(n) ? n : '';
+}
+
+function unwrapGeneralServiceRow(data) {
+  if (!data || typeof data !== 'object') return null;
+  if (data.general_service && typeof data.general_service === 'object') return data.general_service;
+  if (
+    data.data &&
+    typeof data.data === 'object' &&
+    (data.data.id != null || data.data.name != null || data.data.price != null)
+  ) {
+    return data.data;
+  }
+  if (data.id != null || data.name != null || data.price != null || data.clinic_fees != null) return data;
+  return data;
+}
+
 export function mergeGeneralServiceFromApi(data) {
-  const row =
-    data && typeof data === 'object' && data.general_service && typeof data.general_service === 'object'
-      ? data.general_service
-      : data;
+  const row = unwrapGeneralServiceRow(data);
   if (!row || typeof row !== 'object') return { ...generalServiceDefaultValues };
 
   const doctorRaw = row.doctor ?? row.doctor_id ?? row.doctor?.id;
   const doctor =
     doctorRaw !== '' && doctorRaw != null && !Number.isNaN(Number(doctorRaw)) ? Number(doctorRaw) : '';
 
-  const priceRaw = row.price;
-  const price =
-    priceRaw !== '' && priceRaw != null && !Number.isNaN(Number(priceRaw)) ? Number(priceRaw) : '';
+  const clinicFeesRaw = row.clinic_fees ?? row.clinicFees;
+  const clinicFees = parseOptionalMoneyFromApi(clinicFeesRaw);
 
   return {
     doctor,
     name: typeof row.name === 'string' ? row.name : '',
-    price,
+    clinicFees,
   };
 }
 
@@ -55,7 +72,12 @@ export function mapGeneralServiceRow(row) {
   const priceRaw = row.price;
   const price =
     priceRaw !== '' && priceRaw != null && !Number.isNaN(Number(priceRaw)) ? Number(priceRaw) : null;
-  return { id, name, price };
+  const clinicFeesRaw = row.clinic_fees ?? row.clinicFees;
+  const clinicFees =
+    clinicFeesRaw !== '' && clinicFeesRaw != null && !Number.isNaN(Number(clinicFeesRaw))
+      ? Number(clinicFeesRaw)
+      : null;
+  return { id, name, price, clinic_fees: clinicFees };
 }
 
 function normalizeGeneralServiceIdsList(value) {
@@ -95,13 +117,21 @@ export function extractGeneralServiceIdFromSummary(data) {
 }
 
 export function buildGeneralServicePayload(values, options = {}) {
-  const { includeDoctorId = true } = options;
-  const price = formatPriceForApi(values.price);
-  if (price == null) throw new Error('Invalid price');
+  const { includeDoctorId = true, forUpdate = false } = options;
 
-  return {
+  const payload = {
     ...(includeDoctorId ? { doctor_id: Number(values.doctor) } : {}),
     name: String(values.name ?? '').trim(),
-    price,
   };
+
+  const clinicFees = formatOptionalMoneyForApi(values.clinicFees);
+
+  if (forUpdate) {
+    payload.clinic_fees = clinicFees;
+    return payload;
+  }
+
+  if (clinicFees != null) payload.clinic_fees = clinicFees;
+
+  return payload;
 }

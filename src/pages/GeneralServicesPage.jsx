@@ -139,7 +139,7 @@ export default function GeneralServicesPage() {
   const columns = useMemo(
     () => [
       { id: 'name', label: 'Name', minWidth: 200 },
-      { id: 'price', label: 'Price', minWidth: 120 },
+      { id: 'clinic_fees', label: 'Clinic fees', minWidth: 120 },
       {
         id: 'actions',
         label: 'Actions',
@@ -179,7 +179,9 @@ export default function GeneralServicesPage() {
 
   const getCellValue = useCallback((row, col) => {
     if (col.id === 'name') return row.name?.trim?.() || '—';
-    if (col.id === 'price') return formatGeneralServicePrice(row.price) || '—';
+    if (col.id === 'clinic_fees') {
+      return formatGeneralServicePrice(row.clinic_fees ?? row.clinicFees) || '—';
+    }
     return '';
   }, []);
 

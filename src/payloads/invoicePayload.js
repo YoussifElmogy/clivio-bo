@@ -1,5 +1,6 @@
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import { formatMoney } from '../utils/formatMoney';
+import { apiClient } from '../configs/apiClient';
 
 export function normalizeInvoicesList(data) {
   const parsed = parsePaginatedList(data, { listKeys: ['invoices', 'results'] });
@@ -27,7 +28,15 @@ export const INVOICE_STATUS_FILTER_OPTIONS = [
   { value: 'paid', label: 'Paid' },
 ];
 
-export function buildInvoicesListQuery({ branchId, status, search, visitDate, page, pageSize }) {
+export function buildInvoicesListQuery({
+  branchId,
+  status,
+  search,
+  visitDate,
+  doctorId,
+  page,
+  pageSize,
+}) {
   const params = new URLSearchParams();
   const branchKey =
     branchId != null && branchId !== '' && String(branchId) !== INVOICES_BRANCH_FILTER_ALL
@@ -47,6 +56,10 @@ export function buildInvoicesListQuery({ branchId, status, search, visitDate, pa
   const visitDateKey = String(visitDate ?? '').trim();
   if (visitDateKey) {
     params.set('visit_date', visitDateKey);
+  }
+  const doctorKey = String(doctorId ?? '').trim();
+  if (doctorKey) {
+    params.set('doctor_id', doctorKey);
   }
   params.set('page', String(page));
   params.set('page_size', String(pageSize));
@@ -106,6 +119,7 @@ export const INVOICE_PAYMENT_TYPE_FILTER_OPTIONS = [
 ];
 
 export const INVOICE_DAILY_SUMMARY_URL = '/invoices/daily-summary';
+export const INVOICES_EXPORT_URL = '/invoices/export';
 
 function isoDateOnly(d) {
   const y = d.getFullYear();
@@ -120,18 +134,97 @@ export function defaultInvoiceSummaryDateRange() {
   return { dateFrom: today, dateTo: today };
 }
 
-export function buildInvoiceDailySummaryQuery({ dateFrom, dateTo }) {
+/** Assistants without payment_info: yesterday through tomorrow only. */
+export function restrictedInvoiceSummaryDateRange() {
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return {
+    dateFrom: isoDateOnly(yesterday),
+    dateTo: isoDateOnly(tomorrow),
+  };
+}
+
+export function buildInvoiceDailySummaryQuery({ dateFrom, dateTo, doctorId }) {
   const params = new URLSearchParams();
   const from = String(dateFrom ?? '').trim();
   const to = String(dateTo ?? '').trim();
   if (from) params.set('date_from', from);
   if (to) params.set('date_to', to);
+  const doctorKey = String(doctorId ?? '').trim();
+  if (doctorKey) params.set('doctor_id', doctorKey);
   return params.toString();
+}
+
+/** GET /invoices/export — date range + optional doctor filter. */
+export function buildInvoicesExportQuery({ dateFrom, dateTo, doctorId, visitDate }) {
+  const params = new URLSearchParams();
+  const from = String(dateFrom ?? visitDate ?? '').trim();
+  const to = String(dateTo ?? visitDate ?? '').trim();
+  if (from) params.set('date_from', from);
+  if (to) params.set('date_to', to);
+  const doctorKey = String(doctorId ?? '').trim();
+  if (doctorKey) params.set('doctor_id', doctorKey);
+  return params.toString();
+}
+
+function parseExportFilename(contentDisposition) {
+  const header = String(contentDisposition ?? '');
+  if (!header) return 'invoices.xlsx';
+  const utfMatch = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (utfMatch?.[1]) {
+    try {
+      return decodeURIComponent(utfMatch[1].trim());
+    } catch {
+      return utfMatch[1].trim();
+    }
+  }
+  const match = /filename="?([^";]+)"?/i.exec(header);
+  return match?.[1]?.trim() || 'invoices.xlsx';
+}
+
+function triggerBlobDownload(blob, filename) {
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function downloadInvoicesExport({ dateFrom, dateTo, doctorId, visitDate } = {}) {
+  const query = buildInvoicesExportQuery({ dateFrom, dateTo, doctorId, visitDate });
+  const url = query ? `${INVOICES_EXPORT_URL}?${query}` : INVOICES_EXPORT_URL;
+  const response = await apiClient.get(url, { responseType: 'blob' });
+  const contentType = String(response.headers['content-type'] ?? '').toLowerCase();
+
+  if (contentType.includes('application/json')) {
+    const text = await new Response(response.data).text();
+    let payload;
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = { detail: text || 'Could not export invoices.' };
+    }
+    throw payload;
+  }
+
+  const filename = parseExportFilename(response.headers['content-disposition']);
+  triggerBlobDownload(response.data, filename);
 }
 
 export function normalizeInvoiceDailySummary(data) {
   if (!data || typeof data !== 'object') {
-    return { date_from: '', date_to: '', total: null, breakdown: [] };
+    return {
+      date_from: '',
+      date_to: '',
+      total: null,
+      total_clinic_fees: null,
+      total_doctor_fees: null,
+      breakdown: [],
+    };
   }
   const breakdown = Array.isArray(data.breakdown)
     ? data.breakdown.map(row => ({
@@ -147,6 +240,8 @@ export function normalizeInvoiceDailySummary(data) {
     date_from: String(data.date_from ?? '').trim(),
     date_to: String(data.date_to ?? '').trim(),
     total: data.total,
+    total_clinic_fees: data.total_clinic_fees ?? null,
+    total_doctor_fees: data.total_doctor_fees ?? null,
     breakdown,
   };
 }

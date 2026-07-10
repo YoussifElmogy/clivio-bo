@@ -96,7 +96,7 @@ export default function GeneralServiceForm({
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>
           <Controller
-            name="price"
+            name="clinicFees"
             control={control}
             render={({ field }) => (
               <FormTextField
@@ -108,13 +108,12 @@ export default function GeneralServiceForm({
                     field.onChange(v === '' ? '' : Number(v));
                   },
                 }}
-                id="general-service-price"
-                label="Price"
+                id="general-service-clinic-fees"
+                label="Clinic fees"
                 type="number"
-                required
-                placeholder="e.g. 150"
-                invalid={Boolean(errors.price)}
-                errorMessage={errors.price?.message}
+                placeholder="e.g. 50"
+                invalid={Boolean(errors.clinicFees)}
+                errorMessage={errors.clinicFees?.message}
                 disabled={isSubmitting}
                 slotProps={{
                   htmlInput: { min: 0, step: 0.01 },

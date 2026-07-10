@@ -48,6 +48,12 @@ import {
   isReservationInvoicePaid,
   isReservationInvoicePaidFromRow,
 } from '../utils/reservationInvoiceStatus';
+import {
+  DOCTOR_FILTER_ALL,
+  doctorSelectOptions,
+  fetchAllDoctors,
+} from '../utils/doctorsCatalog';
+import { buildReservationsListQuery } from '../payloads/reservationPayload';
 
 const API_LIST = '/reservations';
 
@@ -112,18 +118,6 @@ function patientMobileCell(row) {
   return s || '—';
 }
 
-function buildListQuery(page, rowsPerPage, { search, status, dateOfVisit }) {
-  const params = new URLSearchParams();
-  const q = search?.trim();
-  if (q) params.set('search', q);
-  const st = status?.trim();
-  if (st) params.set('status', st);
-  const d = dateOfVisit?.trim();
-  if (d) params.set('date_of_visit', d);
-  params.set('page', String(page + 1));
-  params.set('page_size', String(rowsPerPage));
-  return params.toString();
-}
 
 function parseAttachmentsList(data) {
   if (Array.isArray(data)) return data;
@@ -192,6 +186,10 @@ export default function ReservationsPage() {
   const [appliedSearch, setAppliedSearch] = useState('');
   const [appliedStatus, setAppliedStatus] = useState('');
   const [appliedDate, setAppliedDate] = useState(defaultVisitDate);
+  const [doctorInput, setDoctorInput] = useState('');
+  const [appliedDoctorId, setAppliedDoctorId] = useState('');
+  const [catalogDoctors, setCatalogDoctors] = useState([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(true);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [attachmentsLoading, setAttachmentsLoading] = useState(false);
   const [attachmentsUploading, setAttachmentsUploading] = useState(false);
@@ -347,8 +345,9 @@ export default function ReservationsPage() {
     setAppliedSearch(searchInput.trim());
     setAppliedStatus(statusInput.trim());
     setAppliedDate(dateInput.trim());
+    setAppliedDoctorId(doctorInput.trim());
     setPage(0);
-  }, [searchInput, statusInput, dateInput]);
+  }, [searchInput, statusInput, dateInput, doctorInput]);
 
   const clearFilters = useCallback(() => {
     setSearchInput('');
@@ -357,6 +356,8 @@ export default function ReservationsPage() {
     setAppliedSearch('');
     setAppliedStatus('');
     setAppliedDate('');
+    setDoctorInput('');
+    setAppliedDoctorId('');
     setPage(0);
   }, []);
 
@@ -372,15 +373,55 @@ export default function ReservationsPage() {
 
   const visitDateValue = dateInput ? dayjs(dateInput) : null;
 
+  const doctorOptions = useMemo(
+    () => doctorSelectOptions(catalogDoctors, 'all'),
+    [catalogDoctors]
+  );
+
+  useEffect(() => {
+    if (isDoctor) {
+      setCatalogDoctors([]);
+      setDoctorsLoading(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    (async () => {
+      setDoctorsLoading(true);
+      try {
+        const doctorsRows = await fetchAllDoctors(get);
+        if (!cancelled) setCatalogDoctors(doctorsRows);
+      } catch {
+        if (!cancelled) setCatalogDoctors([]);
+      } finally {
+        if (!cancelled) setDoctorsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDoctor]);
+
+  useEffect(() => {
+    if (!doctorInput) return;
+    const exists = doctorOptions.some(d => d.id === doctorInput);
+    if (!exists) setDoctorInput('');
+  }, [doctorInput, doctorOptions]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        const query = buildListQuery(page, rowsPerPage, {
+        const query = buildReservationsListQuery({
           search: appliedSearch,
           status: appliedStatus,
           dateOfVisit: appliedDate,
+          doctorId: appliedDoctorId,
+          page: page + 1,
+          pageSize: rowsPerPage,
         });
         const data = await get(`${API_LIST}?${query}`);
         if (cancelled) return;
@@ -408,7 +449,7 @@ export default function ReservationsPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, rowsPerPage, appliedSearch, appliedStatus, appliedDate]);
+  }, [page, rowsPerPage, appliedSearch, appliedStatus, appliedDate, appliedDoctorId]);
 
   const count = listMode === 'server' ? totalCount : rows.length;
   const paginatedRows = useMemo(() => {
@@ -582,6 +623,30 @@ export default function ReservationsPage() {
               placeholder="Patient name or mobile"
               sx={{ flex: { md: '1 1 220px' }, minWidth: { md: 200 } }}
             />
+            {!isDoctor ? (
+              <FormControl
+                size="small"
+                sx={{ minWidth: { xs: '100%', md: 200 } }}
+                disabled={loading || doctorsLoading}
+              >
+                <InputLabel id="res-filter-doctor-label">Doctor</InputLabel>
+                <Select
+                  labelId="res-filter-doctor-label"
+                  label="Doctor"
+                  value={doctorInput}
+                  onChange={e => setDoctorInput(e.target.value)}
+                >
+                  <MenuItem value={DOCTOR_FILTER_ALL}>
+                    <em>All doctors</em>
+                  </MenuItem>
+                  {doctorOptions.map(d => (
+                    <MenuItem key={d.id} value={d.id}>
+                      {d.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            ) : null}
             <FormControl size="small" sx={{ minWidth: { xs: '100%', md: 160 } }}>
               <InputLabel id="res-filter-status-label">Status</InputLabel>
               <Select
@@ -623,7 +688,7 @@ export default function ReservationsPage() {
       <PaginatedTable
         columns={columns}
         rows={paginatedRows}
-        loading={loading}
+        loading={loading || doctorsLoading}
         skeletonRows={rowsPerPage}
         emptyMessage="No appointments found."
         page={page}

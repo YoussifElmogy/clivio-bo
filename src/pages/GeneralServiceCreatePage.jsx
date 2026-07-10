@@ -50,7 +50,7 @@ export default function GeneralServiceCreatePage() {
   return (
     <FormPageShell
       title="Add general service"
-      description="Create a named service with a price for your practice."
+      description="Create a named service with optional clinic fees."
       headerAction={
         <Button variant="outlined" onClick={() => navigate('/general-services')} sx={{ borderRadius: 2 }}>
           Back to list

@@ -100,3 +100,25 @@ export function buildReservationPatchPayload(values) {
     status: String(values.status ?? '').trim().toLowerCase(),
   };
 }
+
+export function buildReservationsListQuery({
+  search,
+  status,
+  dateOfVisit,
+  doctorId,
+  page,
+  pageSize,
+}) {
+  const params = new URLSearchParams();
+  const q = String(search ?? '').trim();
+  if (q) params.set('search', q);
+  const st = String(status ?? '').trim();
+  if (st) params.set('status', st);
+  const d = String(dateOfVisit ?? '').trim();
+  if (d) params.set('date_of_visit', d);
+  const doctorKey = String(doctorId ?? '').trim();
+  if (doctorKey) params.set('doctor_id', doctorKey);
+  params.set('page', String(page));
+  params.set('page_size', String(pageSize));
+  return params.toString();
+}

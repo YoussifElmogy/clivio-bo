@@ -24,7 +24,6 @@ import { parsePaginatedList } from '../../utils/parsePaginatedList';
 import {
   extractGeneralServiceIdFromSummary,
   extractGeneralServiceIdsFromSummary,
-  formatGeneralServicePrice,
   generalServicesListUrl,
   mapGeneralServiceRow,
 } from '../../payloads/generalServicePayload';
@@ -103,6 +102,7 @@ export default function ReservationSummaryContent({
   const [summaryData, setSummaryData] = useState(null);
   const [statusValue, setStatusValue] = useState('');
   const [generalServiceId, setGeneralServiceId] = useState('');
+  const [generalServicePrice, setGeneralServicePrice] = useState('');
   const [summaryGeneralServiceIds, setSummaryGeneralServiceIds] = useState([]);
   const [generalServices, setGeneralServices] = useState([]);
   const [generalServicesLoading, setGeneralServicesLoading] = useState(true);
@@ -147,6 +147,16 @@ export default function ReservationSummaryContent({
           const serviceIds = extractGeneralServiceIdsFromSummary(normalized);
           setSummaryGeneralServiceIds(serviceIds);
           setGeneralServiceId(serviceIds.length ? String(serviceIds[0]) : '');
+          const rawServicePrice =
+            normalized?.reservation?.general_service_price ??
+            normalized?.general_service_price ??
+            normalized?.prescription?.general_service_price ??
+            '';
+          setGeneralServicePrice(
+            rawServicePrice === '' || rawServicePrice == null || Number.isNaN(Number(rawServicePrice))
+              ? ''
+              : String(rawServicePrice)
+          );
           onSummaryLoaded?.({
             invoicePaid: isReservationInvoicePaid(normalized),
             discount: parsedDiscount,
@@ -250,11 +260,17 @@ export default function ReservationSummaryContent({
         ? Number(generalServiceId)
         : null;
 
+    const parsedServicePrice =
+      selectedId != null && String(generalServicePrice).trim() !== '' && !Number.isNaN(Number(generalServicePrice))
+        ? Number(Number(generalServicePrice).toFixed(2))
+        : null;
+
     onPrescriptionSnapshotChange({
       general_service_id: selectedId,
       general_service_ids:
         selectedId != null ? [selectedId] : dermaMode ? [] : summaryGeneralServiceIds,
       general_service: selectedGeneralService,
+      general_service_price: parsedServicePrice,
       visit_type: selectedGeneralService?.name ?? '',
       medicines: medicineRows.map(row => ({
         name: row.name,
@@ -269,6 +285,7 @@ export default function ReservationSummaryContent({
     loading,
     summaryData,
     generalServiceId,
+    generalServicePrice,
     summaryGeneralServiceIds,
     selectedGeneralService,
     medicineRows,
@@ -337,7 +354,7 @@ export default function ReservationSummaryContent({
     }
     const parsedGeneralServiceId = Number(generalServiceId);
     if (!Number.isFinite(parsedGeneralServiceId) || parsedGeneralServiceId <= 0) {
-      showError('Select a service type.');
+      showError('Select a general service.');
       return;
     }
 
@@ -350,6 +367,15 @@ export default function ReservationSummaryContent({
       medicines,
       general_service_id: parsedGeneralServiceId,
     };
+
+    if (String(generalServicePrice).trim() !== '') {
+      const priceNumber = Number(generalServicePrice);
+      if (!Number.isFinite(priceNumber) || priceNumber < 0) {
+        showError('General service price must be a valid number.');
+        return;
+      }
+      payload.general_service_price = Number(priceNumber.toFixed(2));
+    }
 
     if (!dermaMode) {
       const discountNumber = String(discount).trim() === '' ? 0 : Number(discount);
@@ -582,11 +608,15 @@ export default function ReservationSummaryContent({
         >
           <FormControl fullWidth size="small">
             <FormLabel sx={{ mb: 0.75, color: 'text.secondary', fontSize: '0.875rem', fontWeight: 600 }}>
-              {dermaMode ? 'Type (optional)' : 'Type'}
+              {dermaMode ? 'General service (optional)' : 'General service'}
             </FormLabel>
             <Select
               value={generalServiceId}
-              onChange={e => setGeneralServiceId(e.target.value)}
+              onChange={e => {
+                const next = e.target.value;
+                setGeneralServiceId(next);
+                if (next === '' || next == null) setGeneralServicePrice('');
+              }}
               disabled={viewOnly || generalServicesLoading || generalServices.length === 0}
               displayEmpty
             >
@@ -595,21 +625,37 @@ export default function ReservationSummaryContent({
                   {generalServicesLoading
                     ? 'Loading services…'
                     : dermaMode
-                      ? 'No visit type'
-                      : 'Select service'}
+                      ? 'No general service'
+                      : 'Select general service'}
                 </em>
               </MenuItem>
               {generalServices.map(service => {
                 const id = String(service.id);
-                const priceLabel = service.price != null ? formatGeneralServicePrice(service.price) : '';
                 return (
                   <MenuItem key={id} value={id}>
-                    {priceLabel ? `${service.name} — ${priceLabel}` : service.name}
+                    {service.name}
                   </MenuItem>
                 );
               })}
             </Select>
           </FormControl>
+          {generalServiceId ? (
+            <FormControl fullWidth size="small">
+              <FormLabel sx={{ mb: 0.75, color: 'text.secondary', fontSize: '0.875rem', fontWeight: 600 }}>
+                Price
+              </FormLabel>
+              <TextField
+                fullWidth
+                size="small"
+                type="number"
+                value={generalServicePrice}
+                onChange={e => setGeneralServicePrice(e.target.value)}
+                disabled={viewOnly}
+                placeholder="e.g. 150"
+                inputProps={{ min: 0, step: '0.01' }}
+              />
+            </FormControl>
+          ) : null}
           {!dermaMode ? (
             <FormControl fullWidth size="small">
               <FormLabel sx={{ mb: 0.75, color: 'text.secondary', fontSize: '0.875rem', fontWeight: 600 }}>

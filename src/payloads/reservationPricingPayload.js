@@ -8,18 +8,33 @@ export const RESERVATION_PRICING_URL = '/reservation-pricing';
  * @param {{
  *   reservationId: number|string,
  *   generalServiceIds?: Array<number|string>,
+ *   generalServicePrice?: number|string|null,
  * }} input
  */
-export function buildReservationPricingPayload({ reservationId, generalServiceIds = [] }) {
+export function buildReservationPricingPayload({
+  reservationId,
+  generalServiceIds = [],
+  generalServicePrice = null,
+}) {
   const rid = Number(reservationId);
   const ids = (Array.isArray(generalServiceIds) ? generalServiceIds : [])
     .map(id => Number(id))
     .filter(id => Number.isFinite(id) && id > 0);
 
-  return {
+  const payload = {
     reservation_id: Number.isFinite(rid) ? rid : reservationId,
     general_service_ids: ids,
   };
+
+  if (
+    generalServicePrice != null &&
+    generalServicePrice !== '' &&
+    !Number.isNaN(Number(generalServicePrice))
+  ) {
+    payload.general_service_price = Number(Number(generalServicePrice).toFixed(2));
+  }
+
+  return payload;
 }
 
 export function collectGeneralServiceIdsFromPrescription(prescription) {

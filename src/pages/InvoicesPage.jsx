@@ -8,10 +8,13 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import FormControl from '@mui/material/FormControl';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
 import Paper from '@mui/material/Paper';
 import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
@@ -20,6 +23,7 @@ import Typography from '@mui/material/Typography';
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined';
 import InfoOutlined from '@mui/icons-material/InfoOutlined';
 import PaymentsOutlined from '@mui/icons-material/PaymentsOutlined';
+import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined';
 import FilterAltOutlined from '@mui/icons-material/FilterAltOutlined';
 import TextField from '@mui/material/TextField';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -32,11 +36,17 @@ import CustomLoader from '../components/CustomLoader/CustomLoader';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { canPayInvoices } from '../utils/invoicesAccess';
-import { isSuperAdminUser } from '../utils/authRoles';
+import { isSuperAdminUser, isDoctorUser } from '../utils/authRoles';
 import { getUserBranchIds } from '../utils/userBranchIds';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import {
+  DOCTOR_FILTER_ALL,
+  doctorSelectOptions,
+  fetchAllDoctors,
+} from '../utils/doctorsCatalog';
+import {
   buildInvoicesListQuery,
+  downloadInvoicesExport,
   INVOICES_BRANCH_FILTER_ALL,
   INVOICE_STATUS_FILTER_OPTIONS,
   formatInvoiceMoney,
@@ -99,6 +109,7 @@ export default function InvoicesPage() {
   const { showError, showSuccess, showInfo } = useToast();
 
   const isSuperAdmin = useMemo(() => isSuperAdminUser(user), [user]);
+  const isDoctor = useMemo(() => isDoctorUser(user), [user]);
   const userBranchIds = useMemo(() => getUserBranchIds(user), [user]);
   const canPay = useMemo(() => canPayInvoices(user), [user]);
   const canUseInvoices = isSuperAdmin || userBranchIds.length > 0;
@@ -111,6 +122,10 @@ export default function InvoicesPage() {
   const [appliedSearch, setAppliedSearch] = useState('');
   const [visitDateInput, setVisitDateInput] = useState('');
   const [appliedVisitDate, setAppliedVisitDate] = useState('');
+  const [doctorInput, setDoctorInput] = useState('');
+  const [appliedDoctorId, setAppliedDoctorId] = useState('');
+  const [catalogDoctors, setCatalogDoctors] = useState([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(true);
   const [branchesLoading, setBranchesLoading] = useState(true);
   const [rows, setRows] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -125,6 +140,11 @@ export default function InvoicesPage() {
   const [paySubmitting, setPaySubmitting] = useState(false);
   const [infoTarget, setInfoTarget] = useState(null);
   const [paymentSummaryOpen, setPaymentSummaryOpen] = useState(false);
+  const [exportSubmitting, setExportSubmitting] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportMode, setExportMode] = useState('all');
+  const [exportFrom, setExportFrom] = useState('');
+  const [exportTo, setExportTo] = useState('');
 
   useEffect(() => {
     if (!canUseInvoices) {
@@ -176,6 +196,56 @@ export default function InvoicesPage() {
   }, [canUseInvoices, isSuperAdmin, userBranchIds.join(',')]);
 
   useEffect(() => {
+    if (!canUseInvoices || isDoctor) {
+      setCatalogDoctors([]);
+      setDoctorsLoading(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    (async () => {
+      setDoctorsLoading(true);
+      try {
+        const doctorsRows = await fetchAllDoctors(get);
+        if (!cancelled) setCatalogDoctors(doctorsRows);
+      } catch {
+        if (!cancelled) setCatalogDoctors([]);
+      } finally {
+        if (!cancelled) setDoctorsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canUseInvoices, isDoctor]);
+
+  const doctorOptions = useMemo(
+    () =>
+      doctorSelectOptions(
+        catalogDoctors,
+        branchFilter === INVOICES_BRANCH_FILTER_ALL ? 'all' : branchFilter
+      ),
+    [catalogDoctors, branchFilter]
+  );
+
+  useEffect(() => {
+    if (!doctorInput) return;
+    const exists = doctorOptions.some(d => d.id === doctorInput);
+    if (!exists) setDoctorInput('');
+  }, [doctorInput, doctorOptions]);
+
+  useEffect(() => {
+    if (!appliedDoctorId) return;
+    const exists = doctorOptions.some(d => d.id === appliedDoctorId);
+    if (!exists) {
+      setAppliedDoctorId('');
+      setListVersion(v => v + 1);
+    }
+  }, [appliedDoctorId, doctorOptions]);
+
+  useEffect(() => {
     if (!canUseInvoices || branchFilter === '') {
       setLoading(false);
       setRows([]);
@@ -192,6 +262,7 @@ export default function InvoicesPage() {
           status: appliedStatus,
           search: appliedSearch,
           visitDate: appliedVisitDate,
+          doctorId: appliedDoctorId,
           page: page + 1,
           pageSize: rowsPerPage,
         });
@@ -221,10 +292,12 @@ export default function InvoicesPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchFilter, appliedStatus, appliedSearch, appliedVisitDate, page, rowsPerPage, listVersion, canUseInvoices]);
+  }, [branchFilter, appliedStatus, appliedSearch, appliedVisitDate, appliedDoctorId, page, rowsPerPage, listVersion, canUseInvoices]);
 
   const handleBranchFilterChange = useCallback(value => {
     setBranchFilter(value);
+    setDoctorInput('');
+    setAppliedDoctorId('');
     setPage(0);
     setListVersion(v => v + 1);
   }, []);
@@ -233,9 +306,10 @@ export default function InvoicesPage() {
     setAppliedSearch(searchInput.trim());
     setAppliedStatus(statusInput.trim());
     setAppliedVisitDate(visitDateInput.trim());
+    setAppliedDoctorId(doctorInput.trim());
     setPage(0);
     setListVersion(v => v + 1);
-  }, [searchInput, statusInput, visitDateInput]);
+  }, [searchInput, statusInput, visitDateInput, doctorInput]);
 
   const applyVisitDatePreset = useCallback(offsetDays => {
     const next = dayjs().add(offsetDays, 'day').format('YYYY-MM-DD');
@@ -252,6 +326,8 @@ export default function InvoicesPage() {
     setAppliedStatus('');
     setVisitDateInput('');
     setAppliedVisitDate('');
+    setDoctorInput('');
+    setAppliedDoctorId('');
     if (isSuperAdmin) {
       setBranchFilter(INVOICES_BRANCH_FILTER_ALL);
     } else if (branchOptions.length > 0) {
@@ -264,6 +340,51 @@ export default function InvoicesPage() {
   }, [isSuperAdmin, branchOptions, userBranchIds]);
 
   const visitDateValue = visitDateInput ? dayjs(visitDateInput) : null;
+
+  const openExportDialog = useCallback(() => {
+    setExportMode('all');
+    setExportFrom('');
+    setExportTo('');
+    setExportDialogOpen(true);
+  }, []);
+
+  const handleConfirmExport = useCallback(async () => {
+    const isRange = exportMode === 'range';
+    const from = String(exportFrom ?? '').trim();
+    const to = String(exportTo ?? '').trim();
+
+    if (isRange) {
+      if (!from || !to) {
+        showError('Select both date from and date to.');
+        return;
+      }
+      if (dayjs(from).isAfter(dayjs(to))) {
+        showError('Date from must be on or before date to.');
+        return;
+      }
+    }
+
+    setExportSubmitting(true);
+    try {
+      await downloadInvoicesExport({
+        dateFrom: isRange ? from : undefined,
+        dateTo: isRange ? to : undefined,
+        doctorId: appliedDoctorId,
+      });
+      showSuccess('Invoices exported.');
+      setExportDialogOpen(false);
+    } catch (err) {
+      const msg =
+        err?.detail ||
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Could not export invoices.';
+      showError(typeof msg === 'string' ? msg : 'Could not export invoices.');
+    } finally {
+      setExportSubmitting(false);
+    }
+  }, [exportMode, exportFrom, exportTo, appliedDoctorId, showError, showSuccess]);
 
   const handleViewInvoice = useCallback(
     row => {
@@ -423,7 +544,7 @@ export default function InvoicesPage() {
 
   return (
     <>
-      <CustomLoader active={paySubmitting} />
+      <CustomLoader active={paySubmitting || exportSubmitting} />
       <FormPageShell
         title={`Invoices (${count})`}
         description={
@@ -517,6 +638,30 @@ export default function InvoicesPage() {
                     : null}
                 </Select>
               </FormControl>
+              {!isDoctor ? (
+                <FormControl
+                  size="small"
+                  sx={{ minWidth: { xs: '100%', md: 200 } }}
+                  disabled={branchesLoading || doctorsLoading}
+                >
+                  <InputLabel id="invoices-doctor-filter-label">Doctor</InputLabel>
+                  <Select
+                    labelId="invoices-doctor-filter-label"
+                    label="Doctor"
+                    value={doctorInput}
+                    onChange={e => setDoctorInput(e.target.value)}
+                  >
+                    <MenuItem value={DOCTOR_FILTER_ALL}>
+                      <em>All doctors</em>
+                    </MenuItem>
+                    {doctorOptions.map(d => (
+                      <MenuItem key={d.id} value={d.id}>
+                        {d.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              ) : null}
               <FormControl size="small" sx={{ minWidth: { xs: '100%', md: 160 } }}>
                 <InputLabel id="invoices-status-filter-label">Status</InputLabel>
                 <Select
@@ -566,6 +711,21 @@ export default function InvoicesPage() {
                 >
                   Payment info
                 </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={
+                    exportSubmitting ? (
+                      <CircularProgress size={16} color="inherit" />
+                    ) : (
+                      <FileDownloadOutlined />
+                    )
+                  }
+                  onClick={openExportDialog}
+                  disabled={branchesLoading || exportSubmitting || loading}
+                  sx={{ borderRadius: 2 }}
+                >
+                  Export
+                </Button>
               </Stack>
             </Stack>
           </Stack>
@@ -574,7 +734,7 @@ export default function InvoicesPage() {
         <PaginatedTable
           columns={columns}
           rows={paginatedRows}
-          loading={loading || branchesLoading}
+          loading={loading || branchesLoading || doctorsLoading}
           skeletonRows={rowsPerPage}
           emptyMessage={
             branchFilter === INVOICES_BRANCH_FILTER_ALL
@@ -736,6 +896,78 @@ export default function InvoicesPage() {
             }
           >
             {paySubmitting ? 'Processing…' : 'Confirm payment'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={exportDialogOpen}
+        onClose={() => {
+          if (!exportSubmitting) setExportDialogOpen(false);
+        }}
+        aria-labelledby="export-invoices-dialog-title"
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle id="export-invoices-dialog-title">Export invoices</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 0.5 }}>
+            <RadioGroup
+              value={exportMode}
+              onChange={e => setExportMode(e.target.value)}
+            >
+              <FormControlLabel
+                value="all"
+                control={<Radio />}
+                label="Export all invoices"
+                disabled={exportSubmitting}
+              />
+              <FormControlLabel
+                value="range"
+                control={<Radio />}
+                label="Export by date range"
+                disabled={exportSubmitting}
+              />
+            </RadioGroup>
+            {exportMode === 'range' ? (
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <DatePicker
+                  label="Date from"
+                  value={exportFrom && dayjs(exportFrom).isValid() ? dayjs(exportFrom) : null}
+                  onChange={v => setExportFrom(v?.isValid?.() ? v.format('YYYY-MM-DD') : '')}
+                  disabled={exportSubmitting}
+                  maxDate={exportTo && dayjs(exportTo).isValid() ? dayjs(exportTo) : undefined}
+                  slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                />
+                <DatePicker
+                  label="Date to"
+                  value={exportTo && dayjs(exportTo).isValid() ? dayjs(exportTo) : null}
+                  onChange={v => setExportTo(v?.isValid?.() ? v.format('YYYY-MM-DD') : '')}
+                  disabled={exportSubmitting}
+                  minDate={exportFrom && dayjs(exportFrom).isValid() ? dayjs(exportFrom) : undefined}
+                  slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                />
+              </Stack>
+            ) : null}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setExportDialogOpen(false)} disabled={exportSubmitting}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleConfirmExport}
+            disabled={exportSubmitting}
+            startIcon={
+              exportSubmitting ? (
+                <CircularProgress size={18} thickness={5} color="inherit" aria-hidden />
+              ) : (
+                <FileDownloadOutlined />
+              )
+            }
+          >
+            {exportSubmitting ? 'Exporting…' : 'Export'}
           </Button>
         </DialogActions>
       </Dialog>

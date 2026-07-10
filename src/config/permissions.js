@@ -47,4 +47,5 @@ export const PERM = {
 
   VIEW_INVOICE: 'view_invoice',
   PAY_INVOICE: 'pay_invoice',
+  PAYMENT_INFO: 'payment_info',
 };

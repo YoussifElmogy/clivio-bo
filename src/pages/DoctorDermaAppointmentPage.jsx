@@ -190,6 +190,7 @@ export default function DoctorDermaAppointmentPage() {
         const payload = buildReservationPricingPayload({
           reservationId,
           generalServiceIds: collectGeneralServiceIdsFromPrescription(prescriptionSnapshot),
+          generalServicePrice: prescriptionSnapshot?.general_service_price ?? null,
         });
         const data = await post(RESERVATION_PRICING_URL, payload);
         if (!cancelled) {
