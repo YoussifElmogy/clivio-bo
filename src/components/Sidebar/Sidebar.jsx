@@ -30,6 +30,7 @@ import usePermissions from '../../hooks/usePermissions';
 import { PERM } from '../../config/permissions';
 import { isDoctorUser, isSuperAdminUser } from '../../utils/authRoles';
 import { canAccessInvoices } from '../../utils/invoicesAccess';
+import { isPackageSidebarNavAllowed } from '../../config/packageFeatures';
 
 const navItems = [
   { label: 'Overview', to: '/', Icon: DashboardRounded, superAdminOnly: true },
@@ -128,6 +129,7 @@ export default function Sidebar({ sidebarWidth = '17.778rem', onNavigate }) {
     '/general-services',
   ]);
   const visibleNavItems = navItems.filter(item => {
+    if (!isPackageSidebarNavAllowed(item.to)) return false;
     if (item.superAdminOnly && !isSuperAdminUser(user)) return false;
     if (isDoctorUser(user) && !doctorOnlyNavTo.has(item.to)) return false;
     if (!isDoctorUser(user) && item.doctorOnly) return false;

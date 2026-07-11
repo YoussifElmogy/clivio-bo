@@ -7,6 +7,7 @@ import { REQUIRED_PASSWORD_CHANGE_PATH } from '../constants/authRoutes';
 import usePermissions from '../hooks/usePermissions';
 import { isDoctorUser, isSuperAdminUser } from '../utils/authRoles';
 import { canAccessInvoices } from '../utils/invoicesAccess';
+import { isPackageRouteAllowed } from '../config/packageFeatures';
 
 function listRequiredPermissions(requiresPermission) {
   if (requiresPermission == null) return [];
@@ -71,6 +72,10 @@ const ProtectedRoute = ({
   }
 
   if (superAdminOnly && !isSuperAdminUser(user)) {
+    return <Navigate to="/appointments" replace />;
+  }
+
+  if (!isPackageRouteAllowed(location.pathname)) {
     return <Navigate to="/appointments" replace />;
   }
 

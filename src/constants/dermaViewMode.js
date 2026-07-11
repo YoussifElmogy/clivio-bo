@@ -1,3 +1,5 @@
+import { getPackageDermaTabs } from '../config/packageFeatures';
+
 /** Parse Vite env booleans; unset env defaults to `defaultWhenUnset`. */
 function envTabVisibleFlag(envKey, defaultWhenUnset = true) {
   const raw = import.meta.env[envKey];
@@ -7,11 +9,14 @@ function envTabVisibleFlag(envKey, defaultWhenUnset = true) {
   return v === 'true' || v === '1' || v === 'yes';
 }
 
+const packageTabs = getPackageDermaTabs();
+
 /**
  * Derma appointment tabs: `true` = show tab, `false` = hide completely.
+ * Package tier (5k / 7.5k) overrides env; 10k / full uses env flags.
  * Restart dev server after `.env` changes.
  */
-export const DERMA_APPOINTMENT_TABS = {
+export const DERMA_APPOINTMENT_TABS = packageTabs ?? {
   APPOINTMENT_SUMMARY: envTabVisibleFlag('VITE_DERMA_APPOINTMENT_SUMMARY_VIEW_ONLY'),
   FACE_MAP: envTabVisibleFlag('VITE_DERMA_FACE_MAP_VIEW_ONLY'),
   BODY_MAP: envTabVisibleFlag('VITE_DERMA_BODY_MAP_VIEW_ONLY'),

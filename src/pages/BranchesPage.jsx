@@ -14,6 +14,7 @@ import CustomLoader from '../components/CustomLoader/CustomLoader';
 import { useToast } from '../context/ToastContext';
 import usePermissions from '../hooks/usePermissions';
 import { PERM } from '../config/permissions';
+import { canAddMoreBranches, getBranchLimit } from '../config/packageFeatures';
 
 /**
  * @returns {{ mode: 'server' | 'client', rows: unknown[], total: number }}
@@ -174,19 +175,28 @@ export default function BranchesPage() {
     [navigate, showInfo]
   );
 
+  const branchLimit = getBranchLimit();
+  const atBranchLimit = branchLimit != null && totalCount >= branchLimit;
+  const canAddBranchNow = canAddBranch && canAddMoreBranches(totalCount);
+  const addBranchTooltip = !canAddBranch
+    ? 'No permission'
+    : atBranchLimit
+      ? `Branch limit reached (${branchLimit})`
+      : 'Add branch';
+
   return (
     <>
       <CustomLoader active={deleteSubmitting} />
       <FormPageShell
         title={`Branches (${count})`}
         headerAction={
-          <Tooltip title={canAddBranch ? 'Add branch' : 'No permission'}>
+          <Tooltip title={addBranchTooltip}>
             <span>
               <Button
                 variant="contained"
                 onClick={() => navigate('/branches/new')}
                 sx={{ borderRadius: 2 }}
-                disabled={!canAddBranch}
+                disabled={!canAddBranchNow}
               >
                 Add branches
               </Button>

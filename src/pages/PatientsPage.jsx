@@ -39,6 +39,7 @@ import { PERM } from '../config/permissions';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import { allServicesCatalogUrl } from '../utils/servicesCatalogUrl';
 import { isAssistantUser, isDoctorUser, isSuperAdminUser } from '../utils/authRoles';
+import { isSmsPackageEnabled } from '../config/packageFeatures';
 import { buildSmsSendPayload, SMS_SEND_URL } from '../payloads/smsPayload';
 
 const PATIENTS_SERVICE_FILTER_ALL = '';
@@ -116,7 +117,8 @@ export default function PatientsPage() {
   const { showError, showInfo, showSuccess } = useToast();
   const { can } = usePermissions();
   const isDoctor = isDoctorUser(user);
-  const canSendSms = isSuperAdminUser(user) || isAssistantUser(user);
+  const canSendSms =
+    isSmsPackageEnabled() && (isSuperAdminUser(user) || isAssistantUser(user));
   const canAddPatient = can(PERM.ADD_PATIENT);
   const canEditPatient = can(PERM.EDIT_PATIENT);
   const canDeletePatient = can(PERM.DELETE_PATIENT);
