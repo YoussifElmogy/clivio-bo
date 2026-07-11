@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:jolie": "vite --mode jolie",
     "build": "vite build",
+    "build:jolie": "vite build --mode jolie",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "preview:jolie": "vite preview --mode jolie"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
