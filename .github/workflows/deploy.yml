@@ -30,8 +30,8 @@ jobs:
       - name: Deploy Jolie client
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.VPS_IP }}
-          username: ${{ secrets.VPS_USER }}
+          host: ${{ secrets.JOLIE_DERM_API }}
+          username: ${{ secrets.JOLIE_DERM_API }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd /var/www/joliderm/backoffice
