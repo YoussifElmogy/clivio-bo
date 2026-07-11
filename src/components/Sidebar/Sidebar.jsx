@@ -19,7 +19,6 @@ import CalendarMonthOutlined from '@mui/icons-material/CalendarMonthOutlined';
 import MedicalInformationOutlined from '@mui/icons-material/MedicalInformationOutlined';
 import Inventory2Outlined from '@mui/icons-material/Inventory2Outlined';
 import FlashOnOutlined from '@mui/icons-material/FlashOnOutlined';
-import LocalHospitalRounded from '@mui/icons-material/LocalHospitalRounded';
 import PriceCheckOutlined from '@mui/icons-material/PriceCheckOutlined';
 import ReceiptLongOutlined from '@mui/icons-material/ReceiptLongOutlined';
 import { useTheme } from '@mui/material/styles';
@@ -31,6 +30,7 @@ import { PERM } from '../../config/permissions';
 import { isDoctorUser, isSuperAdminUser } from '../../utils/authRoles';
 import { canAccessInvoices } from '../../utils/invoicesAccess';
 import { isPackageSidebarNavAllowed } from '../../config/packageFeatures';
+import clivioHeader from '../../assets/clivio-header.svg';
 
 const navItems = [
   { label: 'Overview', to: '/', Icon: DashboardRounded, superAdminOnly: true },
@@ -219,43 +219,27 @@ export default function Sidebar({ sidebarWidth = '17.778rem', onNavigate }) {
           }}
         >
           <Box
+            component="img"
+            src={clivioHeader}
+            alt=""
             sx={{
-              width: '2.4rem',
-              height: '2.4rem',
-              borderRadius: 1.5,
-              bgcolor: 'primary.main',
-              color: 'primary.contrastText',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              width: '2rem',
+              height: '2rem',
+              flexShrink: 0,
+              display: 'block',
+            }}
+          />
+          <Typography
+            component="span"
+            sx={{
+              fontSize: '1rem',
+              fontWeight: 700,
+              color: 'text.primary',
+              lineHeight: 1,
             }}
           >
-            <LocalHospitalRounded sx={{ fontSize: '1.35rem' }} />
-          </Box>
-          <Box>
-            <Box
-              component="span"
-              sx={{
-                fontSize: '1rem',
-                fontWeight: 700,
-                color: 'text.primary',
-                display: 'block',
-                lineHeight: 1.2,
-              }}
-            >
-              Clivio
-            </Box>
-            <Box
-              component="span"
-              sx={{
-                fontSize: '0.75rem',
-                color: 'text.secondary',
-                fontWeight: 500,
-              }}
-            >
-              Clinic Suite
-            </Box>
-          </Box>
+            Clivio
+          </Typography>
         </Box>
       </NavLink>
       <List sx={{ flex: 1, pt: 0 }}>
