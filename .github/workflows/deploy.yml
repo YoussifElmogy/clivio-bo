@@ -34,7 +34,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            cd /var/www/jolie/backoffice
+            cd /var/www/joliderm/backoffice
             git fetch origin jolie
             git checkout jolie
             git pull origin jolie
