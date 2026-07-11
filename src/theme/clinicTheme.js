@@ -1,7 +1,7 @@
 import { createTheme } from '@mui/material/styles';
 
 const primary = {
-  main: '#0f766e',
+  main: '#63a59c',
   light: '#14b8a6',
   dark: '#0d5c56',
   contrastText: '#ffffff',
