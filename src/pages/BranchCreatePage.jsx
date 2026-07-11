@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
 import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
 import BranchForm from '../forms/BranchForm/BranchForm';
@@ -12,53 +11,35 @@ import { branchSchema, branchDefaultValues } from '../schemas/branchSchema';
 import { buildBranchPayload } from '../payloads/branchPayload';
 import { canAddMoreBranches, getBranchLimit } from '../config/packageFeatures';
 
-function parseBranchCount(data) {
-  if (Array.isArray(data)) return data.length;
-  if (data && typeof data === 'object') {
-    if (typeof data.total === 'number' && !Number.isNaN(data.total)) return data.total;
-    if (typeof data.count === 'number' && !Number.isNaN(data.count)) return data.count;
-    if (Array.isArray(data.results)) return data.results.length;
-    if (Array.isArray(data.branches)) return data.branches.length;
-    if (Array.isArray(data.data)) return data.data.length;
-  }
-  return 0;
-}
-
 export default function BranchCreatePage() {
   const navigate = useNavigate();
-  const { get, post } = useApi();
+  const location = useLocation();
+  const { post } = useApi();
   const { showSuccess, showError } = useToast();
-  const [limitCheckLoading, setLimitCheckLoading] = useState(true);
 
   const branchLimit = getBranchLimit();
+  const fromBranchesList = location.state?.fromBranchesList === true;
+  const branchCount = location.state?.branchCount;
+
+  const blockedReason =
+    branchLimit != null && !fromBranchesList
+      ? 'direct'
+      : branchLimit != null &&
+          typeof branchCount === 'number' &&
+          !canAddMoreBranches(branchCount)
+        ? 'limit'
+        : null;
 
   useEffect(() => {
-    if (branchLimit == null) {
-      setLimitCheckLoading(false);
-      return undefined;
+    if (blockedReason === 'direct') {
+      navigate('/branches', { replace: true });
+      return;
     }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await get('/branches?page=1&page_size=1');
-        if (cancelled) return;
-        const count = parseBranchCount(data);
-        if (!canAddMoreBranches(count)) {
-          showError(`Branch limit reached (${branchLimit}).`);
-          navigate('/branches', { replace: true });
-        }
-      } catch {
-        // Allow form if count check fails; server may still reject create.
-      } finally {
-        if (!cancelled) setLimitCheckLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [branchLimit, get, navigate, showError]);
+    if (blockedReason === 'limit') {
+      showError(`Branch limit reached (${branchLimit}).`);
+      navigate('/branches', { replace: true });
+    }
+  }, [blockedReason, branchLimit, navigate, showError]);
 
   const {
     control,
@@ -87,14 +68,8 @@ export default function BranchCreatePage() {
     }
   };
 
-  if (limitCheckLoading) {
-    return (
-      <FormPageShell title="Add branch" maxWidth="md">
-        <Typography variant="body2" color="text.secondary">
-          Checking branch limit…
-        </Typography>
-      </FormPageShell>
-    );
+  if (blockedReason) {
+    return null;
   }
 
   return (

@@ -194,7 +194,11 @@ export default function BranchesPage() {
             <span>
               <Button
                 variant="contained"
-                onClick={() => navigate('/branches/new')}
+                onClick={() =>
+                  navigate('/branches/new', {
+                    state: { fromBranchesList: true, branchCount: totalCount },
+                  })
+                }
                 sx={{ borderRadius: 2 }}
                 disabled={!canAddBranchNow}
               >
