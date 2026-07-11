@@ -5,12 +5,12 @@ import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
-import LocalHospitalRounded from '@mui/icons-material/LocalHospitalRounded';
 import LoginForm from '../forms/LoginForm/LoginForm';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { REQUIRED_PASSWORD_CHANGE_PATH } from '../constants/authRoutes';
 import { isDoctorUser } from '../utils/authRoles';
+import clivioBanner from '../assets/clivio-banner.svg';
 
 export default function LoginPage() {
   const theme = useTheme();
@@ -82,22 +82,19 @@ export default function LoginPage() {
               radial-gradient(circle at 80% 70%, white 0%, transparent 40%)`,
           }}
         />
-        <LocalHospitalRounded
+        <Box
+          component="img"
+          src={clivioBanner}
+          alt="Clivio"
           sx={{
-            fontSize: isWide ? 72 : 56,
-            mb: 2,
             position: 'relative',
+            width: '100%',
+            maxWidth: isWide ? 320 : 260,
+            height: 'auto',
+            mb: 2,
             filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.2))',
           }}
         />
-        <Typography
-          variant={isWide ? 'h4' : 'h5'}
-          component="h1"
-          align="center"
-          sx={{ position: 'relative', fontWeight: 700, mb: 1 }}
-        >
-          Clivio Clinic
-        </Typography>
         <Typography
           variant="body1"
           align="center"
