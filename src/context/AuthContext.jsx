@@ -15,6 +15,7 @@ import {
   getClinicModeFromToken,
 } from '../utils/jwt';
 import { normalizeRolesFromAuth } from '../utils/permissions';
+import { normalizeAccountRole } from '../utils/authRoles';
 import { resolveClinicMode } from '../constants/clinicMode';
 import { normalizeUserBranchIds } from '../utils/userBranchIds';
 
@@ -31,7 +32,7 @@ export const AuthProvider = ({ children }) => {
 
   const decodeUserFromToken = token => ({
     id: getUserIdFromToken(token) || '',
-    role: getUserRoleFromToken(token) || 'Staff',
+    role: normalizeAccountRole(getUserRoleFromToken(token) || 'Staff'),
     fullName:
       getFullNameFromToken(token) ||
       getUsernameFromToken(token) ||
@@ -51,6 +52,7 @@ export const AuthProvider = ({ children }) => {
         const normalized = {
           ...userData,
           id: userData.id ?? Cookies.get(USER_ID_KEY) ?? '',
+          role: normalizeAccountRole(userData.role),
           mustChangePassword: normalizeMustChangePassword(userData.mustChangePassword),
           roles: normalizeRolesFromAuth(userData.roles),
           branch_ids: normalizeUserBranchIds(userData.branch_ids ?? userData.branchIds),
@@ -164,7 +166,7 @@ export const AuthProvider = ({ children }) => {
             res.user.fullName ||
             res.user.name ||
             fromToken.fullName,
-          role: res.user.role || fromToken.role,
+          role: normalizeAccountRole(res.user.role || fromToken.role),
           username:
             res.user.username ||
             res.user.email ||
@@ -180,7 +182,7 @@ export const AuthProvider = ({ children }) => {
       } else {
         userInfo = {
           fullName: res.fullName || fromToken.fullName,
-          role: res.role || fromToken.role,
+          role: normalizeAccountRole(res.role || fromToken.role),
           username: fromToken.username || username,
           email: res.email || fromToken.username || username,
           id: normalizedId,
@@ -226,6 +228,9 @@ export const AuthProvider = ({ children }) => {
     }
     if (updatedUserData.roles !== undefined) {
       newUserData.roles = normalizeRolesFromAuth(updatedUserData.roles);
+    }
+    if (updatedUserData.role !== undefined) {
+      newUserData.role = normalizeAccountRole(updatedUserData.role);
     }
     if (newUserData.id !== '' && newUserData.id != null) {
       Cookies.set(USER_ID_KEY, String(newUserData.id), {

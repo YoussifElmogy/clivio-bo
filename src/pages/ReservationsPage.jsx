@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import Drawer from '@mui/material/Drawer';
 import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
@@ -24,6 +28,7 @@ import FilterAltOutlined from '@mui/icons-material/FilterAltOutlined';
 import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
 import PaginatedTable from '../components/PaginatedTable/PaginatedTable';
+import CustomLoader from '../components/CustomLoader/CustomLoader';
 import EditOutlined from '@mui/icons-material/EditOutlined';
 import Tooltip from '@mui/material/Tooltip';
 import AttachFileOutlined from '@mui/icons-material/AttachFileOutlined';
@@ -173,6 +178,7 @@ export default function ReservationsPage() {
   const { can } = usePermissions();
   const isDoctor = isDoctorUser(user);
   const canEditAppointment = can(PERM.EDIT_APPOINTMENT);
+  const canDeleteAppointment = can(PERM.DELETE_APPOINTMENT);
   const defaultVisitDate = useMemo(() => todayIsoDate(), []);
   const [rows, setRows] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -197,6 +203,9 @@ export default function ReservationsPage() {
   const [attachmentRows, setAttachmentRows] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [activeReservation, setActiveReservation] = useState(null);
+  const [listVersion, setListVersion] = useState(0);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
   const refreshAttachments = useCallback(
     async reservationId => {
@@ -341,6 +350,58 @@ export default function ReservationsPage() {
     [navigate, showInfo, user]
   );
 
+  const requestDelete = useCallback(
+    row => {
+      const reservationId = row.id ?? row.uuid;
+      if (reservationId == null) {
+        showInfo('This row has no id.');
+        return;
+      }
+      const visit = row.date_of_visit;
+      const visitLabel =
+        visit != null && String(visit).trim()
+          ? String(visit).trim().slice(0, 10)
+          : '';
+      setDeleteTarget({
+        id: reservationId,
+        label: [patientCell(row), visitLabel].filter(Boolean).join(' · ') || 'this appointment',
+      });
+    },
+    [showInfo]
+  );
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (deleteTarget == null) return;
+    const { id } = deleteTarget;
+    setDeleteSubmitting(true);
+    try {
+      await del(`/reservations/${encodeURIComponent(id)}`);
+      setDeleteTarget(null);
+      showSuccess('Appointment deleted.');
+      if (listMode === 'client') {
+        setRows(prev => prev.filter(row => (row.id ?? row.uuid) !== id));
+        setTotalCount(c => Math.max(0, c - 1));
+      } else {
+        setListVersion(v => v + 1);
+        setPage(p => {
+          const nextTotal = Math.max(0, totalCount - 1);
+          const lastPage = Math.max(0, Math.ceil(nextTotal / rowsPerPage) - 1);
+          return Math.min(p, lastPage);
+        });
+      }
+    } catch (err) {
+      const msg =
+        err?.detail ||
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Could not delete appointment.';
+      showError(typeof msg === 'string' ? msg : 'Could not delete appointment.');
+    } finally {
+      setDeleteSubmitting(false);
+    }
+  }, [deleteTarget, del, listMode, rowsPerPage, showError, showSuccess, totalCount]);
+
   const applyFilters = useCallback(() => {
     setAppliedSearch(searchInput.trim());
     setAppliedStatus(statusInput.trim());
@@ -449,7 +510,7 @@ export default function ReservationsPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, rowsPerPage, appliedSearch, appliedStatus, appliedDate, appliedDoctorId]);
+  }, [page, rowsPerPage, appliedSearch, appliedStatus, appliedDate, appliedDoctorId, listVersion]);
 
   const count = listMode === 'server' ? totalCount : rows.length;
   const paginatedRows = useMemo(() => {
@@ -470,7 +531,7 @@ export default function ReservationsPage() {
         id: 'actions',
         label: 'Actions',
         align: 'right',
-        minWidth: 120,
+        minWidth: isDoctor ? 72 : 188,
         render: row => {
           const rid = row.id ?? row.uuid;
           const editBlockedFinished = blocksStaffEditOnFinished(user, row);
@@ -515,29 +576,56 @@ export default function ReservationsPage() {
                   </span>
                 </Tooltip>
               ) : (
-                <Tooltip title={editTooltip}>
-                  <span>
-                    <IconButton
-                      size="small"
-                      color="primary"
-                      aria-label="Edit appointment"
-                      onClick={e => {
-                        e.stopPropagation();
-                        if (rid != null) navigate(`/appointments/${encodeURIComponent(rid)}/edit`);
-                      }}
-                      disabled={!canEditRow}
-                    >
-                      <EditOutlined fontSize="small" />
-                    </IconButton>
-                  </span>
-                </Tooltip>
+                <>
+                  <Tooltip title={editTooltip}>
+                    <span>
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        aria-label="Edit appointment"
+                        onClick={e => {
+                          e.stopPropagation();
+                          if (rid != null) navigate(`/appointments/${encodeURIComponent(rid)}/edit`);
+                        }}
+                        disabled={!canEditRow}
+                      >
+                        <EditOutlined fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                  <Tooltip title={canDeleteAppointment ? 'Delete' : 'No permission'}>
+                    <span>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        aria-label="Delete appointment"
+                        onClick={e => {
+                          e.stopPropagation();
+                          requestDelete(row);
+                        }}
+                        disabled={!canDeleteAppointment}
+                      >
+                        <DeleteOutlineOutlined fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </>
               )}
             </>
           );
         },
       },
     ],
-    [navigate, canEditAppointment, isDoctor, openAttachmentsDrawer, openReservationSummary, user]
+    [
+      navigate,
+      canDeleteAppointment,
+      canEditAppointment,
+      isDoctor,
+      openAttachmentsDrawer,
+      openReservationSummary,
+      requestDelete,
+      user,
+    ]
   );
 
   const getCellValue = useCallback((row, col) => {
@@ -563,11 +651,13 @@ export default function ReservationsPage() {
   }, []);
 
   return (
-    <FormPageShell
-      title={`Appointments (${count})`}
-      description="View and edit reservations. Search by patient name or mobile; filter by status or visit date."
-      paperSx={{ p: { xs: 2, sm: 3 } }}
-    >
+    <>
+      <CustomLoader active={deleteSubmitting} />
+      <FormPageShell
+        title={`Appointments (${count})`}
+        description="View and edit reservations. Search by patient name or mobile; filter by status or visit date."
+        paperSx={{ p: { xs: 2, sm: 3 } }}
+      >
       <Paper
         elevation={0}
         sx={{
@@ -820,6 +910,40 @@ export default function ReservationsPage() {
           </Box>
         </Stack>
       </Drawer>
+      <Dialog
+        open={deleteTarget != null}
+        onClose={() => !deleteSubmitting && setDeleteTarget(null)}
+        aria-labelledby="delete-appointment-dialog-title"
+      >
+        <DialogTitle id="delete-appointment-dialog-title">Delete appointment?</DialogTitle>
+        <DialogContent>
+          This cannot be undone.{' '}
+          {deleteTarget ? (
+            <>
+              Remove <strong>{deleteTarget.label}</strong>?
+            </>
+          ) : null}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDeleteTarget(null)} disabled={deleteSubmitting}>
+            Cancel
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={handleConfirmDelete}
+            disabled={deleteSubmitting}
+            startIcon={
+              deleteSubmitting ? (
+                <CircularProgress size={18} thickness={5} color="inherit" aria-hidden />
+              ) : null
+            }
+          >
+            {deleteSubmitting ? 'Deleting…' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </FormPageShell>
+    </>
   );
 }
