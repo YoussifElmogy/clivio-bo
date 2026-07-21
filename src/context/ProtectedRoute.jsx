@@ -8,6 +8,7 @@ import usePermissions from '../hooks/usePermissions';
 import { isDoctorUser, isSuperAdminUser } from '../utils/authRoles';
 import { canAccessInvoices } from '../utils/invoicesAccess';
 import { isPackageRouteAllowed } from '../config/packageFeatures';
+import { DOCTOR_HOME_PATH, isDoctorRouteAllowed } from '../utils/doctorRouteAccess';
 
 function listRequiredPermissions(requiresPermission) {
   if (requiresPermission == null) return [];
@@ -61,14 +62,15 @@ const ProtectedRoute = ({
   }
 
   const required = listRequiredPermissions(requiresPermission);
+  const accessDeniedPath = isDoctorUser(user) ? DOCTOR_HOME_PATH : '/';
   if (required.length && !required.every(p => can(p))) {
     if (!(invoicesAccess && canAccessInvoices(user))) {
-      return <Navigate to="/" replace />;
+      return <Navigate to={accessDeniedPath} replace />;
     }
   }
 
   if (doctorOnly && !isDoctorUser(user)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={accessDeniedPath} replace />;
   }
 
   if (superAdminOnly && !isSuperAdminUser(user)) {
@@ -77,6 +79,10 @@ const ProtectedRoute = ({
 
   if (!isPackageRouteAllowed(location.pathname)) {
     return <Navigate to="/appointments" replace />;
+  }
+
+  if (isDoctorUser(user) && !isDoctorRouteAllowed(location.pathname)) {
+    return <Navigate to={DOCTOR_HOME_PATH} replace />;
   }
 
   return children;

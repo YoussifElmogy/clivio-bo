@@ -1,7 +1,14 @@
 import { isSuperAdminUser } from './authRoles';
 
+/** Normalize API permission keys to snake_case lowercase (e.g. view_laser). */
+export function normalizePermissionKey(name) {
+  if (name == null) return '';
+  return String(name).trim().toLowerCase().replace(/[\s-]+/g, '_');
+}
+
 /**
  * Normalize roles from login / stored user.
+ * Supports objects ({ role_name }) and plain permission strings.
  * @param {unknown} raw
  * @returns {{ id?: unknown, role_name: string }[]}
  */
@@ -9,13 +16,21 @@ export function normalizeRolesFromAuth(raw) {
   if (!Array.isArray(raw)) return [];
   return raw
     .map(r => {
+      if (typeof r === 'string') {
+        const role_name = normalizePermissionKey(r);
+        if (!role_name) return null;
+        return { role_name };
+      }
       if (!r || typeof r !== 'object') return null;
-      const role_name =
+      const rawName =
         typeof r.role_name === 'string'
-          ? r.role_name.trim()
+          ? r.role_name
           : typeof r.roleName === 'string'
-            ? r.roleName.trim()
-            : '';
+            ? r.roleName
+            : typeof r.name === 'string'
+              ? r.name
+              : '';
+      const role_name = normalizePermissionKey(rawName);
       if (!role_name) return null;
       return {
         id: r.id ?? r.role_id,
@@ -45,7 +60,7 @@ export function buildPermissionSet(user) {
   const roles = normalizeRolesFromAuth(user?.roles);
   const set = new Set();
   for (const r of roles) {
-    set.add(String(r.role_name).toLowerCase());
+    set.add(normalizePermissionKey(r.role_name));
   }
   return set;
 }
@@ -59,5 +74,5 @@ export function canPermission(user, permission) {
   if (shouldBypassPermissions(user)) return true;
   const set = buildPermissionSet(user);
   if (!set) return true;
-  return set.has(String(permission).toLowerCase());
+  return set.has(normalizePermissionKey(permission));
 }
