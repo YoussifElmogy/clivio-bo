@@ -30,6 +30,7 @@ import { PERM } from '../../config/permissions';
 import { isDoctorUser, isSuperAdminUser } from '../../utils/authRoles';
 import { canAccessInvoices } from '../../utils/invoicesAccess';
 import { isPackageSidebarNavAllowed } from '../../config/packageFeatures';
+import { isDoctorSidebarRoute } from '../../utils/doctorRouteAccess';
 import clivioHeader from '../../assets/clivio-header.svg';
 
 const navItems = [
@@ -122,16 +123,10 @@ export default function Sidebar({ sidebarWidth = '17.778rem', onNavigate }) {
   const { logout, user } = useAuth();
   const { can } = usePermissions();
 
-  const doctorOnlyNavTo = new Set([
-    '/appointments',
-    '/patients',
-    '/doctor-medicines',
-    '/general-services',
-  ]);
   const visibleNavItems = navItems.filter(item => {
     if (!isPackageSidebarNavAllowed(item.to)) return false;
     if (item.superAdminOnly && !isSuperAdminUser(user)) return false;
-    if (isDoctorUser(user) && !doctorOnlyNavTo.has(item.to)) return false;
+    if (isDoctorUser(user) && !isDoctorSidebarRoute(item.to)) return false;
     if (!isDoctorUser(user) && item.doctorOnly) return false;
     if (item.invoicesNav) return canAccessInvoices(user);
     if (!item.requiresPermission) return true;
