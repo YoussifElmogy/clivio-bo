@@ -20,13 +20,11 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { reservationStatusLabel } from '../../constants/reservationStatus';
 import { formatAttachmentSecondaryLine } from '../../utils/timeFormat';
-import { parsePaginatedList } from '../../utils/parsePaginatedList';
 import {
-  extractGeneralServiceIdFromSummary,
-  extractGeneralServiceIdsFromSummary,
-  generalServicesListUrl,
-  mapGeneralServiceRow,
+  extractGeneralServicesFromSummary,
+  fetchAllGeneralServices,
 } from '../../payloads/generalServicePayload';
+import { buildReservationPrescriptionPayload } from '../../payloads/reservationPrescriptionPayload';
 import { isReservationInvoicePaid } from '../../utils/reservationInvoiceStatus';
 import ViewOnlyBanner from '../DermaMapping/ViewOnlyBanner';
 
@@ -101,9 +99,9 @@ export default function ReservationSummaryContent({
   const [loading, setLoading] = useState(true);
   const [summaryData, setSummaryData] = useState(null);
   const [statusValue, setStatusValue] = useState('');
-  const [generalServiceId, setGeneralServiceId] = useState('');
-  const [generalServicePrice, setGeneralServicePrice] = useState('');
-  const [summaryGeneralServiceIds, setSummaryGeneralServiceIds] = useState([]);
+  const [generalServiceRows, setGeneralServiceRows] = useState([]);
+  const [selectedGeneralServiceOption, setSelectedGeneralServiceOption] = useState(null);
+  const [generalServiceSearchInput, setGeneralServiceSearchInput] = useState('');
   const [generalServices, setGeneralServices] = useState([]);
   const [generalServicesLoading, setGeneralServicesLoading] = useState(true);
   const [discount, setDiscount] = useState('');
@@ -144,18 +142,14 @@ export default function ReservationSummaryContent({
               ? ''
               : String(rawDiscount);
           setDiscount(parsedDiscount);
-          const serviceIds = extractGeneralServiceIdsFromSummary(normalized);
-          setSummaryGeneralServiceIds(serviceIds);
-          setGeneralServiceId(serviceIds.length ? String(serviceIds[0]) : '');
-          const rawServicePrice =
-            normalized?.reservation?.general_service_price ??
-            normalized?.general_service_price ??
-            normalized?.prescription?.general_service_price ??
-            '';
-          setGeneralServicePrice(
-            rawServicePrice === '' || rawServicePrice == null || Number.isNaN(Number(rawServicePrice))
-              ? ''
-              : String(rawServicePrice)
+          const servicesFromSummary = extractGeneralServicesFromSummary(normalized);
+          setGeneralServiceRows(
+            servicesFromSummary.map((service, index) => ({
+              id: `svc-${service.general_service_id}-${index}`,
+              general_service_id: service.general_service_id,
+              name: service.name,
+              price: service.price === '' ? '' : String(service.price),
+            }))
           );
           onSummaryLoaded?.({
             invoicePaid: isReservationInvoicePaid(normalized),
@@ -231,10 +225,8 @@ export default function ReservationSummaryContent({
     (async () => {
       setGeneralServicesLoading(true);
       try {
-        const data = await get(generalServicesListUrl(doctorId));
+        const rows = await fetchAllGeneralServices(get, doctorId);
         if (cancelled) return;
-        const parsed = parsePaginatedList(data, { listKeys: ['general_services', 'results'] });
-        const rows = parsed.rows.map(mapGeneralServiceRow).filter(Boolean);
         setGeneralServices(rows);
       } catch {
         if (!cancelled) setGeneralServices([]);
@@ -248,30 +240,53 @@ export default function ReservationSummaryContent({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  const selectedGeneralService = useMemo(
-    () => generalServices.find(s => String(s.id) === String(generalServiceId)) ?? null,
-    [generalServices, generalServiceId]
-  );
+  useEffect(() => {
+    if (!generalServices.length) return;
+    setGeneralServiceRows(prev =>
+      prev.map(row => {
+        if (row.name) return row;
+        const match = generalServices.find(s => Number(s.id) === Number(row.general_service_id));
+        if (!match) return row;
+        const defaultPrice = match.clinic_fees ?? match.price ?? '';
+        return {
+          ...row,
+          name: match.name,
+          price:
+            row.price !== ''
+              ? row.price
+              : defaultPrice !== '' && defaultPrice != null
+                ? String(defaultPrice)
+                : '',
+        };
+      })
+    );
+  }, [generalServices]);
+
+  const availableGeneralServiceOptions = useMemo(() => {
+    const selectedIds = new Set(generalServiceRows.map(row => Number(row.general_service_id)));
+    return generalServices
+      .filter(service => !selectedIds.has(Number(service.id)))
+      .map(service => ({
+        id: service.id,
+        label: service.name,
+        clinic_fees: service.clinic_fees,
+        price: service.price,
+      }));
+  }, [generalServices, generalServiceRows]);
 
   useEffect(() => {
     if (!onPrescriptionSnapshotChange || loading) return;
-    const selectedId =
-      generalServiceId !== '' && !Number.isNaN(Number(generalServiceId))
-        ? Number(generalServiceId)
-        : null;
-
-    const parsedServicePrice =
-      selectedId != null && String(generalServicePrice).trim() !== '' && !Number.isNaN(Number(generalServicePrice))
-        ? Number(Number(generalServicePrice).toFixed(2))
-        : null;
 
     onPrescriptionSnapshotChange({
-      general_service_id: selectedId,
-      general_service_ids:
-        selectedId != null ? [selectedId] : dermaMode ? [] : summaryGeneralServiceIds,
-      general_service: selectedGeneralService,
-      general_service_price: parsedServicePrice,
-      visit_type: selectedGeneralService?.name ?? '',
+      general_services: generalServiceRows.map(row => ({
+        general_service_id: row.general_service_id,
+        name: row.name,
+        price:
+          String(row.price ?? '').trim() !== '' && !Number.isNaN(Number(row.price))
+            ? Number(Number(row.price).toFixed(2))
+            : null,
+      })),
+      visit_type: generalServiceRows.map(row => row.name).filter(Boolean).join(', '),
       medicines: medicineRows.map(row => ({
         name: row.name,
         description: row.description,
@@ -284,10 +299,7 @@ export default function ReservationSummaryContent({
   }, [
     loading,
     summaryData,
-    generalServiceId,
-    generalServicePrice,
-    summaryGeneralServiceIds,
-    selectedGeneralService,
+    generalServiceRows,
     medicineRows,
     onPrescriptionSnapshotChange,
   ]);
@@ -339,6 +351,44 @@ export default function ReservationSummaryContent({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleAddGeneralServiceRow = () => {
+    if (viewOnly) return;
+    const service = selectedGeneralServiceOption;
+    if (!service?.id) {
+      showInfo('Search and select a general service first.');
+      return;
+    }
+    if (generalServiceRows.some(row => Number(row.general_service_id) === Number(service.id))) {
+      showInfo('This service is already added.');
+      return;
+    }
+    const defaultPrice = service.clinic_fees ?? service.price ?? '';
+    setGeneralServiceRows(prev => [
+      ...prev,
+      {
+        id: `svc-${service.id}-${Date.now()}`,
+        general_service_id: service.id,
+        name: service.label,
+        price:
+          defaultPrice !== '' && defaultPrice != null && !Number.isNaN(Number(defaultPrice))
+            ? String(defaultPrice)
+            : '',
+      },
+    ]);
+    setSelectedGeneralServiceOption(null);
+    setGeneralServiceSearchInput('');
+  };
+
+  const handleUpdateGeneralServicePrice = (rowId, nextPrice) => {
+    setGeneralServiceRows(prev =>
+      prev.map(row => (row.id === rowId ? { ...row, price: nextPrice } : row))
+    );
+  };
+
+  const handleRemoveGeneralServiceRow = rowId => {
+    setGeneralServiceRows(prev => prev.filter(row => row.id !== rowId));
+  };
+
   const handleSubmitPrescription = async () => {
     if (viewOnly) return;
     const doctorId = Number(user?.id);
@@ -352,30 +402,27 @@ export default function ReservationSummaryContent({
       showError('Patient id is missing.');
       return;
     }
-    const parsedGeneralServiceId = Number(generalServiceId);
-    if (!Number.isFinite(parsedGeneralServiceId) || parsedGeneralServiceId <= 0) {
-      showError('Select a general service.');
+    if (!dermaMode && generalServiceRows.length === 0) {
+      showError('Add at least one general service.');
       return;
     }
 
-    const medicines = medicineRows.map(item => ({
-      description: `${item.name} - ${item.description}`,
-    }));
-    const payload = {
-      doctor_id: doctorId,
-      patient_id: parsedPatientId,
-      medicines,
-      general_service_id: parsedGeneralServiceId,
-    };
-
-    if (String(generalServicePrice).trim() !== '') {
-      const priceNumber = Number(generalServicePrice);
-      if (!Number.isFinite(priceNumber) || priceNumber < 0) {
-        showError('General service price must be a valid number.');
+    for (const row of generalServiceRows) {
+      const priceNumber = Number(row.price);
+      if (String(row.price ?? '').trim() === '' || !Number.isFinite(priceNumber) || priceNumber < 0) {
+        showError(`Enter a valid price for ${row.name || 'each general service'}.`);
         return;
       }
-      payload.general_service_price = Number(priceNumber.toFixed(2));
     }
+
+    const payload = buildReservationPrescriptionPayload({
+      doctorId,
+      patientId: parsedPatientId,
+      prescriptionSnapshot: {
+        general_services: generalServiceRows,
+        medicines: medicineRows,
+      },
+    });
 
     if (!dermaMode) {
       const discountNumber = String(discount).trim() === '' ? 0 : Number(discount);
@@ -601,100 +648,140 @@ export default function ReservationSummaryContent({
       </Paper>
 
       <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={2}
-          alignItems="flex-start"
-        >
-          <FormControl fullWidth size="small">
-            <FormLabel sx={{ mb: 0.75, color: 'text.secondary', fontSize: '0.875rem', fontWeight: 600 }}>
-              {dermaMode ? 'General service (optional)' : 'General service'}
-            </FormLabel>
-            <Select
-              value={generalServiceId}
-              onChange={e => {
-                const next = e.target.value;
-                setGeneralServiceId(next);
-                if (next === '' || next == null) setGeneralServicePrice('');
-              }}
-              disabled={viewOnly || generalServicesLoading || generalServices.length === 0}
-              displayEmpty
+        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.25 }}>
+          General services
+        </Typography>
+        <Stack spacing={2}>
+          <Autocomplete
+            disabled={viewOnly || generalServicesLoading}
+            options={availableGeneralServiceOptions}
+            value={selectedGeneralServiceOption}
+            onChange={(_, next) => setSelectedGeneralServiceOption(next)}
+            inputValue={generalServiceSearchInput}
+            onInputChange={(_, next) => setGeneralServiceSearchInput(next)}
+            getOptionLabel={option => option?.label ?? ''}
+            isOptionEqualToValue={(a, b) => Number(a?.id) === Number(b?.id)}
+            noOptionsText={
+              generalServicesLoading
+                ? 'Loading services…'
+                : generalServices.length === 0
+                  ? 'No general services found'
+                  : 'No matching services'
+            }
+            renderInput={params => (
+              <TextField
+                {...params}
+                size="small"
+                label="Search general service"
+                placeholder="Type to search all services"
+              />
+            )}
+          />
+          {!viewOnly ? (
+            <Button
+              variant="outlined"
+              onClick={handleAddGeneralServiceRow}
+              disabled={generalServicesLoading || !selectedGeneralServiceOption}
+              sx={{ alignSelf: 'flex-start', borderRadius: 2 }}
             >
-              <MenuItem value="" disabled={!dermaMode}>
-                <em>
-                  {generalServicesLoading
-                    ? 'Loading services…'
-                    : dermaMode
-                      ? 'No general service'
-                      : 'Select general service'}
-                </em>
-              </MenuItem>
-              {generalServices.map(service => {
-                const id = String(service.id);
-                return (
-                  <MenuItem key={id} value={id}>
-                    {service.name}
-                  </MenuItem>
-                );
-              })}
-            </Select>
-          </FormControl>
-          {generalServiceId ? (
-            <FormControl fullWidth size="small">
-              <FormLabel sx={{ mb: 0.75, color: 'text.secondary', fontSize: '0.875rem', fontWeight: 600 }}>
-                Price
-              </FormLabel>
-              <TextField
-                fullWidth
-                size="small"
-                type="number"
-                value={generalServicePrice}
-                onChange={e => setGeneralServicePrice(e.target.value)}
-                disabled={viewOnly}
-                placeholder="e.g. 150"
-                inputProps={{ min: 0, step: '0.01' }}
-              />
-            </FormControl>
+              Add service
+            </Button>
           ) : null}
+          <Stack spacing={1}>
+            {generalServiceRows.length ? (
+              generalServiceRows.map(row => (
+                <Box
+                  key={row.id}
+                  sx={{
+                    p: 1.25,
+                    borderRadius: 2,
+                    border: theme => `1px solid ${theme.palette.divider}`,
+                    bgcolor: 'background.default',
+                  }}
+                >
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={1.5}
+                    alignItems={{ xs: 'stretch', sm: 'center' }}
+                  >
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                        {row.name || 'General service'}
+                      </Typography>
+                    </Box>
+                    <TextField
+                      size="small"
+                      label="Price"
+                      type="number"
+                      value={row.price}
+                      onChange={e => handleUpdateGeneralServicePrice(row.id, e.target.value)}
+                      disabled={viewOnly}
+                      placeholder="e.g. 150"
+                      inputProps={{ min: 0, step: '0.01' }}
+                      sx={{ width: { xs: '100%', sm: 160 } }}
+                    />
+                    {!viewOnly ? (
+                      <Button
+                        size="small"
+                        color="error"
+                        onClick={() => handleRemoveGeneralServiceRow(row.id)}
+                        sx={{ alignSelf: { xs: 'flex-start', sm: 'center' } }}
+                      >
+                        Remove
+                      </Button>
+                    ) : null}
+                  </Stack>
+                </Box>
+              ))
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                {dermaMode ? 'No general services added.' : 'Add at least one general service.'}
+              </Typography>
+            )}
+          </Stack>
           {!dermaMode ? (
-            <FormControl fullWidth size="small">
-              <FormLabel sx={{ mb: 0.75, color: 'text.secondary', fontSize: '0.875rem', fontWeight: 600 }}>
-                Discount
-              </FormLabel>
-              <TextField
-                fullWidth
-                size="small"
-                type="number"
-                value={discount}
-                onChange={e => setDiscount(e.target.value)}
-                inputProps={{ min: 0, step: '0.01' }}
-              />
-            </FormControl>
-          ) : null}
-          {!dermaMode ? (
-            <FormControl fullWidth size="small">
-              <FormLabel sx={{ mb: 0.75, color: 'text.secondary', fontSize: '0.875rem', fontWeight: 600 }}>
-                Status
-              </FormLabel>
-              <Select
-                value={statusValue}
-                onChange={e => {
-                  const next = e.target.value;
-                  setStatusValue(next);
-                  if (next === 'finished') {
-                    showSuccess('Appointment marked as finished.');
-                  } else {
-                    showInfo(`Status changed to ${reservationStatusLabel(next)}.`);
-                  }
-                }}
-              >
-                {VISIT_STATUS_OPTIONS.map(opt => (
-                  <MenuItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={2}
+              alignItems="flex-start"
+            >
+              <FormControl fullWidth size="small">
+                <FormLabel sx={{ mb: 0.75, color: 'text.secondary', fontSize: '0.875rem', fontWeight: 600 }}>
+                  Discount
+                </FormLabel>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="number"
+                  value={discount}
+                  onChange={e => setDiscount(e.target.value)}
+                  inputProps={{ min: 0, step: '0.01' }}
+                />
+              </FormControl>
+              <FormControl fullWidth size="small">
+                <FormLabel sx={{ mb: 0.75, color: 'text.secondary', fontSize: '0.875rem', fontWeight: 600 }}>
+                  Status
+                </FormLabel>
+                <Select
+                  value={statusValue}
+                  onChange={e => {
+                    const next = e.target.value;
+                    setStatusValue(next);
+                    if (next === 'finished') {
+                      showSuccess('Appointment marked as finished.');
+                    } else {
+                      showInfo(`Status changed to ${reservationStatusLabel(next)}.`);
+                    }
+                  }}
+                >
+                  {VISIT_STATUS_OPTIONS.map(opt => (
+                    <MenuItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Stack>
           ) : null}
         </Stack>
       </Paper>

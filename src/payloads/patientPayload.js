@@ -89,7 +89,7 @@ export function mergePatientFromApi(data) {
   };
 }
 
-/** POST /patients — optional medical_notes when non-empty. */
+/** POST /patients — optional medical_notes and date_of_birth when non-empty. */
 export function buildPatientCreatePayload(values) {
   const body = {
     first_name: values.first_name.trim(),
@@ -98,9 +98,10 @@ export function buildPatientCreatePayload(values) {
       values.mobile_country_code,
       values.mobile_number
     ),
-    date_of_birth: values.date_of_birth.trim(),
     is_for_self: Boolean(values.is_for_self),
   };
+  const dob = String(values.date_of_birth ?? '').trim();
+  if (dob) body.date_of_birth = dob;
   const notes = (values.medical_notes ?? '').trim();
   if (notes) body.medical_notes = notes;
   const packages = buildPatientPackagesFromValues(values);
@@ -110,15 +111,17 @@ export function buildPatientCreatePayload(values) {
 
 /** PATCH /patients/:id — include medical_notes (empty string clears). */
 export function buildPatientUpdatePayload(values) {
-  return {
+  const body = {
     first_name: values.first_name.trim(),
     last_name: values.last_name.trim(),
     mobile_number: buildInternationalPhoneWithPlus(
       values.mobile_country_code,
       values.mobile_number
     ),
-    date_of_birth: values.date_of_birth.trim(),
     medical_notes: (values.medical_notes ?? '').trim(),
     packages: buildPatientPackagesFromValues(values),
   };
+  const dob = String(values.date_of_birth ?? '').trim();
+  if (dob) body.date_of_birth = dob;
+  return body;
 }

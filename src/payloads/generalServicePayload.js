@@ -1,16 +1,31 @@
 import { generalServiceDefaultValues } from '../schemas/generalServiceSchema';
 import { formatMoneyAmount } from '../utils/formatMoney';
+import { parsePaginatedList } from '../utils/parsePaginatedList';
 
-/** Page size when loading services for dropdowns (appointment summary, etc.). */
-export const GENERAL_SERVICES_CATALOG_PAGE_SIZE = 200;
-
-export function generalServicesListUrl(doctorId, { page = 1, pageSize = GENERAL_SERVICES_CATALOG_PAGE_SIZE } = {}) {
+export function generalServicesListUrl(doctorId, { page = 1, pageSize = 10 } = {}) {
   const params = new URLSearchParams({
     doctor_id: String(doctorId),
     page: String(page),
     page_size: String(pageSize),
   });
   return `/general-services?${params.toString()}`;
+}
+
+/** Single request — all services for dropdowns. Requires backend `all=true` (see team note below). */
+export function generalServicesCatalogUrl(doctorId) {
+  const params = new URLSearchParams({
+    doctor_id: String(doctorId),
+    all: 'true',
+  });
+  return `/general-services?${params.toString()}`;
+}
+
+/** Load all general services for a doctor in one API call. */
+export async function fetchAllGeneralServices(get, doctorId) {
+  if (!doctorId) return [];
+  const data = await get(generalServicesCatalogUrl(doctorId));
+  const parsed = parsePaginatedList(data, { listKeys: ['general_services', 'results'] });
+  return parsed.rows.map(mapGeneralServiceRow).filter(Boolean);
 }
 
 export function formatGeneralServicePrice(value) {
@@ -114,6 +129,73 @@ export function extractGeneralServiceIdFromSummary(data) {
   const ids = extractGeneralServiceIdsFromSummary(data);
   if (ids.length) return String(ids[0]);
   return '';
+}
+
+function parseSummaryServicePrice(data) {
+  const raw =
+    data?.reservation?.general_service_price ??
+    data?.general_service_price ??
+    data?.prescription?.general_service_price ??
+    '';
+  if (raw === '' || raw == null || Number.isNaN(Number(raw))) return '';
+  return Number(raw);
+}
+
+/**
+ * General services saved on a reservation summary (supports multi-service + per-line price).
+ * @returns {Array<{ general_service_id: number, price: number|string, name: string }>}
+ */
+export function extractGeneralServicesFromSummary(data) {
+  if (!data || typeof data !== 'object') return [];
+
+  const fromServices =
+    data.general_services ??
+    data.reservation?.general_services ??
+    data.prescription?.general_services;
+  if (Array.isArray(fromServices) && fromServices.length) {
+    return fromServices
+      .map(row => {
+        const general_service_id = Number(row?.general_service_id ?? row?.id);
+        if (!Number.isFinite(general_service_id) || general_service_id <= 0) return null;
+        const priceRaw = row?.price ?? row?.general_service_price;
+        const price =
+          priceRaw !== '' && priceRaw != null && !Number.isNaN(Number(priceRaw)) ? Number(priceRaw) : '';
+        const name = typeof row?.name === 'string' ? row.name.trim() : '';
+        return { general_service_id, price, name };
+      })
+      .filter(Boolean);
+  }
+
+  const ids = extractGeneralServiceIdsFromSummary(data);
+  const singlePrice = parseSummaryServicePrice(data);
+  return ids.map((general_service_id, index) => ({
+    general_service_id,
+    price: index === 0 && singlePrice !== '' ? singlePrice : '',
+    name: '',
+  }));
+}
+
+/**
+ * UI rows → API `general_services` for prescription / pricing endpoints.
+ * @param {Array<{ general_service_id?: number, serviceId?: number, price?: number|string }>} rows
+ */
+export function buildGeneralServicesApiPayload(rows) {
+  return (Array.isArray(rows) ? rows : [])
+    .map(row => {
+      const general_service_id = Number(row?.general_service_id ?? row?.serviceId ?? row?.id);
+      const priceRaw = row?.price;
+      if (!Number.isFinite(general_service_id) || general_service_id <= 0) return null;
+      if (priceRaw === '' || priceRaw == null || Number.isNaN(Number(priceRaw))) return null;
+      return {
+        general_service_id,
+        price: Number(Number(priceRaw).toFixed(2)),
+      };
+    })
+    .filter(Boolean);
+}
+
+export function collectGeneralServiceIdsFromRows(rows) {
+  return buildGeneralServicesApiPayload(rows).map(row => row.general_service_id);
 }
 
 export function buildGeneralServicePayload(values, options = {}) {

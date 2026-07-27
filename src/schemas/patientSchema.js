@@ -36,8 +36,10 @@ export const patientSchema = yup.object({
   date_of_birth: yup
     .string()
     .trim()
-    .required('Date of birth is required')
-    .matches(dobRegex, 'Use YYYY-MM-DD'),
+    .test('dob-format', 'Use YYYY-MM-DD', value => {
+      const s = String(value ?? '').trim();
+      return s === '' || dobRegex.test(s);
+    }),
   medical_notes: yup.string().trim().max(20000, 'Notes are too long').optional(),
   pulse_package_ids: yup
     .array()

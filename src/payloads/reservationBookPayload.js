@@ -102,9 +102,9 @@ export function buildReservationBookNewPatientPayload({
     throw err;
   }
   const mobile_number = buildInternationalPhoneWithPlus(cc, mobileNumber);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date_of_birth)) {
-    const err = new Error('Date of birth is required.');
-    err.validationMessage = 'Date of birth is required.';
+  if (date_of_birth && !/^\d{4}-\d{2}-\d{2}$/.test(date_of_birth)) {
+    const err = new Error('Use YYYY-MM-DD for date of birth.');
+    err.validationMessage = 'Use YYYY-MM-DD for date of birth.';
     throw err;
   }
   if (!Number.isFinite(branch_id) || branch_id <= 0) {
@@ -132,13 +132,13 @@ export function buildReservationBookNewPatientPayload({
     first_name,
     last_name,
     mobile_number,
-    date_of_birth,
     is_for_self: true,
     branch_id,
     doctor_id,
     date_of_visit,
     slot: slotValue,
   };
+  if (date_of_birth) body.date_of_birth = date_of_birth;
 
   const notes = String(medicalNotes ?? '').trim();
   if (notes) body.medical_notes = notes;

@@ -1,5 +1,5 @@
 import { validateUsedPackagesForSubmit } from './appointmentLaserPackagesPayload';
-import { collectGeneralServiceIdsFromPrescription } from './reservationPricingPayload';
+import { buildGeneralServicesApiPayload } from './generalServicePayload';
 
 /**
  * POST /reservations/:reservation_id/prescription
@@ -52,7 +52,7 @@ export function buildReservationPrescriptionPayload({
   const did = Number(doctorId);
   const pid = Number(patientId);
 
-  const general_service_ids = collectGeneralServiceIdsFromPrescription(prescriptionSnapshot);
+  const general_services = buildGeneralServicesApiPayload(prescriptionSnapshot?.general_services);
 
   const payload = {
     doctor_id: did,
@@ -60,13 +60,8 @@ export function buildReservationPrescriptionPayload({
     medicines: buildPrescriptionMedicinesForApi(prescriptionSnapshot?.medicines),
   };
 
-  if (general_service_ids.length) {
-    payload.general_service_ids = general_service_ids;
-  }
-
-  const servicePrice = prescriptionSnapshot?.general_service_price;
-  if (servicePrice != null && servicePrice !== '' && !Number.isNaN(Number(servicePrice))) {
-    payload.general_service_price = Number(Number(servicePrice).toFixed(2));
+  if (general_services.length) {
+    payload.general_services = general_services;
   }
 
   const parsedDiscount = parseDiscount(discount);

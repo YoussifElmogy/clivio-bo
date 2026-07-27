@@ -208,8 +208,9 @@ export default function ScheduleBookAppointmentDrawer({ open, context, onClose, 
       setError('mobile_number', { message: phoneMsg });
       ok = false;
     }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(values.date_of_birth ?? '').trim())) {
-      setError('date_of_birth', { message: 'Date of birth is required' });
+    const dob = String(values.date_of_birth ?? '').trim();
+    if (dob && !/^\d{4}-\d{2}-\d{2}$/.test(dob)) {
+      setError('date_of_birth', { message: 'Use YYYY-MM-DD' });
       ok = false;
     }
     return ok;
@@ -468,8 +469,8 @@ function ControllerDateOfBirth({ control, disabled, dobPickerOpen, setDobPickerO
       control={control}
       render={({ field, fieldState }) => (
         <Stack spacing={0.75}>
-          <FormLabel required error={Boolean(fieldState.error)} sx={{ fontWeight: 600, fontSize: '0.875rem' }}>
-            Date of birth
+          <FormLabel error={Boolean(fieldState.error)} sx={{ fontWeight: 600, fontSize: '0.875rem' }}>
+            Date of birth <Typography component="span" variant="caption" color="text.secondary">(optional)</Typography>
           </FormLabel>
           <DatePicker
             open={dobPickerOpen}
