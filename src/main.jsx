@@ -12,22 +12,30 @@ import { AuthProvider } from './context/AuthContext.jsx';
 import { ToastProvider } from './context/ToastContext.jsx';
 import { clinicTheme } from './theme/clinicTheme.js';
 import { registerChunkLoadRecovery } from './utils/chunkLoadRecovery.js';
+import { ensureLatestDeploy } from './utils/deployVersionCheck.js';
 
 registerChunkLoadRecovery();
 
-createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <ThemeProvider theme={clinicTheme}>
-      <LocalizationProvider dateAdapter={AdapterDayjs}>
-        <CssBaseline />
-        <ToastProvider>
-          <AuthProvider>
-            <Suspense fallback={<CustomLoader show={true} />}>
-              <RouterProvider router={appRouter} />
-            </Suspense>
-          </AuthProvider>
-        </ToastProvider>
-      </LocalizationProvider>
-    </ThemeProvider>
-  </React.StrictMode>
-);
+async function bootstrap() {
+  const shouldRender = await ensureLatestDeploy();
+  if (!shouldRender) return;
+
+  createRoot(document.getElementById('root')).render(
+    <React.StrictMode>
+      <ThemeProvider theme={clinicTheme}>
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <CssBaseline />
+          <ToastProvider>
+            <AuthProvider>
+              <Suspense fallback={<CustomLoader show={true} />}>
+                <RouterProvider router={appRouter} />
+              </Suspense>
+            </AuthProvider>
+          </ToastProvider>
+        </LocalizationProvider>
+      </ThemeProvider>
+    </React.StrictMode>
+  );
+}
+
+bootstrap();
