@@ -28,6 +28,8 @@ import FilterAltOutlined from '@mui/icons-material/FilterAltOutlined';
 import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
 import PaginatedTable from '../components/PaginatedTable/PaginatedTable';
+import ReservationStatusPill from '../components/ReservationStatus/ReservationStatusPill';
+import ReservationGeneralServicesDrawer from '../components/GeneralServices/ReservationGeneralServicesDrawer';
 import CustomLoader from '../components/CustomLoader/CustomLoader';
 import EditOutlined from '@mui/icons-material/EditOutlined';
 import Tooltip from '@mui/material/Tooltip';
@@ -36,6 +38,7 @@ import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined';
 import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined';
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
+import MedicalServicesOutlined from '@mui/icons-material/MedicalServicesOutlined';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import usePermissions from '../hooks/usePermissions';
@@ -111,6 +114,19 @@ function blocksStaffEditOnFinished(user, row) {
   return isSuperAdminUser(user) || isAssistantUser(user);
 }
 
+function generalServicesListingAccess(user, row, canViewAppointment) {
+  if (isDoctorUser(user)) {
+    return { allowed: false, tooltip: 'Doctors manage services in appointment summary' };
+  }
+  if (!canViewAppointment) {
+    return { allowed: false, tooltip: 'No permission' };
+  }
+  if (isReservationInvoicePaidFromRow(row)) {
+    return { allowed: false, tooltip: 'Invoice paid — cannot change services' };
+  }
+  return { allowed: true, tooltip: 'General services' };
+}
+
 function patientMobileCell(row) {
   const raw =
     row.patient_mobile ??
@@ -170,6 +186,13 @@ function rowPatientId(row) {
   return Number.isFinite(n) ? n : null;
 }
 
+function rowDoctorId(row) {
+  const raw = row?.doctor_id ?? row?.doctor?.id ?? row?.doctorId;
+  if (raw == null || raw === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
 export default function ReservationsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -178,6 +201,7 @@ export default function ReservationsPage() {
   const { can } = usePermissions();
   const isDoctor = isDoctorUser(user);
   const canEditAppointment = can(PERM.EDIT_APPOINTMENT);
+  const canViewAppointment = can(PERM.VIEW_APPOINTMENT);
   const canDeleteAppointment = can(PERM.DELETE_APPOINTMENT);
   const defaultVisitDate = useMemo(() => todayIsoDate(), []);
   const [rows, setRows] = useState([]);
@@ -206,6 +230,8 @@ export default function ReservationsPage() {
   const [listVersion, setListVersion] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [generalServicesOpen, setGeneralServicesOpen] = useState(false);
+  const [generalServicesTarget, setGeneralServicesTarget] = useState(null);
 
   const refreshAttachments = useCallback(
     async reservationId => {
@@ -264,6 +290,57 @@ export default function ReservationsPage() {
     [refreshAttachments, showInfo]
   );
 
+  const openGeneralServicesDrawer = useCallback(
+    async row => {
+      const reservationId = row.id ?? row.uuid;
+      const patientId = rowPatientId(row);
+      const doctorId = rowDoctorId(row);
+      if (reservationId == null) {
+        showInfo('This row has no reservation id.');
+        return;
+      }
+      if (patientId == null) {
+        showInfo('This row has no patient id.');
+        return;
+      }
+      if (doctorId == null) {
+        showInfo('This row has no doctor id.');
+        return;
+      }
+
+      let invoicePaid = isReservationInvoicePaidFromRow(row);
+      if (!invoicePaid) {
+        try {
+          const query = new URLSearchParams({
+            patient_id: String(patientId),
+            reservation_id: String(reservationId),
+          }).toString();
+          const summary = await get(`/reservation-summary?${query}`);
+          invoicePaid = isReservationInvoicePaid(summary);
+        } catch {
+          invoicePaid = false;
+        }
+      }
+
+      setGeneralServicesTarget({
+        reservationId,
+        patientId,
+        doctorId,
+        patientLabel: patientCell(row),
+        doctorName: row.doctor_name?.trim?.() || row.doctor?.name?.trim?.() || '',
+        branchName: row.branch_name?.trim?.() || row.branch?.name?.trim?.() || '',
+        visitDate:
+          row.date_of_visit != null && String(row.date_of_visit).trim()
+            ? String(row.date_of_visit).trim().slice(0, 10)
+            : '',
+        visitSlot: row.slot != null ? String(row.slot).trim() : '',
+        invoicePaid,
+      });
+      setGeneralServicesOpen(true);
+    },
+    [get, showInfo]
+  );
+
   const handleUploadAttachment = useCallback(async () => {
     const reservationId = activeReservation?.id;
     if (!reservationId) return;
@@ -291,6 +368,15 @@ export default function ReservationsPage() {
       setAttachmentsUploading(false);
     }
   }, [activeReservation?.id, post, refreshAttachments, selectedFile, showError, showInfo, showSuccess]);
+
+  const closeGeneralServicesDrawer = useCallback(() => {
+    setGeneralServicesOpen(false);
+    setGeneralServicesTarget(null);
+  }, []);
+
+  const handleGeneralServicesSaved = useCallback(() => {
+    setListVersion(v => v + 1);
+  }, []);
 
   const handleDeleteAttachment = useCallback(
     async attachmentId => {
@@ -520,22 +606,24 @@ export default function ReservationsPage() {
 
   const columns = useMemo(
     () => [
+      { id: 'id', label: 'ID', minWidth: 72 },
       { id: 'patient', label: 'Patient', minWidth: 160 },
       { id: 'patient_mobile', label: 'Mobile', minWidth: 120 },
       { id: 'visit', label: 'Visit', minWidth: 140 },
       { id: 'slot', label: 'Time', minWidth: 108 },
       { id: 'branch', label: 'Branch', minWidth: 120 },
       { id: 'doctor', label: 'Doctor', minWidth: 120 },
-      { id: 'status', label: 'Status', minWidth: 110 },
+      { id: 'status', label: 'Status', minWidth: 120, render: row => <ReservationStatusPill status={row.status} /> },
       {
         id: 'actions',
         label: 'Actions',
         align: 'right',
-        minWidth: isDoctor ? 72 : 188,
+        minWidth: isDoctor ? 72 : 232,
         render: row => {
           const rid = row.id ?? row.uuid;
           const editBlockedFinished = blocksStaffEditOnFinished(user, row);
           const canEditRow = canEditAppointment && !editBlockedFinished;
+          const generalServicesAccess = generalServicesListingAccess(user, row, canViewAppointment);
           const editTooltip = !canEditAppointment
             ? 'No permission'
             : editBlockedFinished
@@ -577,6 +665,22 @@ export default function ReservationsPage() {
                 </Tooltip>
               ) : (
                 <>
+                  <Tooltip title={generalServicesAccess.tooltip}>
+                    <span>
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        aria-label="General services"
+                        onClick={e => {
+                          e.stopPropagation();
+                          openGeneralServicesDrawer(row);
+                        }}
+                        disabled={!generalServicesAccess.allowed}
+                      >
+                        <MedicalServicesOutlined fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
                   <Tooltip title={editTooltip}>
                     <span>
                       <IconButton
@@ -620,8 +724,10 @@ export default function ReservationsPage() {
       navigate,
       canDeleteAppointment,
       canEditAppointment,
+      canViewAppointment,
       isDoctor,
       openAttachmentsDrawer,
+      openGeneralServicesDrawer,
       openReservationSummary,
       requestDelete,
       user,
@@ -629,6 +735,11 @@ export default function ReservationsPage() {
   );
 
   const getCellValue = useCallback((row, col) => {
+    if (col.id === 'id') {
+      const raw = row.id ?? row.reservation_id ?? row.uuid;
+      if (raw == null || String(raw).trim() === '') return '—';
+      return String(raw);
+    }
     if (col.id === 'patient') return patientCell(row);
     if (col.id === 'patient_mobile') return patientMobileCell(row);
     if (col.id === 'visit') {
@@ -910,6 +1021,21 @@ export default function ReservationsPage() {
           </Box>
         </Stack>
       </Drawer>
+      <ReservationGeneralServicesDrawer
+        key={generalServicesOpen ? String(generalServicesTarget?.reservationId ?? 'open') : 'closed'}
+        open={generalServicesOpen}
+        onClose={closeGeneralServicesDrawer}
+        reservationId={generalServicesTarget?.reservationId ?? null}
+        patientId={generalServicesTarget?.patientId ?? null}
+        doctorId={generalServicesTarget?.doctorId ?? null}
+        patientLabel={generalServicesTarget?.patientLabel ?? ''}
+        doctorName={generalServicesTarget?.doctorName ?? ''}
+        branchName={generalServicesTarget?.branchName ?? ''}
+        visitDate={generalServicesTarget?.visitDate ?? ''}
+        visitSlot={generalServicesTarget?.visitSlot ?? ''}
+        readOnly={generalServicesTarget?.invoicePaid ?? false}
+        onSaved={handleGeneralServicesSaved}
+      />
       <Dialog
         open={deleteTarget != null}
         onClose={() => !deleteSubmitting && setDeleteTarget(null)}

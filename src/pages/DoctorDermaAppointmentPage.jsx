@@ -33,7 +33,6 @@ import {
 import {
   RESERVATION_PRICING_URL,
   buildReservationPricingPayload,
-  collectGeneralServiceIdsFromPrescription,
   normalizeReservationPricingResponse,
 } from '../payloads/reservationPricingPayload';
 
@@ -189,8 +188,7 @@ export default function DoctorDermaAppointmentPage() {
       try {
         const payload = buildReservationPricingPayload({
           reservationId,
-          generalServiceIds: collectGeneralServiceIdsFromPrescription(prescriptionSnapshot),
-          generalServicePrice: prescriptionSnapshot?.general_service_price ?? null,
+          generalServices: prescriptionSnapshot?.general_services ?? null,
         });
         const data = await post(RESERVATION_PRICING_URL, payload);
         if (!cancelled) {

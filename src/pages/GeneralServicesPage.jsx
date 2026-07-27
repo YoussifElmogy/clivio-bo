@@ -212,9 +212,9 @@ export default function GeneralServicesPage() {
             emptyMessage="No general services yet."
             page={page}
             rowsPerPage={rowsPerPage}
-            onPageChange={setPage}
-            onRowsPerPageChange={newSize => {
-              setRowsPerPage(newSize);
+            onPageChange={(_, p) => setPage(p)}
+            onRowsPerPageChange={e => {
+              setRowsPerPage(parseInt(e.target.value, 10));
               setPage(0);
             }}
             count={count}

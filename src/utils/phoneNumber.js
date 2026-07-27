@@ -1,14 +1,14 @@
-import { COUNTRY_OPTIONS, DEFAULT_COUNTRY_CODE } from '../constants/countryPhoneOptions';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import {
+  COUNTRY_OPTIONS,
+  DEFAULT_COUNTRY_CODE,
+} from '../constants/countryPhoneOptions';
 
 const EGYPT_COUNTRY_CODE = '+20';
+const GENERIC_NATIONAL_MAX = 15;
 
 function digitsOnly(value) {
   return String(value ?? '').replace(/\D+/g, '');
-}
-
-function countryOption(countryCode) {
-  const cc = normalizeCountryCode(countryCode);
-  return COUNTRY_OPTIONS.find(x => x.code === cc) ?? null;
 }
 
 /** Strip a local leading 0 when API/store sends Egyptian numbers as 01xxxxxxxxx. */
@@ -57,6 +57,17 @@ export function splitPhoneNumber(rawPhone) {
     return { countryCode: DEFAULT_COUNTRY_CODE, nationalNumber: '' };
   }
 
+  const parsed = parsePhoneNumberFromString(raw.startsWith('+') ? raw : `+${raw.replace(/^\+/, '')}`);
+  if (parsed?.country && parsed.countryCallingCode) {
+    const code = `+${parsed.countryCallingCode}`;
+    if (COUNTRY_OPTIONS.some(x => x.code === code)) {
+      return {
+        countryCode: code,
+        nationalNumber: normalizeNationalForCountry(code, parsed.nationalNumber),
+      };
+    }
+  }
+
   const compact = raw.replace(/[^\d+]/g, '');
   const compactDigits = digitsOnly(raw);
   const option = [...COUNTRY_OPTIONS]
@@ -101,32 +112,23 @@ export function buildInternationalPhoneWithPlus(countryCode, nationalNumber) {
 export function validatePhoneByCountry(countryCode, nationalNumber) {
   const cc = normalizeCountryCode(countryCode);
   const rawNational = digitsOnly(nationalNumber);
+  if (!rawNational) return 'Phone number is required';
+
   if (cc === EGYPT_COUNTRY_CODE) {
     return validateEgyptMobile(rawNational);
   }
-  const national = normalizeNationalForCountry(cc, nationalNumber);
-  if (!national) return 'Phone number is required';
-  const option = countryOption(cc);
-  if (!option) return 'Select a valid country code';
-  if (national.length !== option.nationalLength) {
-    return national.length < option.nationalLength
-      ? `Phone must be exactly ${option.nationalLength} digits for ${option.label}`
-      : `Phone must be exactly ${option.nationalLength} digits for ${option.label} (no extra digits)`;
-  }
+
   return null;
 }
 
 export function nationalPhonePlaceholder(countryCode) {
   const cc = normalizeCountryCode(countryCode);
   if (cc === EGYPT_COUNTRY_CODE) return egyptMobileExample();
-  const option = countryOption(cc);
-  if (!option) return '100 111 2233';
-  return '1'.repeat(Math.min(option.nationalLength, 3)) + '0'.repeat(Math.max(0, option.nationalLength - 3));
+  return 'Phone number';
 }
 
-export function nationalPhoneMaxLength(countryCode) {
-  const option = countryOption(countryCode);
-  return option?.nationalLength ?? 15;
+export function nationalPhoneMaxLength() {
+  return GENERIC_NATIONAL_MAX;
 }
 
 /** Normalize digits while typing — Egypt cannot start with 0. */
@@ -136,6 +138,5 @@ export function sanitizeNationalPhoneInput(countryCode, value) {
   if (cc === EGYPT_COUNTRY_CODE) {
     digits = digits.replace(/^0+/, '');
   }
-  return digits.slice(0, nationalPhoneMaxLength(cc));
+  return digits.slice(0, GENERIC_NATIONAL_MAX);
 }
-

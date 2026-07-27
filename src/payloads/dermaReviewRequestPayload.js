@@ -1,5 +1,6 @@
 import { DERMA_MAPPING_TYPE } from './dermaFaceMappingPayload';
 import { buildDermaFaceMappingPayloadFromAssignments } from './dermaFaceMappingPayload';
+import { buildGeneralServicesApiPayload } from './generalServicePayload';
 
 /**
  * Full derma visit review / checkout document for backend.
@@ -52,19 +53,31 @@ export function buildDermaReviewRequestPayload({
       }))
     : [];
 
-  const generalService = prescription?.general_service ?? null;
-  const generalServiceId =
-    prescription?.general_service_id ?? generalService?.id ?? null;
+  const generalServices = Array.isArray(prescription?.general_services)
+    ? buildGeneralServicesApiPayload(prescription.general_services)
+    : [];
+  const legacyGeneralService = prescription?.general_service ?? null;
+  const legacyGeneralServiceId =
+    prescription?.general_service_id ?? legacyGeneralService?.id ?? null;
 
   return {
     reservation_id: Number(reservationId),
     patient_id: Number(patientId),
+    general_services: generalServices.length
+      ? generalServices
+      : legacyGeneralServiceId != null && !Number.isNaN(Number(legacyGeneralServiceId))
+        ? [{ general_service_id: Number(legacyGeneralServiceId) }]
+        : [],
     general_service_id:
-      generalServiceId != null && !Number.isNaN(Number(generalServiceId))
-        ? Number(generalServiceId)
+      legacyGeneralServiceId != null && !Number.isNaN(Number(legacyGeneralServiceId))
+        ? Number(legacyGeneralServiceId)
         : null,
-    general_service: generalService,
-    visit_type: prescription?.visit_type ?? generalService?.name ?? '',
+    general_service: legacyGeneralService,
+    visit_type:
+      prescription?.visit_type ??
+      (Array.isArray(prescription?.general_services)
+        ? prescription.general_services.map(row => row?.name).filter(Boolean).join(', ')
+        : legacyGeneralService?.name ?? ''),
     prescription: {
       medicines,
       patient: prescription?.patient ?? null,

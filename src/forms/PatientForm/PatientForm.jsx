@@ -36,11 +36,13 @@ function PatientDateOfBirthPicker({ disabled }) {
         <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
           <FormLabel
             htmlFor={DOB_FIELD_ID}
-            required
             error={Boolean(fieldState.error)}
             sx={{ fontWeight: 600, fontSize: '0.875rem' }}
           >
-            Date of birth
+            Date of birth{' '}
+            <Typography component="span" variant="caption" color="text.secondary">
+              (optional)
+            </Typography>
           </FormLabel>
           <DatePicker
             open={dobPickerOpen}

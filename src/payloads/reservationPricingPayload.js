@@ -2,36 +2,25 @@
  * POST /reservation-pricing — priced line items for review / checkout.
  */
 
+import { buildGeneralServicesApiPayload } from './generalServicePayload';
+
 export const RESERVATION_PRICING_URL = '/reservation-pricing';
 
 /**
  * @param {{
  *   reservationId: number|string,
- *   generalServiceIds?: Array<number|string>,
- *   generalServicePrice?: number|string|null,
+ *   generalServices?: Array<{ general_service_id?: number, price?: number|string|null }>|null,
  * }} input
  */
-export function buildReservationPricingPayload({
-  reservationId,
-  generalServiceIds = [],
-  generalServicePrice = null,
-}) {
+export function buildReservationPricingPayload({ reservationId, generalServices = null }) {
   const rid = Number(reservationId);
-  const ids = (Array.isArray(generalServiceIds) ? generalServiceIds : [])
-    .map(id => Number(id))
-    .filter(id => Number.isFinite(id) && id > 0);
-
   const payload = {
     reservation_id: Number.isFinite(rid) ? rid : reservationId,
-    general_service_ids: ids,
   };
 
-  if (
-    generalServicePrice != null &&
-    generalServicePrice !== '' &&
-    !Number.isNaN(Number(generalServicePrice))
-  ) {
-    payload.general_service_price = Number(Number(generalServicePrice).toFixed(2));
+  const general_services = buildGeneralServicesApiPayload(generalServices);
+  if (general_services.length) {
+    payload.general_services = general_services;
   }
 
   return payload;
@@ -39,6 +28,11 @@ export function buildReservationPricingPayload({
 
 export function collectGeneralServiceIdsFromPrescription(prescription) {
   if (!prescription || typeof prescription !== 'object') return [];
+  if (Array.isArray(prescription.general_services) && prescription.general_services.length) {
+    return prescription.general_services
+      .map(row => Number(row?.general_service_id ?? row?.id))
+      .filter(id => Number.isFinite(id) && id > 0);
+  }
   if (Array.isArray(prescription.general_service_ids)) {
     return prescription.general_service_ids;
   }
