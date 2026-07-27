@@ -215,7 +215,8 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
     setUser({});
     clearAuthCookies();
-    window.location.href = '/login';
+    // Bust cached SPA shell so the next login loads the latest deploy.
+    window.location.replace(`/login?_cb=${Date.now()}`);
   };
 
   const updateUser = updatedUserData => {
