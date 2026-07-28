@@ -32,6 +32,7 @@ import ReservationStatusPill from '../components/ReservationStatus/ReservationSt
 import ReservationGeneralServicesDrawer from '../components/GeneralServices/ReservationGeneralServicesDrawer';
 import CustomLoader from '../components/CustomLoader/CustomLoader';
 import EditOutlined from '@mui/icons-material/EditOutlined';
+import TableSortLabel from '@mui/material/TableSortLabel';
 import Tooltip from '@mui/material/Tooltip';
 import AttachFileOutlined from '@mui/icons-material/AttachFileOutlined';
 import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
@@ -61,7 +62,11 @@ import {
   doctorSelectOptions,
   fetchAllDoctors,
 } from '../utils/doctorsCatalog';
-import { buildReservationsListQuery } from '../payloads/reservationPayload';
+import {
+  buildReservationsListQuery,
+  RESERVATION_SORT_ASC,
+  RESERVATION_SORT_DESC,
+} from '../payloads/reservationPayload';
 
 const API_LIST = '/reservations';
 
@@ -218,6 +223,7 @@ export default function ReservationsPage() {
   const [appliedDate, setAppliedDate] = useState(defaultVisitDate);
   const [doctorInput, setDoctorInput] = useState('');
   const [appliedDoctorId, setAppliedDoctorId] = useState('');
+  const [appliedSort, setAppliedSort] = useState(RESERVATION_SORT_ASC);
   const [catalogDoctors, setCatalogDoctors] = useState([]);
   const [doctorsLoading, setDoctorsLoading] = useState(true);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
@@ -505,6 +511,17 @@ export default function ReservationsPage() {
     setAppliedDate('');
     setDoctorInput('');
     setAppliedDoctorId('');
+    setAppliedSort(RESERVATION_SORT_ASC);
+    setPage(0);
+  }, []);
+
+  const showAppointmentNumber =
+    isDoctor || Boolean(String(appliedDoctorId ?? '').trim());
+
+  const toggleAppointmentSort = useCallback(() => {
+    setAppliedSort(prev =>
+      prev === RESERVATION_SORT_DESC ? RESERVATION_SORT_ASC : RESERVATION_SORT_DESC
+    );
     setPage(0);
   }, []);
 
@@ -569,6 +586,7 @@ export default function ReservationsPage() {
           doctorId: appliedDoctorId,
           page: page + 1,
           pageSize: rowsPerPage,
+          sort: showAppointmentNumber ? appliedSort : RESERVATION_SORT_ASC,
         });
         const data = await get(`${API_LIST}?${query}`);
         if (cancelled) return;
@@ -596,7 +614,7 @@ export default function ReservationsPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, rowsPerPage, appliedSearch, appliedStatus, appliedDate, appliedDoctorId, listVersion]);
+  }, [page, rowsPerPage, appliedSearch, appliedStatus, appliedDate, appliedDoctorId, appliedSort, showAppointmentNumber, listVersion]);
 
   const count = listMode === 'server' ? totalCount : rows.length;
   const paginatedRows = useMemo(() => {
@@ -606,7 +624,24 @@ export default function ReservationsPage() {
 
   const columns = useMemo(
     () => [
-      { id: 'id', label: 'ID', minWidth: 72 },
+      ...(showAppointmentNumber
+        ? [
+            {
+              id: 'appointment_number',
+              label: 'No.',
+              minWidth: 88,
+              renderHeader: () => (
+                <TableSortLabel
+                  active
+                  direction={appliedSort === RESERVATION_SORT_DESC ? 'desc' : 'asc'}
+                  onClick={toggleAppointmentSort}
+                >
+                  No.
+                </TableSortLabel>
+              ),
+            },
+          ]
+        : []),
       { id: 'patient', label: 'Patient', minWidth: 160 },
       { id: 'patient_mobile', label: 'Mobile', minWidth: 120 },
       { id: 'visit', label: 'Visit', minWidth: 140 },
@@ -726,6 +761,9 @@ export default function ReservationsPage() {
       canEditAppointment,
       canViewAppointment,
       isDoctor,
+      showAppointmentNumber,
+      appliedSort,
+      toggleAppointmentSort,
       openAttachmentsDrawer,
       openGeneralServicesDrawer,
       openReservationSummary,
@@ -735,10 +773,10 @@ export default function ReservationsPage() {
   );
 
   const getCellValue = useCallback((row, col) => {
-    if (col.id === 'id') {
-      const raw = row.id ?? row.reservation_id ?? row.uuid;
+    if (col.id === 'appointment_number') {
+      const raw = row.appointment_number ?? row.appointmentNumber;
       if (raw == null || String(raw).trim() === '') return '—';
-      return String(raw);
+      return String(raw).trim();
     }
     if (col.id === 'patient') return patientCell(row);
     if (col.id === 'patient_mobile') return patientMobileCell(row);

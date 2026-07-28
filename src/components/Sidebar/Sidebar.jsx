@@ -67,6 +67,12 @@ const navItems = [
     doctorOnly: true,
   },
   {
+    label: 'General Services',
+    to: '/general-services',
+    Icon: PriceCheckOutlined,
+    superAdminOnly: true,
+  },
+  {
     label: 'Appointments',
     to: '/appointments',
     Icon: EventAvailableOutlined,

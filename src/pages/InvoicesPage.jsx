@@ -60,6 +60,7 @@ import {
   invoiceTypeLabel,
   invoiceViewUrl,
   isInvoicePaidStatus,
+  isInvoiceFree,
   normalizeInvoicesList,
   validateInvoicePayAmount,
 } from '../payloads/invoicePayload';
@@ -80,6 +81,7 @@ function formatInvoiceDate(iso) {
 function statusChipColor(status) {
   const s = String(status ?? '').toLowerCase();
   if (s === 'paid') return 'success';
+  if (s === 'free') return 'default';
   if (s === 'partial' || s === 'partially_paid') return 'info';
   if (s === 'pending') return 'warning';
   return 'default';
@@ -400,7 +402,7 @@ export default function InvoicesPage() {
 
   const handleOpenPay = useCallback(row => {
     const id = row.id ?? row.uuid;
-    if (id == null) return;
+    if (id == null || isInvoiceFree(row)) return;
     setPayTarget(row);
     const defaultAmount = invoiceDefaultPayAmount(row);
     setPayAmount(defaultAmount === '' ? '' : String(defaultAmount));
@@ -462,7 +464,15 @@ export default function InvoicesPage() {
         render: row => {
           const id = row.id ?? row.uuid;
           const paid = isInvoicePaidStatus(row.status);
+          const free = isInvoiceFree(row);
           const hasUrl = Boolean(invoiceViewUrl(row));
+          const payTooltip = paid
+            ? 'Already paid'
+            : free
+              ? 'Free invoice — no payment needed'
+              : canPay
+                ? 'Record payment'
+                : 'No permission';
           return (
             <>
               <Tooltip title="Patient invoice info">
@@ -488,13 +498,13 @@ export default function InvoicesPage() {
                   </IconButton>
                 </span>
               </Tooltip>
-              <Tooltip title={paid ? 'Already paid' : canPay ? 'Record payment' : 'No permission'}>
+              <Tooltip title={payTooltip}>
                 <span>
                   <IconButton
                     size="small"
                     color="success"
                     aria-label="Record invoice payment"
-                    disabled={!canPay || paid || id == null}
+                    disabled={!canPay || paid || free || id == null}
                     onClick={() => handleOpenPay(row)}
                   >
                     <PaymentsOutlined fontSize="small" />

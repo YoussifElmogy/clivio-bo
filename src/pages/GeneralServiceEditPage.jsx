@@ -16,6 +16,7 @@ import CustomLoader from '../components/CustomLoader/CustomLoader';
 import GeneralServiceForm from '../forms/GeneralServiceForm/GeneralServiceForm';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { isSuperAdminUser } from '../utils/authRoles';
 import {
   generalServiceDefaultValues,
   generalServiceEditSchema,
@@ -41,6 +42,8 @@ export default function GeneralServiceEditPage() {
   const { user } = useAuth();
   const { get, patch, del } = useApi();
   const { showSuccess, showError } = useToast();
+  const isSuperAdmin = isSuperAdminUser(user);
+  const [serviceDoctorId, setServiceDoctorId] = useState('');
   const [initialLoad, setInitialLoad] = useState(true);
   const [displayName, setDisplayName] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -79,6 +82,9 @@ export default function GeneralServiceEditPage() {
                 ? Number(user.id)
                 : '',
         });
+        setServiceDoctorId(
+          merged.doctor !== '' && merged.doctor != null ? String(merged.doctor) : ''
+        );
         setDisplayName(merged.name || 'Service');
       } catch (err) {
         if (!cancelled) {
@@ -109,7 +115,9 @@ export default function GeneralServiceEditPage() {
         buildGeneralServicePayload(values, { includeDoctorId: false, forUpdate: true })
       );
       showSuccess('General service updated.');
-      navigate('/general-services', { replace: false });
+      const backQuery =
+        isSuperAdmin && serviceDoctorId ? `?doctor_id=${encodeURIComponent(serviceDoctorId)}` : '';
+      navigate(`/general-services${backQuery}`, { replace: false });
     } catch (err) {
       const msg =
         err?.detail ||
@@ -128,7 +136,9 @@ export default function GeneralServiceEditPage() {
       await del(`/general-services/${encodeURIComponent(id)}`);
       setDeleteDialogOpen(false);
       showSuccess('General service deleted.');
-      navigate('/general-services', { replace: true });
+      const backQuery =
+        isSuperAdmin && serviceDoctorId ? `?doctor_id=${encodeURIComponent(serviceDoctorId)}` : '';
+      navigate(`/general-services${backQuery}`, { replace: true });
     } catch (err) {
       const msg =
         err?.detail ||
@@ -159,7 +169,17 @@ export default function GeneralServiceEditPage() {
             >
               Delete
             </Button>
-            <Button variant="outlined" onClick={() => navigate('/general-services')} sx={{ borderRadius: 2 }}>
+            <Button
+              variant="outlined"
+              onClick={() => {
+                const backQuery =
+                  isSuperAdmin && serviceDoctorId
+                    ? `?doctor_id=${encodeURIComponent(serviceDoctorId)}`
+                    : '';
+                navigate(`/general-services${backQuery}`);
+              }}
+              sx={{ borderRadius: 2 }}
+            >
               Back to list
             </Button>
           </Stack>
