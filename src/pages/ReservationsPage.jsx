@@ -29,6 +29,7 @@ import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
 import PaginatedTable from '../components/PaginatedTable/PaginatedTable';
 import ReservationStatusPill from '../components/ReservationStatus/ReservationStatusPill';
+import ReservationPatientName from '../components/ReservationStatus/ReservationPatientName';
 import ReservationGeneralServicesDrawer from '../components/GeneralServices/ReservationGeneralServicesDrawer';
 import CustomLoader from '../components/CustomLoader/CustomLoader';
 import EditOutlined from '@mui/icons-material/EditOutlined';
@@ -642,7 +643,9 @@ export default function ReservationsPage() {
             },
           ]
         : []),
-      { id: 'patient', label: 'Patient', minWidth: 160 },
+      { id: 'patient', label: 'Patient', minWidth: 160, render: row => (
+          <ReservationPatientName name={patientCell(row)} status={row.status} />
+        ) },
       { id: 'patient_mobile', label: 'Mobile', minWidth: 120 },
       { id: 'visit', label: 'Visit', minWidth: 140 },
       { id: 'slot', label: 'Time', minWidth: 108 },
