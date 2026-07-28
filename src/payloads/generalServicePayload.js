@@ -217,3 +217,39 @@ export function buildGeneralServicePayload(values, options = {}) {
 
   return payload;
 }
+
+export const GENERAL_SERVICES_BULK_URL = '/general-services/bulk';
+
+export function buildGeneralServiceBulkPayload({ name, clinicFees, doctorIds }) {
+  const ids = (Array.isArray(doctorIds) ? doctorIds : [])
+    .map(id => Number(id))
+    .filter(id => Number.isFinite(id) && id > 0);
+  if (!ids.length) {
+    const err = new Error('Select at least one doctor.');
+    err.validationMessage = 'Select at least one doctor.';
+    throw err;
+  }
+
+  const trimmedName = String(name ?? '').trim();
+  if (!trimmedName) {
+    const err = new Error('Name is required.');
+    err.validationMessage = 'Name is required.';
+    throw err;
+  }
+
+  const payload = {
+    doctor_ids: ids,
+    name: trimmedName,
+  };
+
+  const clinic_fees = formatOptionalMoneyForApi(clinicFees);
+  if (clinic_fees != null) payload.clinic_fees = clinic_fees;
+
+  return payload;
+}
+
+/** Assign one service + clinic fees to multiple doctors. */
+export async function createGeneralServicesForDoctors(post, { name, clinicFees, doctorIds }) {
+  const payload = buildGeneralServiceBulkPayload({ name, clinicFees, doctorIds });
+  return post(GENERAL_SERVICES_BULK_URL, payload);
+}

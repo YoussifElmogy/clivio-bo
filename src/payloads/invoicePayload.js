@@ -353,6 +353,7 @@ export function invoiceStatusLabel(status) {
   if (s === 'paid') return 'Paid';
   if (s === 'partial' || s === 'partially_paid') return 'Partial';
   if (s === 'pending') return 'Pending';
+  if (s === 'free') return 'Free';
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : '—';
 }
 
@@ -360,6 +361,17 @@ export function isInvoicePaidStatus(status) {
   return String(status ?? '')
     .trim()
     .toLowerCase() === 'paid';
+}
+
+/** Free invoices have nothing to collect — block record payment. */
+export function isInvoiceFree(row) {
+  const status = String(row?.status ?? '')
+    .trim()
+    .toLowerCase();
+  if (status === 'free') return true;
+
+  const total = parseInvoiceMoneyNumber(row?.total);
+  return total != null && total <= 0;
 }
 
 export function invoiceViewUrl(row) {

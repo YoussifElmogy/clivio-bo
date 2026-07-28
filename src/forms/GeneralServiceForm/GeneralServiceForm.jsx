@@ -1,7 +1,9 @@
 import React from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
+import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import FormControl from '@mui/material/FormControl';
 import FormHelperText from '@mui/material/FormHelperText';
@@ -9,13 +11,26 @@ import Grid from '@mui/material/Grid';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 import FormTextField from '../../components/FormTextField/FormTextField';
 import { useToast } from '../../context/ToastContext';
+
+function doctorOptionLabel(d) {
+  const id = d?.id ?? d?.uuid;
+  return d?.name?.trim?.() || d?.full_name?.trim?.() || d?.email?.trim?.() || `Doctor #${id}`;
+}
+
+function doctorOptionId(d) {
+  const id = d?.id ?? d?.uuid;
+  return id == null ? null : Number(id);
+}
 
 export default function GeneralServiceForm({
   doctors = [],
   disableDoctor = false,
   showDoctorField = false,
+  showDoctorMultiSelect = false,
   onSubmit,
   submitLabel = 'Save',
 }) {
@@ -25,6 +40,14 @@ export default function GeneralServiceForm({
     formState: { errors, isSubmitting },
   } = useFormContext();
   const { showError: showValidationToast } = useToast();
+
+  const doctorOptions = doctors
+    .map(d => {
+      const id = doctorOptionId(d);
+      if (id == null) return null;
+      return { id, label: doctorOptionLabel(d) };
+    })
+    .filter(Boolean);
 
   return (
     <Box
@@ -59,7 +82,7 @@ export default function GeneralServiceForm({
                       {doctors.map(d => {
                         const id = d.id ?? d.uuid;
                         if (id == null) return null;
-                        const label = d.name?.trim?.() || d.full_name?.trim?.() || `Doctor #${id}`;
+                        const label = doctorOptionLabel(d);
                         return (
                           <MenuItem key={String(id)} value={Number(id)}>
                             {label}
@@ -122,6 +145,52 @@ export default function GeneralServiceForm({
             )}
           />
         </Grid>
+        {showDoctorMultiSelect ? (
+          <Grid size={{ xs: 12 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+              Assign to doctors
+            </Typography>
+            <Controller
+              name="doctors"
+              control={control}
+              render={({ field, fieldState }) => {
+                const selectedIds = Array.isArray(field.value) ? field.value.map(Number) : [];
+                const selectedOptions = selectedIds
+                  .map(id => doctorOptions.find(o => o.id === id) ?? { id, label: `Doctor #${id}` })
+                  .filter(Boolean);
+                return (
+                  <Autocomplete
+                    multiple
+                    disabled={isSubmitting}
+                    options={doctorOptions}
+                    value={selectedOptions}
+                    onChange={(_, next) => field.onChange(next.map(o => o.id))}
+                    getOptionLabel={option => option.label}
+                    isOptionEqualToValue={(a, b) => Number(a.id) === Number(b.id)}
+                    renderTags={(value, getTagProps) =>
+                      value.map((option, index) => (
+                        <Chip {...getTagProps({ index })} key={option.id} size="small" label={option.label} />
+                      ))
+                    }
+                    renderInput={params => (
+                      <TextField
+                        {...params}
+                        size="small"
+                        label="Doctors"
+                        placeholder="Search and select one or more doctors"
+                        error={Boolean(fieldState.error)}
+                        helperText={
+                          fieldState.error?.message ||
+                          'Each selected doctor gets this service with the same clinic fees.'
+                        }
+                      />
+                    )}
+                  />
+                );
+              }}
+            />
+          </Grid>
+        ) : null}
       </Grid>
       <Box sx={{ mt: 3 }}>
         <Button type="submit" variant="contained" disabled={isSubmitting} sx={{ borderRadius: 2, minWidth: 140 }}>
