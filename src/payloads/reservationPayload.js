@@ -108,6 +108,7 @@ export function buildReservationsListQuery({
   doctorId,
   page,
   pageSize,
+  sort = 'asc',
 }) {
   const params = new URLSearchParams();
   const q = String(search ?? '').trim();
@@ -120,5 +121,14 @@ export function buildReservationsListQuery({
   if (doctorKey) params.set('doctor_id', doctorKey);
   params.set('page', String(page));
   params.set('page_size', String(pageSize));
+  params.set('sort', String(sort).trim().toLowerCase() === 'desc' ? 'desc' : 'asc');
   return params.toString();
 }
+
+export const RESERVATION_SORT_ASC = 'asc';
+export const RESERVATION_SORT_DESC = 'desc';
+
+export const RESERVATION_SORT_OPTIONS = [
+  { value: RESERVATION_SORT_ASC, label: 'Ascending' },
+  { value: RESERVATION_SORT_DESC, label: 'Descending' },
+];

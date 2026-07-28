@@ -22,6 +22,7 @@ function listRequiredPermissions(requiresPermission) {
  * @param {React.ReactNode} children
  * @param {string|string[]} [requiresPermission] - values like PERM.VIEW_PATIENT; array = all required
  * @param {boolean} [doctorOnly] - when true, only doctor role can access
+ * @param {boolean} [allowSuperAdmin] - with doctorOnly, also allow super admin
  * @param {boolean} [invoicesAccess] - assistants with branch_ids or view_invoice permission
  * @param {boolean} [superAdminOnly] - when true, only super admin role can access
  */
@@ -29,6 +30,7 @@ const ProtectedRoute = ({
   children,
   requiresPermission,
   doctorOnly = false,
+  allowSuperAdmin = false,
   invoicesAccess = false,
   superAdminOnly = false,
 }) => {
@@ -69,7 +71,7 @@ const ProtectedRoute = ({
     }
   }
 
-  if (doctorOnly && !isDoctorUser(user)) {
+  if (doctorOnly && !isDoctorUser(user) && !(allowSuperAdmin && isSuperAdminUser(user))) {
     return <Navigate to={accessDeniedPath} replace />;
   }
 

@@ -151,7 +151,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'general-services/new',
         element: (
-          <ProtectedRoute doctorOnly>
+          <ProtectedRoute doctorOnly allowSuperAdmin>
             <GeneralServiceCreatePage />
           </ProtectedRoute>
         ),
@@ -159,7 +159,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'general-services/:id/edit',
         element: (
-          <ProtectedRoute doctorOnly>
+          <ProtectedRoute doctorOnly allowSuperAdmin>
             <GeneralServiceEditPage />
           </ProtectedRoute>
         ),
@@ -167,7 +167,7 @@ const appRouter = createBrowserRouter([
       {
         path: 'general-services',
         element: (
-          <ProtectedRoute doctorOnly>
+          <ProtectedRoute doctorOnly allowSuperAdmin>
             <GeneralServicesPage />
           </ProtectedRoute>
         ),
