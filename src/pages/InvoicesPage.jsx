@@ -600,15 +600,15 @@ export default function InvoicesPage() {
 
             <Stack
               direction={{ xs: 'column', md: 'row' }}
-              spacing={2}
+              spacing={1.5}
               alignItems={{ xs: 'stretch', md: 'flex-end' }}
               flexWrap="wrap"
               useFlexGap
-              sx={{ flexWrap: 'wrap', mb: 2 }}
             >
               <TextField
                 label="Search"
                 size="small"
+                fullWidth
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
                 onKeyDown={e => {
@@ -618,6 +618,7 @@ export default function InvoicesPage() {
                   }
                 }}
                 placeholder="Patient name or mobile"
+                sx={{ flex: { md: '1 1 220px' }, minWidth: { md: 200 } }}
               />
               <FormControl
                 size="small"
@@ -693,14 +694,19 @@ export default function InvoicesPage() {
                 onChange={v => setVisitDateInput(v?.isValid?.() ? v.format('YYYY-MM-DD') : '')}
                 disabled={loading || branchesLoading}
                 slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                sx={{ minWidth: { xs: '100%', md: 180 , maxWidth: 220} }}
+                sx={{ width: { xs: '100%', md: 180 }, maxWidth: { md: 220 } }}
               />
-              <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }} flexWrap="wrap" useFlexGap>
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1}
+                useFlexGap
+                sx={{ width: { xs: '100%', md: 'auto' }, flexShrink: 0 }}
+              >
                 <Button
                   variant="contained"
                   onClick={applyFilters}
                   disabled={loading || branchesLoading}
-                  sx={{ borderRadius: 2 }}
+                  sx={{ borderRadius: 2, width: { xs: '100%', md: 'auto' } }}
                 >
                   Apply
                 </Button>
@@ -708,7 +714,7 @@ export default function InvoicesPage() {
                   variant="outlined"
                   onClick={clearFilters}
                   disabled={loading || branchesLoading}
-                  sx={{ borderRadius: 2 }}
+                  sx={{ borderRadius: 2, width: { xs: '100%', md: 'auto' } }}
                 >
                   Clear
                 </Button>
@@ -717,7 +723,7 @@ export default function InvoicesPage() {
                   startIcon={<PaymentsOutlined />}
                   onClick={() => setPaymentSummaryOpen(true)}
                   disabled={branchesLoading}
-                  sx={{ borderRadius: 2 }}
+                  sx={{ borderRadius: 2, width: { xs: '100%', md: 'auto' } }}
                 >
                   Payment info
                 </Button>
@@ -732,7 +738,7 @@ export default function InvoicesPage() {
                   }
                   onClick={openExportDialog}
                   disabled={branchesLoading || exportSubmitting || loading}
-                  sx={{ borderRadius: 2 }}
+                  sx={{ borderRadius: 2, width: { xs: '100%', md: 'auto' } }}
                 >
                   Export
                 </Button>
