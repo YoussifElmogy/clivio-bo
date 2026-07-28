@@ -598,115 +598,121 @@ export default function InvoicesPage() {
               ))}
             </Stack>
 
-            <Stack
-              direction={{ xs: 'column', md: 'row' }}
-              spacing={1.5}
-              alignItems={{ xs: 'stretch', md: 'flex-end' }}
-              flexWrap="wrap"
-              useFlexGap
-            >
-              <TextField
-                label="Search"
-                size="small"
-                fullWidth
-                value={searchInput}
-                onChange={e => setSearchInput(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    applyFilters();
-                  }
-                }}
-                placeholder="Patient name or mobile"
-                sx={{ flex: { md: '1 1 220px' }, minWidth: { md: 200 } }}
-              />
-              <FormControl
-                size="small"
-                sx={{ minWidth: { xs: '100%', md: 200 } }}
-                disabled={branchesLoading}
+            <Stack spacing={1.5}>
+              <Stack
+                direction={{ xs: 'column', md: 'row' }}
+                spacing={2}
+                alignItems={{ xs: 'stretch', md: 'flex-end' }}
+                sx={{ flexWrap: 'wrap' }}
+                useFlexGap
               >
-                <InputLabel id="invoices-branch-filter-label">Branch</InputLabel>
-                <Select
-                  labelId="invoices-branch-filter-label"
-                  label="Branch"
-                  value={branchFilter}
-                  onChange={e => handleBranchFilterChange(e.target.value)}
-                >
-                  {isSuperAdmin ? (
-                    <MenuItem value={INVOICES_BRANCH_FILTER_ALL}>All branches</MenuItem>
-                  ) : null}
-                  {branchOptions.map(b => (
-                    <MenuItem key={b.id} value={String(b.id)}>
-                      {b.name?.trim() || `Branch #${b.id}`}
-                    </MenuItem>
-                  ))}
-                  {!isSuperAdmin && branchOptions.length === 0
-                    ? userBranchIds.map(id => (
-                        <MenuItem key={id} value={String(id)}>
-                          Branch #{id}
-                        </MenuItem>
-                      ))
-                    : null}
-                </Select>
-              </FormControl>
-              {!isDoctor ? (
+                <TextField
+                  label="Search"
+                  size="small"
+                  value={searchInput}
+                  onChange={e => setSearchInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      applyFilters();
+                    }
+                  }}
+                  placeholder="Patient name or mobile"
+                  sx={{
+                    width: { xs: '100%', md: 300 },
+                    flexShrink: 0,
+                  }}
+                />
                 <FormControl
                   size="small"
                   sx={{ minWidth: { xs: '100%', md: 200 } }}
-                  disabled={branchesLoading || doctorsLoading}
+                  disabled={branchesLoading}
                 >
-                  <InputLabel id="invoices-doctor-filter-label">Doctor</InputLabel>
+                  <InputLabel id="invoices-branch-filter-label">Branch</InputLabel>
                   <Select
-                    labelId="invoices-doctor-filter-label"
-                    label="Doctor"
-                    value={doctorInput}
-                    onChange={e => setDoctorInput(e.target.value)}
+                    labelId="invoices-branch-filter-label"
+                    label="Branch"
+                    value={branchFilter}
+                    onChange={e => handleBranchFilterChange(e.target.value)}
                   >
-                    <MenuItem value={DOCTOR_FILTER_ALL}>
-                      <em>All doctors</em>
-                    </MenuItem>
-                    {doctorOptions.map(d => (
-                      <MenuItem key={d.id} value={d.id}>
-                        {d.name}
+                    {isSuperAdmin ? (
+                      <MenuItem value={INVOICES_BRANCH_FILTER_ALL}>All branches</MenuItem>
+                    ) : null}
+                    {branchOptions.map(b => (
+                      <MenuItem key={b.id} value={String(b.id)}>
+                        {b.name?.trim() || `Branch #${b.id}`}
+                      </MenuItem>
+                    ))}
+                    {!isSuperAdmin && branchOptions.length === 0
+                      ? userBranchIds.map(id => (
+                          <MenuItem key={id} value={String(id)}>
+                            Branch #{id}
+                          </MenuItem>
+                        ))
+                      : null}
+                  </Select>
+                </FormControl>
+                {!isDoctor ? (
+                  <FormControl
+                    size="small"
+                    sx={{ minWidth: { xs: '100%', md: 200 } }}
+                    disabled={branchesLoading || doctorsLoading}
+                  >
+                    <InputLabel id="invoices-doctor-filter-label">Doctor</InputLabel>
+                    <Select
+                      labelId="invoices-doctor-filter-label"
+                      label="Doctor"
+                      value={doctorInput}
+                      onChange={e => setDoctorInput(e.target.value)}
+                    >
+                      <MenuItem value={DOCTOR_FILTER_ALL}>
+                        <em>All doctors</em>
+                      </MenuItem>
+                      {doctorOptions.map(d => (
+                        <MenuItem key={d.id} value={d.id}>
+                          {d.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                ) : null}
+                <FormControl size="small" sx={{ minWidth: { xs: '100%', md: 160 } }}>
+                  <InputLabel id="invoices-status-filter-label">Status</InputLabel>
+                  <Select
+                    labelId="invoices-status-filter-label"
+                    label="Status"
+                    value={statusInput}
+                    onChange={e => setStatusInput(e.target.value)}
+                  >
+                    {INVOICE_STATUS_FILTER_OPTIONS.map(opt => (
+                      <MenuItem key={opt.value || 'all'} value={opt.value}>
+                        {opt.label}
                       </MenuItem>
                     ))}
                   </Select>
                 </FormControl>
-              ) : null}
-              <FormControl size="small" sx={{ minWidth: { xs: '100%', md: 160 } }}>
-                <InputLabel id="invoices-status-filter-label">Status</InputLabel>
-                <Select
-                  labelId="invoices-status-filter-label"
-                  label="Status"
-                  value={statusInput}
-                  onChange={e => setStatusInput(e.target.value)}
-                >
-                  {INVOICE_STATUS_FILTER_OPTIONS.map(opt => (
-                    <MenuItem key={opt.value || 'all'} value={opt.value}>
-                      {opt.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <DatePicker
-                label="Visit date"
-                value={visitDateValue?.isValid() ? visitDateValue : null}
-                onChange={v => setVisitDateInput(v?.isValid?.() ? v.format('YYYY-MM-DD') : '')}
-                disabled={loading || branchesLoading}
-                slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                sx={{ width: { xs: '100%', md: 180 }, maxWidth: { md: 220 } }}
-              />
+                <DatePicker
+                  label="Visit date"
+                  value={visitDateValue?.isValid() ? visitDateValue : null}
+                  onChange={v => setVisitDateInput(v?.isValid?.() ? v.format('YYYY-MM-DD') : '')}
+                  disabled={loading || branchesLoading}
+                  slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                  sx={{ minWidth: { xs: '100%', md: 180 }, maxWidth: { md: 220 } }}
+                />
+              </Stack>
+
               <Stack
                 direction={{ xs: 'column', sm: 'row' }}
                 spacing={1}
+                flexWrap="wrap"
                 useFlexGap
-                sx={{ width: { xs: '100%', md: 'auto' }, flexShrink: 0 }}
+                sx={{ flexShrink: 0 }}
               >
                 <Button
                   variant="contained"
                   onClick={applyFilters}
                   disabled={loading || branchesLoading}
-                  sx={{ borderRadius: 2, width: { xs: '100%', md: 'auto' } }}
+                  sx={{ borderRadius: 2, width: { xs: '100%', sm: 'auto' } }}
                 >
                   Apply
                 </Button>
@@ -714,7 +720,7 @@ export default function InvoicesPage() {
                   variant="outlined"
                   onClick={clearFilters}
                   disabled={loading || branchesLoading}
-                  sx={{ borderRadius: 2, width: { xs: '100%', md: 'auto' } }}
+                  sx={{ borderRadius: 2, width: { xs: '100%', sm: 'auto' } }}
                 >
                   Clear
                 </Button>
@@ -723,7 +729,7 @@ export default function InvoicesPage() {
                   startIcon={<PaymentsOutlined />}
                   onClick={() => setPaymentSummaryOpen(true)}
                   disabled={branchesLoading}
-                  sx={{ borderRadius: 2, width: { xs: '100%', md: 'auto' } }}
+                  sx={{ borderRadius: 2, width: { xs: '100%', sm: 'auto' } }}
                 >
                   Payment info
                 </Button>
@@ -738,7 +744,7 @@ export default function InvoicesPage() {
                   }
                   onClick={openExportDialog}
                   disabled={branchesLoading || exportSubmitting || loading}
-                  sx={{ borderRadius: 2, width: { xs: '100%', md: 'auto' } }}
+                  sx={{ borderRadius: 2, width: { xs: '100%', sm: 'auto' } }}
                 >
                   Export
                 </Button>
