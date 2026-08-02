@@ -64,3 +64,21 @@ function sliceHhmm(t) {
   const s = String(t).trim();
   return s.length >= 5 ? s.slice(0, 5) : s;
 }
+
+/**
+ * Formats reservation `arrival_date` for listing — time only (local).
+ * Accepts ISO datetime or HH:mm(:ss) strings.
+ * @param {unknown} value
+ * @returns {string} e.g. "2:30 PM", or "" if empty/invalid
+ */
+export function formatArrivalTimeDisplay(value) {
+  if (value == null || String(value).trim() === '') return '';
+  const raw = String(value).trim();
+  if (/^\d{1,2}:\d{2}/.test(raw) && !raw.includes('T') && !/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+    const hhmm = sliceHhmm(raw);
+    return formatHhmmToAmPm(hhmm) || hhmm;
+  }
+  const d = dayjs(raw);
+  if (!d.isValid()) return '';
+  return d.format('h:mm A');
+}
