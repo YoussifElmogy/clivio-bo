@@ -53,7 +53,7 @@ import {
   RESERVATION_STATUS_FILTER_OPTIONS,
   reservationStatusLabel,
 } from '../constants/reservationStatus';
-import { formatAttachmentSecondaryLine, formatHhmmToAmPm } from '../utils/timeFormat';
+import { formatAttachmentSecondaryLine, formatArrivalTimeDisplay, formatHhmmToAmPm } from '../utils/timeFormat';
 import {
   isReservationInvoicePaid,
   isReservationInvoicePaidFromRow,
@@ -649,6 +649,7 @@ export default function ReservationsPage() {
       { id: 'patient_mobile', label: 'Mobile', minWidth: 120 },
       { id: 'visit', label: 'Visit', minWidth: 140 },
       { id: 'slot', label: 'Time', minWidth: 108 },
+      { id: 'arrival_date', label: 'Arrival', minWidth: 108 },
       { id: 'branch', label: 'Branch', minWidth: 120 },
       { id: 'doctor', label: 'Doctor', minWidth: 120 },
       { id: 'status', label: 'Status', minWidth: 120, render: row => <ReservationStatusPill status={row.status} /> },
@@ -795,6 +796,10 @@ export default function ReservationsPage() {
       const hhmm = String(t).trim().slice(0, 5);
       const label = formatHhmmToAmPm(hhmm);
       return label || hhmm;
+    }
+    if (col.id === 'arrival_date') {
+      const label = formatArrivalTimeDisplay(row.arrival_date ?? row.arrivalDate);
+      return label || '—';
     }
     if (col.id === 'branch') return row.branch_name?.trim?.() || row.branch?.name?.trim?.() || '—';
     if (col.id === 'doctor') return row.doctor_name?.trim?.() || row.doctor?.name?.trim?.() || '—';
