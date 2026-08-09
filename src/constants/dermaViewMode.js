@@ -1,24 +1,12 @@
-import { getPackageDermaTabs } from '../config/packageFeatures';
-
-/** Parse Vite env booleans; unset env defaults to `defaultWhenUnset`. */
-function envTabVisibleFlag(envKey, defaultWhenUnset = true) {
-  const raw = import.meta.env[envKey];
-  if (raw == null || String(raw).trim() === '') return defaultWhenUnset;
-  const v = String(raw).trim().toLowerCase();
-  if (v === 'false' || v === '0' || v === 'no') return false;
-  return v === 'true' || v === '1' || v === 'yes';
-}
-
-const packageTabs = getPackageDermaTabs();
+import { getResolvedDermaAppointmentTabs } from '../config/packageFeatures';
 
 /**
  * Derma appointment tabs: `true` = show tab, `false` = hide completely.
- * Package tier (5k / 7.5k) overrides env; 10k / full uses env flags.
- * Restart dev server after `.env` changes.
+ * Driven by lookup `features` (cookie) when available; otherwise package tier / env.
  */
-export const DERMA_APPOINTMENT_TABS = packageTabs ?? {
-  APPOINTMENT_SUMMARY: envTabVisibleFlag('VITE_DERMA_APPOINTMENT_SUMMARY_VIEW_ONLY'),
-  FACE_MAP: envTabVisibleFlag('VITE_DERMA_FACE_MAP_VIEW_ONLY'),
-  BODY_MAP: envTabVisibleFlag('VITE_DERMA_BODY_MAP_VIEW_ONLY'),
-  LASER_PACKAGES: envTabVisibleFlag('VITE_DERMA_LASER_PACKAGES_VIEW_ONLY'),
-};
+export function getDermaAppointmentTabs() {
+  return getResolvedDermaAppointmentTabs();
+}
+
+/** @deprecated Use getDermaAppointmentTabs() — evaluated once at import in legacy builds. */
+export const DERMA_APPOINTMENT_TABS = getDermaAppointmentTabs();

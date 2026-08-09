@@ -1,66 +1,62 @@
-/** Subscription / deployment package flags from Vite env. */
-
-function envBool(key, defaultWhenUnset = false) {
-  const raw = import.meta.env[key];
-  if (raw == null || String(raw).trim() === '') return defaultWhenUnset;
-  const v = String(raw).trim().toLowerCase();
-  if (v === 'false' || v === '0' || v === 'no') return false;
-  return v === 'true' || v === '1' || v === 'yes';
-}
-
-function envPositiveInt(key) {
-  const raw = import.meta.env[key];
-  if (raw == null || String(raw).trim() === '') return null;
-  const n = Number(String(raw).trim());
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
-}
+import { getRuntimeFeatureFlags } from './featureFlags';
+import {
+  isTenantFeatureNavAllowed,
+  isTenantFeatureRouteAllowed,
+} from './tenantFeatures';
+import { resolveDermaAppointmentTabs, hasLookupFeatureKeys } from './featureFlags';
 
 /** @returns {'5k' | '7.5k' | '10k' | 'full'} */
 export function resolvePackageTier() {
-  if (envBool('VITE_PACKAGE_10K')) return '10k';
-  if (envBool('VITE_PACKAGE_7_5K')) return '7.5k';
-  if (envBool('VITE_PACKAGE_5K')) return '5k';
-  return 'full';
+  return getRuntimeFeatureFlags().packageTier;
 }
 
-export const PACKAGE_TIER = resolvePackageTier();
+function hasStoredLookupFeatures() {
+  const raw = getRuntimeFeatureFlags().raw;
+  if (!raw || typeof raw !== 'object') return false;
+  return hasLookupFeatureKeys(raw) || getRuntimeFeatureFlags().featuresFromLookup === true;
+}
 
-/** Sidebar routes hidden on 5k package. */
+/** Sidebar routes hidden on 5k package (legacy env fallback only). */
 const SIDEBAR_BLOCKED_5K = new Set(['/inventory', '/services', '/laser']);
 
-export function isPackageSidebarNavAllowed(navPath) {
-  if (PACKAGE_TIER !== '5k') return true;
+function isLegacyPackageNavAllowed(navPath) {
+  if (resolvePackageTier() !== '5k') return true;
   return !SIDEBAR_BLOCKED_5K.has(navPath);
 }
 
-/** Block direct URL access to inventory / services / laser on 5k. */
-export function isPackageRouteAllowed(pathname) {
-  if (PACKAGE_TIER !== '5k') return true;
+function isLegacyPackageRouteAllowed(pathname) {
+  if (resolvePackageTier() !== '5k') return true;
   const blockedPrefixes = ['/inventory', '/services', '/laser'];
   return !blockedPrefixes.some(
     prefix => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
 }
 
-/** Derma appointment tabs by package tier. */
-export function getPackageDermaTabs() {
-  if (PACKAGE_TIER === '5k' || PACKAGE_TIER === '7.5k') {
-    return {
-      APPOINTMENT_SUMMARY: true,
-      FACE_MAP: false,
-      BODY_MAP: false,
-      LASER_PACKAGES: false,
-    };
+export function isPackageSidebarNavAllowed(navPath) {
+  if (hasStoredLookupFeatures()) {
+    return isTenantFeatureNavAllowed(navPath);
   }
-  return null;
+  return isLegacyPackageNavAllowed(navPath);
+}
+
+export function isPackageRouteAllowed(pathname) {
+  if (hasStoredLookupFeatures()) {
+    return isTenantFeatureRouteAllowed(pathname);
+  }
+  return isLegacyPackageRouteAllowed(pathname);
+}
+
+/** Derma tabs from lookup `features` (cookie) — no package-tier override. */
+export function getResolvedDermaAppointmentTabs() {
+  return resolveDermaAppointmentTabs();
 }
 
 export function isSmsPackageEnabled() {
-  return envBool('VITE_SMS_PACKAGE', true);
+  return getRuntimeFeatureFlags().smsPackage;
 }
 
 export function getBranchLimit() {
-  return envPositiveInt('VITE_BRANCH_LIMIT');
+  return getRuntimeFeatureFlags().branchLimit;
 }
 
 export function canAddMoreBranches(currentCount) {

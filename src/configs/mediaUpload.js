@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './apiClient';
+import { getApiBaseUrl } from './apiClient';
 
 /** Override with VITE_MEDIA_UPLOAD_PATH if your API uses a different route (under VITE_API_BASE_URL). */
 export const MEDIA_UPLOAD_PATH =
@@ -13,7 +13,7 @@ export function toAbsoluteMediaUrl(pathOrUrl) {
   if (t.startsWith('http://') || t.startsWith('https://') || t.startsWith('data:')) {
     return t;
   }
-  const base = API_BASE_URL.replace(/\/$/, '');
+  const base = getApiBaseUrl().replace(/\/$/, '');
   return `${base}/${t.replace(/^\//, '')}`;
 }
 

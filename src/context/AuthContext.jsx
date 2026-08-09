@@ -8,6 +8,12 @@ import {
   USER_ID_KEY,
 } from '../configs/apiClient';
 import {
+  applyTenantConfig,
+  clearTenantConfig,
+  restoreTenantConfigFromStorage,
+} from '../config/tenantConfig';
+import { lookupTenantByEmail, isTenantDiscoveryEnabled } from '../config/tenantLookup';
+import {
   getUserRoleFromToken,
   getFullNameFromToken,
   getUserIdFromToken,
@@ -42,6 +48,8 @@ export const AuthProvider = ({ children }) => {
   });
 
   useEffect(() => {
+    restoreTenantConfigFromStorage();
+
     const accessToken = Cookies.get(ACCESS_TOKEN_KEY);
     const storedUserData = Cookies.get('userData');
 
@@ -108,8 +116,20 @@ export const AuthProvider = ({ children }) => {
 
   const login = async ({ username, password } = {}) => {
     clearAuthCookies();
+    clearTenantConfig();
 
     try {
+      if (isTenantDiscoveryEnabled()) {
+        const tenant = await lookupTenantByEmail(username);
+        applyTenantConfig({
+          baseUrl: tenant.baseUrl,
+          featureFlagsRaw: tenant.featureFlagsRaw,
+          clinicId: tenant.clinicId,
+        });
+      } else {
+        restoreTenantConfigFromStorage();
+      }
+
       const res = await post('/auth/login', {
         username,
         password,
@@ -215,6 +235,7 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
     setUser({});
     clearAuthCookies();
+    clearTenantConfig();
     // Bust cached SPA shell so the next login loads the latest deploy.
     window.location.replace(`/login?_cb=${Date.now()}`);
   };

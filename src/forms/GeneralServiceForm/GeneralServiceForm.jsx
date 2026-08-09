@@ -15,6 +15,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import FormTextField from '../../components/FormTextField/FormTextField';
 import { useToast } from '../../context/ToastContext';
+import { isTenantPaymentInfoEnabled } from '../../config/tenantFeatures';
 
 function doctorOptionLabel(d) {
   const id = d?.id ?? d?.uuid;
@@ -40,6 +41,7 @@ export default function GeneralServiceForm({
     formState: { errors, isSubmitting },
   } = useFormContext();
   const { showError: showValidationToast } = useToast();
+  const showClinicFees = isTenantPaymentInfoEnabled();
 
   const doctorOptions = doctors
     .map(d => {
@@ -117,34 +119,36 @@ export default function GeneralServiceForm({
             )}
           />
         </Grid>
-        <Grid size={{ xs: 12, sm: 6 }}>
-          <Controller
-            name="clinicFees"
-            control={control}
-            render={({ field }) => (
-              <FormTextField
-                field={{
-                  ...field,
-                  value: field.value === '' || field.value == null ? '' : field.value,
-                  onChange: e => {
-                    const v = e.target.value;
-                    field.onChange(v === '' ? '' : Number(v));
-                  },
-                }}
-                id="general-service-clinic-fees"
-                label="Clinic fees"
-                type="number"
-                placeholder="e.g. 50"
-                invalid={Boolean(errors.clinicFees)}
-                errorMessage={errors.clinicFees?.message}
-                disabled={isSubmitting}
-                slotProps={{
-                  htmlInput: { min: 0, step: 0.01 },
-                }}
-              />
-            )}
-          />
-        </Grid>
+        {showClinicFees ? (
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <Controller
+              name="clinicFees"
+              control={control}
+              render={({ field }) => (
+                <FormTextField
+                  field={{
+                    ...field,
+                    value: field.value === '' || field.value == null ? '' : field.value,
+                    onChange: e => {
+                      const v = e.target.value;
+                      field.onChange(v === '' ? '' : Number(v));
+                    },
+                  }}
+                  id="general-service-clinic-fees"
+                  label="Clinic fees"
+                  type="number"
+                  placeholder="e.g. 50"
+                  invalid={Boolean(errors.clinicFees)}
+                  errorMessage={errors.clinicFees?.message}
+                  disabled={isSubmitting}
+                  slotProps={{
+                    htmlInput: { min: 0, step: 0.01 },
+                  }}
+                />
+              )}
+            />
+          </Grid>
+        ) : null}
         {showDoctorMultiSelect ? (
           <Grid size={{ xs: 12 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
@@ -181,7 +185,9 @@ export default function GeneralServiceForm({
                         error={Boolean(fieldState.error)}
                         helperText={
                           fieldState.error?.message ||
-                          'Each selected doctor gets this service with the same clinic fees.'
+                          (showClinicFees
+                            ? 'Each selected doctor gets this service with the same clinic fees.'
+                            : 'Each selected doctor gets this service.')
                         }
                       />
                     )}

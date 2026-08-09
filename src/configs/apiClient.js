@@ -1,12 +1,43 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
-
-const rawBase = import.meta.env.VITE_API_BASE_URL || '';
-export const API_BASE_URL = rawBase.trim().replace(/\/$/, '');
+import { readTenantApiBaseUrl, TENANT_API_BASE_URL_KEY } from '../config/tenantStorage';
 
 export const ACCESS_TOKEN_KEY = 'idToken';
 export const REFRESH_TOKEN_KEY = 'refreshToken';
 export const USER_ID_KEY = 'userId';
+
+function normalizeBaseUrl(value) {
+  return String(value ?? '')
+    .trim()
+    .replace(/\/$/, '');
+}
+
+export function getEnvFallbackApiBaseUrl() {
+  return normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL || '');
+}
+
+function readStoredApiBaseUrl() {
+  return normalizeBaseUrl(readTenantApiBaseUrl());
+}
+
+let runtimeApiBaseUrl = readStoredApiBaseUrl() || getEnvFallbackApiBaseUrl();
+
+export function getApiBaseUrl() {
+  return runtimeApiBaseUrl;
+}
+
+/** @deprecated Prefer getApiBaseUrl() — kept for legacy imports. */
+export function getAPI_BASE_URL() {
+  return getApiBaseUrl();
+}
+
+export const API_BASE_URL = getEnvFallbackApiBaseUrl();
+
+export function setApiBaseUrl(url) {
+  const next = normalizeBaseUrl(url) || getEnvFallbackApiBaseUrl();
+  runtimeApiBaseUrl = next;
+  apiClient.defaults.baseURL = next || undefined;
+}
 
 export function clearAuthCookies() {
   Cookies.remove(ACCESS_TOKEN_KEY);
@@ -82,8 +113,9 @@ async function performRefresh() {
     throw new Error('No refresh token');
   }
 
+  const base = getApiBaseUrl();
   const { data } = await axios.post(
-    `${API_BASE_URL}/auth/refresh`,
+    `${base}/auth/refresh`,
     { refresh: refreshToken },
     {
       headers: {
@@ -117,10 +149,11 @@ function getRefreshPromise() {
 }
 
 export const apiClient = axios.create({
-  baseURL: API_BASE_URL || undefined,
+  baseURL: runtimeApiBaseUrl || undefined,
 });
 
 apiClient.interceptors.request.use(config => {
+  config.baseURL = getApiBaseUrl() || undefined;
   const token = Cookies.get(ACCESS_TOKEN_KEY);
   config.headers = config.headers || {};
   const url = config.url || '';
@@ -130,8 +163,6 @@ apiClient.interceptors.request.use(config => {
   if (!isAuthLoginUrl(url) && !isAuthRefreshUrl(url)) {
     appendDoctorIdQueryIfNeeded(config);
   }
-  // Do not send X-Time-Zone unless the API CORS config lists it in
-  // Access-Control-Allow-Headers (otherwise the browser blocks the request).
   return config;
 });
 
@@ -185,3 +216,5 @@ apiClient.interceptors.response.use(
     }
   }
 );
+
+export { TENANT_API_BASE_URL_KEY };

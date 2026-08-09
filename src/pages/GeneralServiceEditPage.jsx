@@ -22,6 +22,7 @@ import {
   generalServiceEditSchema,
 } from '../schemas/generalServiceSchema';
 import { buildGeneralServicePayload, mergeGeneralServiceFromApi } from '../payloads/generalServicePayload';
+import { isTenantPaymentInfoEnabled } from '../config/tenantFeatures';
 
 function FormSkeleton() {
   return (
@@ -157,7 +158,13 @@ export default function GeneralServiceEditPage() {
       <CustomLoader active={deleteSubmitting} />
       <FormPageShell
         title="Edit general service"
-        description={displayName ? `Update ${displayName} or clinic fees.` : 'Update service details.'}
+        description={
+          displayName
+            ? isTenantPaymentInfoEnabled()
+              ? `Update ${displayName} or clinic fees.`
+              : `Update ${displayName}.`
+            : 'Update service details.'
+        }
         headerAction={
           <Stack direction="row" spacing={1} useFlexGap>
             <Button

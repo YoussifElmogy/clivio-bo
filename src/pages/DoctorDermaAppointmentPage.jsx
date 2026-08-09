@@ -20,7 +20,7 @@ import DermaReviewRequestDialog from '../components/DermaMapping/DermaReviewRequ
 import ReservationSummaryContent from '../components/ReservationSummary/ReservationSummaryContent';
 import { useToast } from '../context/ToastContext';
 import { isDermaClinicMode } from '../constants/clinicMode';
-import { DERMA_APPOINTMENT_TABS } from '../constants/dermaViewMode';
+import { resolveDermaAppointmentTabs } from '../config/featureFlags';
 import { useAuth } from '../context/AuthContext';
 import { isDoctorUser, isSuperAdminUser } from '../utils/authRoles';
 import { isReservationInvoicePaid } from '../utils/reservationInvoiceStatus';
@@ -122,22 +122,24 @@ export default function DoctorDermaAppointmentPage() {
   const reviewViewOnly = invoicePaid || isSuperAdmin;
   const appointmentViewOnly = reviewViewOnly;
 
+  const dermaTabs = resolveDermaAppointmentTabs();
+
   const visibleTabs = useMemo(() => {
     const tabs = [];
-    if (DERMA_APPOINTMENT_TABS.APPOINTMENT_SUMMARY) {
+    if (dermaTabs.APPOINTMENT_SUMMARY) {
       tabs.push({ id: 'summary', label: 'Appointment summary', icon: <DescriptionOutlined /> });
     }
-    if (DERMA_APPOINTMENT_TABS.FACE_MAP) {
+    if (dermaTabs.FACE_MAP) {
       tabs.push({ id: 'face', label: 'Face mapping', icon: <FaceRetouchingNaturalOutlined /> });
     }
-    if (DERMA_APPOINTMENT_TABS.BODY_MAP) {
+    if (dermaTabs.BODY_MAP) {
       tabs.push({ id: 'body', label: 'Body mapping', icon: <AccessibilityNewOutlined /> });
     }
-    if (DERMA_APPOINTMENT_TABS.LASER_PACKAGES) {
+    if (dermaTabs.LASER_PACKAGES) {
       tabs.push({ id: 'laser', label: 'Laser packages', icon: <FlashOnOutlined /> });
     }
     return tabs;
-  }, []);
+  }, [dermaTabs]);
 
   const activeTabId = visibleTabs[tab]?.id ?? visibleTabs[0]?.id ?? null;
 
@@ -313,13 +315,13 @@ export default function DoctorDermaAppointmentPage() {
     }
     let cancelled = false;
     (async () => {
-      setPatientPackagesLoading(DERMA_APPOINTMENT_TABS.LASER_PACKAGES);
+      setPatientPackagesLoading(dermaTabs.LASER_PACKAGES);
       try {
         const data = await get(`/patient-profile?patient_id=${encodeURIComponent(patientId)}`);
         if (cancelled) return;
         const name = data?.patient?.name?.trim?.();
         if (name) setPatientName(name);
-        if (DERMA_APPOINTMENT_TABS.LASER_PACKAGES) {
+        if (dermaTabs.LASER_PACKAGES) {
           const { pulsePackages: pulse, areaPackages: area } = normalizePatientProfilePackages(data);
           setPulsePackages(pulse);
           setAreaPackages(area);
@@ -460,7 +462,7 @@ export default function DoctorDermaAppointmentPage() {
         </>
       )}
 
-      {DERMA_APPOINTMENT_TABS.APPOINTMENT_SUMMARY ? (
+      {dermaTabs.APPOINTMENT_SUMMARY ? (
         <Box
           sx={{
             position: 'fixed',
@@ -506,7 +508,7 @@ export default function DoctorDermaAppointmentPage() {
         submitting={reviewSubmitting}
         onSubmit={handleSubmitReviewRequest}
         readOnly={reviewViewOnly}
-        showLaserPackages={DERMA_APPOINTMENT_TABS.LASER_PACKAGES}
+        showLaserPackages={dermaTabs.LASER_PACKAGES}
         showPricing={fetchReservationPricing}
         usedPackages={usedPackages}
         pulsePackages={pulsePackages}

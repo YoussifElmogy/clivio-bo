@@ -1,4 +1,5 @@
 import { doctorCreateDefaultValues } from '../schemas/doctorSchema';
+import { withTenantClinicId } from '../config/tenantConfig';
 import {
   buildInternationalPhone,
   splitPhoneNumber,
@@ -117,6 +118,16 @@ export function mergeDoctorFromApi(data) {
  * Builds POST /doctors body from form values (create).
  */
 export function buildDoctorCreatePayload(values) {
+  const payload = buildDoctorWritePayload(values);
+  return withTenantClinicId(payload);
+}
+
+/** PATCH /doctors/:id — same shape as create, without clinic_id. */
+export function buildDoctorUpdatePayload(values) {
+  return buildDoctorWritePayload(values);
+}
+
+function buildDoctorWritePayload(values) {
   const branch_schedules = (values.branch_schedules ?? [])
     .filter(bs => bs?.branch_id !== '' && bs?.branch_id != null)
     .map(bs => ({
@@ -147,9 +158,4 @@ export function buildDoctorCreatePayload(values) {
   const pw = typeof values.password === 'string' ? values.password.trim() : '';
   if (pw) payload.password = pw;
   return payload;
-}
-
-/** PATCH /doctors/:id — same shape as create. */
-export function buildDoctorUpdatePayload(values) {
-  return buildDoctorCreatePayload(values);
 }

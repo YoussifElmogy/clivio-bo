@@ -1,4 +1,5 @@
 import { assistantCreateDefaultValues } from '../schemas/assistantSchema';
+import { withTenantClinicId } from '../config/tenantConfig';
 import {
   buildInternationalPhone,
   splitPhoneNumber,
@@ -111,6 +112,16 @@ export function mergeAssistantFromApi(data) {
  * Builds POST /assistants body from form values.
  */
 export function buildAssistantCreatePayload(values) {
+  const payload = buildAssistantWritePayload(values);
+  return withTenantClinicId(payload);
+}
+
+/** PATCH /assistants/:id — same shape as create, without clinic_id. */
+export function buildAssistantUpdatePayload(values) {
+  return buildAssistantWritePayload(values);
+}
+
+function buildAssistantWritePayload(values) {
   const role_ids = [...(values.role_ids ?? [])]
     .map(Number)
     .filter(n => !Number.isNaN(n))
@@ -131,9 +142,4 @@ export function buildAssistantCreatePayload(values) {
   const pw = typeof values.password === 'string' ? values.password.trim() : '';
   if (pw) payload.password = pw;
   return payload;
-}
-
-/** PATCH /assistants/:id — same shape as create. */
-export function buildAssistantUpdatePayload(values) {
-  return buildAssistantCreatePayload(values);
 }

@@ -26,6 +26,7 @@ import { isDoctorUser, isSuperAdminUser } from '../utils/authRoles';
 import { fetchAllDoctors } from '../utils/doctorsCatalog';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import { formatGeneralServicePrice } from '../payloads/generalServicePayload';
+import { isTenantPaymentInfoEnabled } from '../config/tenantFeatures';
 
 function buildGeneralServicesListQuery(page, rowsPerPage, doctorId) {
   const params = new URLSearchParams();
@@ -202,7 +203,9 @@ export default function GeneralServicesPage() {
   const columns = useMemo(
     () => [
       { id: 'name', label: 'Name', minWidth: 200 },
-      { id: 'clinic_fees', label: 'Clinic fees', minWidth: 120 },
+      ...(isTenantPaymentInfoEnabled()
+        ? [{ id: 'clinic_fees', label: 'Clinic fees', minWidth: 120 }]
+        : []),
       {
         id: 'actions',
         label: 'Actions',

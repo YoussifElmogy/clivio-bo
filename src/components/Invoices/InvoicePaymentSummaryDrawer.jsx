@@ -16,9 +16,9 @@ import dayjs from 'dayjs';
 import useApi from '../../configs/useApi';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { PERM } from '../../config/permissions';
 import usePermissions from '../../hooks/usePermissions';
-import { isAssistantUser } from '../../utils/authRoles';
+import { hasLimitedInvoicePaymentInfo } from '../../utils/invoicesAccess';
+import { isTenantPaymentInfoEnabled } from '../../config/tenantFeatures';
 import {
   DOCTOR_FILTER_ALL,
   doctorSelectOptions,
@@ -77,9 +77,11 @@ export default function InvoicePaymentSummaryDrawer({ open, onClose }) {
   const { showError } = useToast();
 
   const limitedPaymentInfoDates = useMemo(
-    () => isAssistantUser(user) && !can(PERM.PAYMENT_INFO),
+    () => hasLimitedInvoicePaymentInfo(user, can),
     [user, can]
   );
+
+  const showGeneralServiceFees = isTenantPaymentInfoEnabled();
 
   const initialRange = useMemo(
     () =>
@@ -391,21 +393,23 @@ export default function InvoicePaymentSummaryDrawer({ open, onClose }) {
                   highlight
                 />
               </Paper>
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                  General service fees
-                </Typography>
-                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
-                  <SummaryRow
-                    label="Total clinic fees"
-                    value={formatInvoiceMoney(summary.total_clinic_fees) || '—'}
-                  />
-                  <SummaryRow
-                    label="Total doctor fees"
-                    value={formatInvoiceMoney(summary.total_doctor_fees) || '—'}
-                  />
-                </Paper>
-              </Box>
+              {showGeneralServiceFees ? (
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                    General service fees
+                  </Typography>
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                    <SummaryRow
+                      label="Total clinic fees"
+                      value={formatInvoiceMoney(summary.total_clinic_fees) || '—'}
+                    />
+                    <SummaryRow
+                      label="Total doctor fees"
+                      value={formatInvoiceMoney(summary.total_doctor_fees) || '—'}
+                    />
+                  </Paper>
+                </Box>
+              ) : null}
             </Stack>
           )}
         </Box>

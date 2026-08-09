@@ -14,3 +14,8 @@ export function canPayInvoices(user) {
   if (canPermission(user, PERM.PAY_INVOICE)) return true;
   return isAssistantUser(user) && getUserBranchIds(user).length > 0;
 }
+
+/** Assistants without payment_info role: yesterday through tomorrow only. */
+export function hasLimitedInvoicePaymentInfo(user, can) {
+  return isAssistantUser(user) && !can(PERM.PAYMENT_INFO);
+}

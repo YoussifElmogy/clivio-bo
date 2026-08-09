@@ -15,6 +15,8 @@ export function normalizeClinicMode(value) {
   return CLINIC_MODE.PRESCRIPTION;
 }
 
+import { getRuntimeClinicMode, getClinicModeFromTenantFeatures } from '../config/featureFlags';
+
 function readEnvClinicMode() {
   const env = import.meta.env.VITE_DOCTOR_CLINIC_MODE;
   if (env == null || String(env).trim() === '') return null;
@@ -51,13 +53,19 @@ export function resolveClinicMode(sources = {}) {
 
 /**
  * When `VITE_DOCTOR_CLINIC_MODE` is set in `.env`, it wins (local dev / explicit override).
- * Otherwise uses stored user fields from login or cookie.
+ * Otherwise uses tenant feature flags, stored user fields from login, or cookie.
  * @param {object|null|undefined} user
  * @returns {'prescription'|'derma'}
  */
 export function getClinicModeFromUser(user) {
   const fromEnv = readEnvClinicMode();
   if (fromEnv) return fromEnv;
+
+  const fromTenantFeatures = getClinicModeFromTenantFeatures();
+  if (fromTenantFeatures) return fromTenantFeatures;
+
+  const fromTenantFlags = getRuntimeClinicMode();
+  if (fromTenantFlags) return fromTenantFlags;
 
   if (user && typeof user === 'object') {
     return resolveClinicMode({

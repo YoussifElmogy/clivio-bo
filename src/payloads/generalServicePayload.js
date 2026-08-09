@@ -1,4 +1,5 @@
 import { generalServiceDefaultValues } from '../schemas/generalServiceSchema';
+import { isTenantPaymentInfoEnabled } from '../config/tenantFeatures';
 import { formatMoneyAmount } from '../utils/formatMoney';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 
@@ -206,6 +207,10 @@ export function buildGeneralServicePayload(values, options = {}) {
     name: String(values.name ?? '').trim(),
   };
 
+  if (!isTenantPaymentInfoEnabled()) {
+    return payload;
+  }
+
   const clinicFees = formatOptionalMoneyForApi(values.clinicFees);
 
   if (forUpdate) {
@@ -241,6 +246,10 @@ export function buildGeneralServiceBulkPayload({ name, clinicFees, doctorIds }) 
     doctor_ids: ids,
     name: trimmedName,
   };
+
+  if (!isTenantPaymentInfoEnabled()) {
+    return payload;
+  }
 
   const clinic_fees = formatOptionalMoneyForApi(clinicFees);
   if (clinic_fees != null) payload.clinic_fees = clinic_fees;

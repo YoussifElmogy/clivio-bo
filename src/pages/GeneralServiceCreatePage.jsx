@@ -22,6 +22,7 @@ import {
   buildGeneralServicePayload,
   createGeneralServicesForDoctors,
 } from '../payloads/generalServicePayload';
+import { isTenantPaymentInfoEnabled } from '../config/tenantFeatures';
 
 function FormSkeleton() {
   return (
@@ -152,7 +153,9 @@ export default function GeneralServiceCreatePage() {
       description={
         isSuperAdmin
           ? 'Enter the service details, then assign it to one or more doctors.'
-          : 'Create a named service with optional clinic fees.'
+          : isTenantPaymentInfoEnabled()
+            ? 'Create a named service with optional clinic fees.'
+            : 'Create a named service.'
       }
       headerAction={
         <Button

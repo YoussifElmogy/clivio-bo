@@ -8,6 +8,7 @@ import { useTheme } from '@mui/material/styles';
 import LoginForm from '../forms/LoginForm/LoginForm';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { readApiDetail } from '../config/tenantLookup';
 import { REQUIRED_PASSWORD_CHANGE_PATH } from '../constants/authRoutes';
 import { isDoctorUser } from '../utils/authRoles';
 import clivioBanner from '../assets/clivio-banner.svg';
@@ -39,6 +40,7 @@ export default function LoginPage() {
       });
     } catch (err) {
       const msg =
+        readApiDetail(err?.response?.data) ||
         (typeof err === 'object' && err !== null && err.error) ||
         err?.response?.data?.error ||
         err?.response?.data?.message ||
