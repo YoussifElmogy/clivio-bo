@@ -40,6 +40,7 @@ import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined';
 import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined';
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
+import WarningAmberOutlined from '@mui/icons-material/WarningAmberOutlined';
 import MedicalServicesOutlined from '@mui/icons-material/MedicalServicesOutlined';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -65,6 +66,10 @@ import {
 } from '../utils/doctorsCatalog';
 import {
   buildReservationsListQuery,
+  RESERVATION_MUST_PAY_TOOLTIP,
+  reservationMustPay,
+  reservationPatientDisplayName,
+  reservationPatientInvoiceSearch,
   RESERVATION_SORT_ASC,
   RESERVATION_SORT_DESC,
 } from '../payloads/reservationPayload';
@@ -209,6 +214,7 @@ export default function ReservationsPage() {
   const canEditAppointment = can(PERM.EDIT_APPOINTMENT);
   const canViewAppointment = can(PERM.VIEW_APPOINTMENT);
   const canDeleteAppointment = can(PERM.DELETE_APPOINTMENT);
+  const canViewInvoices = can(PERM.VIEW_INVOICE);
   const defaultVisitDate = useMemo(() => todayIsoDate(), []);
   const [rows, setRows] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -239,6 +245,25 @@ export default function ReservationsPage() {
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [generalServicesOpen, setGeneralServicesOpen] = useState(false);
   const [generalServicesTarget, setGeneralServicesTarget] = useState(null);
+  const [mustPayPrompt, setMustPayPrompt] = useState(null);
+
+  const openMustPayPrompt = useCallback(row => {
+    setMustPayPrompt({
+      patientName: reservationPatientDisplayName(row),
+      searchQuery: reservationPatientInvoiceSearch(row),
+    });
+  }, []);
+
+  const handleConfirmMustPayRedirect = useCallback(() => {
+    const q = mustPayPrompt?.searchQuery?.trim();
+    if (!q) {
+      showError('Patient mobile number is missing.');
+      setMustPayPrompt(null);
+      return;
+    }
+    setMustPayPrompt(null);
+    navigate(`/invoices?search=${encodeURIComponent(q)}`);
+  }, [mustPayPrompt, navigate, showError]);
 
   const refreshAttachments = useCallback(
     async reservationId => {
@@ -643,8 +668,26 @@ export default function ReservationsPage() {
             },
           ]
         : []),
-      { id: 'patient', label: 'Patient', minWidth: 160, render: row => (
-          <ReservationPatientName name={patientCell(row)} status={row.status} />
+      { id: 'patient', label: 'Patient', minWidth: 180, render: row => (
+          <Stack direction="row" alignItems="center" spacing={0.5} useFlexGap sx={{ minWidth: 0 }}>
+            <ReservationPatientName name={patientCell(row)} status={row.status} />
+            {canViewInvoices && reservationMustPay(row) ? (
+              <Tooltip title={RESERVATION_MUST_PAY_TOOLTIP}>
+                <IconButton
+                  size="small"
+                  color="warning"
+                  aria-label="Unpaid invoices warning"
+                  onClick={e => {
+                    e.stopPropagation();
+                    openMustPayPrompt(row);
+                  }}
+                  sx={{ flexShrink: 0, ml: 0.25 }}
+                >
+                  <WarningAmberOutlined sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
+            ) : null}
+          </Stack>
         ) },
       { id: 'patient_mobile', label: 'Mobile', minWidth: 120 },
       { id: 'visit', label: 'Visit', minWidth: 140 },
@@ -772,6 +815,8 @@ export default function ReservationsPage() {
       openGeneralServicesDrawer,
       openReservationSummary,
       requestDelete,
+      openMustPayPrompt,
+      canViewInvoices,
       user,
     ]
   );
@@ -1112,6 +1157,30 @@ export default function ReservationsPage() {
             }
           >
             {deleteSubmitting ? 'Deleting…' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={mustPayPrompt != null}
+        onClose={() => setMustPayPrompt(null)}
+        aria-labelledby="must-pay-dialog-title"
+      >
+        <DialogTitle id="must-pay-dialog-title">Unpaid invoices</DialogTitle>
+        <DialogContent>
+          {mustPayPrompt ? (
+            <>
+              <strong>{mustPayPrompt.patientName}</strong> has unpaid invoice(s) from previous
+              appointments. Open Invoices filtered by this patient to review and collect payment?
+            </>
+          ) : null}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setMustPayPrompt(null)} sx={{ borderRadius: 2 }}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleConfirmMustPayRedirect} sx={{ borderRadius: 2 }}>
+            Go to invoices
           </Button>
         </DialogActions>
       </Dialog>

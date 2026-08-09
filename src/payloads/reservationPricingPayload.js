@@ -3,8 +3,29 @@
  */
 
 import { buildGeneralServicesApiPayload } from './generalServicePayload';
+import { buildDermaFaceMappingPayloadFromAssignments } from './dermaFaceMappingPayload';
 
 export const RESERVATION_PRICING_URL = '/reservation-pricing';
+
+function hasDermaMappingAssignments(assignmentsRecord) {
+  const mapping = buildDermaFaceMappingPayloadFromAssignments(assignmentsRecord ?? {}, {});
+  return Array.isArray(mapping?.zones) && mapping.zones.length > 0;
+}
+
+/**
+ * Pricing API applies to visit type / general services and saved face or body mapping — not laser packages alone.
+ */
+export function shouldFetchReservationPricing({
+  prescriptionSnapshot = null,
+  faceAssignments = {},
+  bodyAssignments = {},
+} = {}) {
+  const general_services = buildGeneralServicesApiPayload(prescriptionSnapshot?.general_services ?? []);
+  if (general_services.length > 0) return true;
+  if (hasDermaMappingAssignments(faceAssignments)) return true;
+  if (hasDermaMappingAssignments(bodyAssignments)) return true;
+  return false;
+}
 
 /**
  * @param {{
@@ -24,6 +45,35 @@ export function buildReservationPricingPayload({ reservationId, generalServices 
   }
 
   return payload;
+}
+
+/** Stable key so pricing is fetched once per meaningful input change (avoids effect loops). */
+export function buildReservationPricingFetchKey({
+  reservationId,
+  prescriptionSnapshot = null,
+  faceAssignments = {},
+  bodyAssignments = {},
+} = {}) {
+  if (
+    !reservationId ||
+    !shouldFetchReservationPricing({ prescriptionSnapshot, faceAssignments, bodyAssignments })
+  ) {
+    return '';
+  }
+
+  const payload = buildReservationPricingPayload({
+    reservationId,
+    generalServices: prescriptionSnapshot?.general_services ?? null,
+  });
+  const faceMapping = buildDermaFaceMappingPayloadFromAssignments(faceAssignments ?? {}, {});
+  const bodyMapping = buildDermaFaceMappingPayloadFromAssignments(bodyAssignments ?? {}, {});
+
+  return JSON.stringify({
+    reservation_id: payload.reservation_id,
+    general_services: payload.general_services ?? [],
+    face_zones: faceMapping.zones ?? [],
+    body_zones: bodyMapping.zones ?? [],
+  });
 }
 
 export function collectGeneralServiceIdsFromPrescription(prescription) {

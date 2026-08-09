@@ -15,9 +15,11 @@ import { alpha, useTheme } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FlashOnOutlined from '@mui/icons-material/FlashOnOutlined';
 import useApi from '../../configs/useApi';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import usePermissions from '../../hooks/usePermissions';
 import { PERM } from '../../config/permissions';
+import { isAssistantUser } from '../../utils/authRoles';
 import { parsePaginatedList } from '../../utils/parsePaginatedList';
 
 const LIST_PAGE_SIZE = 200;
@@ -50,15 +52,16 @@ function rowsWithNumericIds(rows) {
 
 /**
  * Optional laser packages (pulse + area) for patient create/edit.
- * Shown only when the user can view laser catalog.
+ * Shown when the user can view the laser catalog or is an assistant (patient create/edit).
  */
 export default function PatientLaserPackagesSection({ disabled = false }) {
   const theme = useTheme();
   const { control } = useFormContext();
   const { get } = useApi();
+  const { user } = useAuth();
   const { showError } = useToast();
   const { can } = usePermissions();
-  const canViewLaser = can(PERM.VIEW_LASER);
+  const canManagePatientLaserPackages = can(PERM.VIEW_LASER) || isAssistantUser(user);
 
   const [pulseOptions, setPulseOptions] = useState([]);
   const [areaOptions, setAreaOptions] = useState([]);
@@ -108,9 +111,9 @@ export default function PatientLaserPackagesSection({ disabled = false }) {
   }, [ showError]);
 
   useEffect(() => {
-    if (!canViewLaser) return;
+    if (!canManagePatientLaserPackages) return;
     void Promise.all([fetchPulse(), fetchArea()]);
-  }, [canViewLaser, fetchPulse, fetchArea]);
+  }, [canManagePatientLaserPackages, fetchPulse, fetchArea]);
 
   const pulsePackageIds = useWatch({ control, name: 'pulse_package_ids', defaultValue: [] });
   const areaPackageIds = useWatch({ control, name: 'area_package_ids', defaultValue: [] });
@@ -142,7 +145,7 @@ export default function PatientLaserPackagesSection({ disabled = false }) {
     return m;
   }, [areaOptions]);
 
-  if (!canViewLaser) return null;
+  if (!canManagePatientLaserPackages) return null;
 
   const listBusy = loadingPulse || loadingArea;
 

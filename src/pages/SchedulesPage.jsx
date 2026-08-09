@@ -14,20 +14,24 @@ import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs from 'dayjs';
 import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
 import ScheduleBookAppointmentDrawer from '../components/Schedules/ScheduleBookAppointmentDrawer';
+import ScheduleDatePickerDay from '../components/Schedules/ScheduleDatePickerDay';
 import { useToast } from '../context/ToastContext';
 import { formatHhmmToAmPm } from '../utils/timeFormat';
+import {
+  clampBookableVisitDateIso,
+  isBookableVisitDate,
+  minBookableVisitDate,
+  minBookableVisitDateIso,
+} from '../utils/scheduleBooking';
 
 function todayIsoDate() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return minBookableVisitDateIso();
 }
 
 function normalizeAvailabilityResponse(data, context = {}) {
@@ -317,7 +321,12 @@ export default function SchedulesPage() {
   }, [availability.branches, appliedBranchId, appliedDoctorId]);
 
   const applyFilters = () => {
-    setAppliedDate(dateInput);
+    const nextDate = clampBookableVisitDateIso(dateInput);
+    if (dateInput && !isBookableVisitDate(dateInput)) {
+      showError('Appointments can only be booked for today or a future date.');
+      setDateInput(nextDate);
+    }
+    setAppliedDate(nextDate);
     setAppliedBranchId(branchInput);
     setAppliedDoctorId(doctorInput);
   };
@@ -338,6 +347,15 @@ export default function SchedulesPage() {
     if (!exists) setDoctorInput('');
   }, [doctorInput, doctorOptions]);
 
+  const dateValue = useMemo(() => (dateInput ? dayjs(dateInput) : null), [dateInput]);
+
+  const minVisitDate = useMemo(() => minBookableVisitDate(), []);
+  const minVisitDateIso = useMemo(() => minBookableVisitDateIso(), []);
+  const scheduleDaySlot = useMemo(
+    () => pickerProps => <ScheduleDatePickerDay {...pickerProps} minBookableDate={minVisitDateIso} />,
+    [minVisitDateIso]
+  );
+
   return (
     <FormPageShell
       title="Schedule Availability"
@@ -352,14 +370,17 @@ export default function SchedulesPage() {
           flexWrap="wrap"
           useFlexGap
         >
-          <TextField
+          <DatePicker
             label="Date"
-            type="date"
-            size="small"
-            value={dateInput}
-            onChange={e => setDateInput(e.target.value)}
-            slotProps={{ inputLabel: { shrink: true } }}
-            sx={{ minWidth: { xs: '100%', md: 180 } }}
+            value={dateValue?.isValid() ? dateValue : null}
+            onChange={v =>
+              setDateInput(v?.isValid?.() ? clampBookableVisitDateIso(v.format('YYYY-MM-DD')) : todayIsoDate())
+            }
+            minDate={minVisitDate}
+            disabled={loading || catalogLoading}
+            slots={{ day: scheduleDaySlot }}
+            slotProps={{ textField: { size: 'small', fullWidth: true } }}
+            sx={{ minWidth: { xs: '100%', md: 180 }, maxWidth: { md: 220 } }}
           />
 
           <FormControl size="small" sx={{ minWidth: { xs: '100%', md: 220 } }}>
@@ -469,6 +490,8 @@ export default function SchedulesPage() {
                                     const raw = String(slot?.time ?? '').trim();
                                     const hhmm = raw.length >= 5 ? raw.slice(0, 5) : raw;
                                     const isAvailable = Boolean(slot?.available);
+                                    const canBook =
+                                      isAvailable && isBookableVisitDate(displayedDate);
                                     return (
                                       <Chip
                                         key={`${doctor?.id}-${hhmm}-${idx}`}
@@ -479,7 +502,7 @@ export default function SchedulesPage() {
                                         color={isAvailable ? 'success' : 'error'}
                                         variant={isAvailable ? 'outlined' : 'filled'}
                                         onClick={
-                                          isAvailable
+                                          canBook
                                             ? () =>
                                                 openBookDrawer({
                                                   branchId: branch?.id,
@@ -493,7 +516,7 @@ export default function SchedulesPage() {
                                             : undefined
                                         }
                                         sx={
-                                          isAvailable
+                                          canBook
                                             ? theme => ({
                                                 cursor: 'pointer',
                                                 '&:hover': {

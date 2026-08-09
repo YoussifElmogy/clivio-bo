@@ -132,3 +132,51 @@ export const RESERVATION_SORT_OPTIONS = [
   { value: RESERVATION_SORT_ASC, label: 'Ascending' },
   { value: RESERVATION_SORT_DESC, label: 'Descending' },
 ];
+
+function truthyFlag(value) {
+  if (value === true || value === 1) return true;
+  const s = String(value ?? '').trim().toLowerCase();
+  return s === 'true' || s === '1' || s === 'yes';
+}
+
+/** GET /reservations list row — patient has unpaid invoice(s) from prior visits. */
+export function reservationMustPay(row) {
+  if (!row || typeof row !== 'object') return false;
+  if (truthyFlag(row.must_pay ?? row.mustPay)) return true;
+  const patient = row.patient;
+  if (patient && typeof patient === 'object') {
+    if (truthyFlag(patient.must_pay ?? patient.mustPay)) return true;
+  }
+  return false;
+}
+
+export function reservationPatientDisplayName(row) {
+  if (!row || typeof row !== 'object') return '—';
+  const n = row.patient_name ?? row.patientName;
+  if (n != null && String(n).trim()) return String(n).trim();
+  const a = String(row.first_name ?? '').trim();
+  const b = String(row.last_name ?? '').trim();
+  if (a || b) return [a, b].filter(Boolean).join(' ');
+  return row.patient_id != null ? `Patient #${row.patient_id}` : '—';
+}
+
+/** Mobile number for invoices search filter. */
+export function reservationPatientMobile(row) {
+  if (!row || typeof row !== 'object') return '';
+  const raw =
+    row.patient_mobile ??
+    row.patientMobile ??
+    row.patient?.mobile ??
+    row.mobile ??
+    row.phone ??
+    '';
+  return String(raw).trim();
+}
+
+/** Search string for invoices list — patient mobile. */
+export function reservationPatientInvoiceSearch(row) {
+  return reservationPatientMobile(row);
+}
+
+export const RESERVATION_MUST_PAY_TOOLTIP =
+  'This patient has unpaid invoices from previous appointments.';

@@ -243,6 +243,7 @@ export default function DermaReviewRequestDialog({
   onSubmit,
   readOnly = false,
   showLaserPackages = false,
+  showPricing = true,
   usedPackages = [],
   pulsePackages = [],
   areaPackages = [],
@@ -338,24 +339,28 @@ export default function DermaReviewRequestDialog({
             </>
           ) : null}
 
-          <Divider />
+          {showPricing ? (
+            <>
+              <Divider />
 
-          <Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
-              Pricing
-            </Typography>
-            <PricingLineItemsSection
-              items={pricingItems}
-              loading={pricingLoading}
-              error={pricingError}
-              grandTotal={grandTotal}
-              currency={currency}
-              discount={discount}
-              onDiscountChange={onDiscountChange}
-              submitting={submitting}
-              readOnly={readOnly}
-            />
-          </Box>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
+                  Pricing
+                </Typography>
+                <PricingLineItemsSection
+                  items={pricingItems}
+                  loading={pricingLoading}
+                  error={pricingError}
+                  grandTotal={grandTotal}
+                  currency={currency}
+                  discount={discount}
+                  onDiscountChange={onDiscountChange}
+                  submitting={submitting}
+                  readOnly={readOnly}
+                />
+              </Box>
+            </>
+          ) : null}
         </Stack>
       </DialogContent>
 

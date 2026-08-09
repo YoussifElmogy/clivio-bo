@@ -31,6 +31,7 @@ import {
 } from '../../payloads/reservationBookPayload';
 import { parsePaginatedList } from '../../utils/parsePaginatedList';
 import { formatHhmmToAmPm } from '../../utils/timeFormat';
+import { isBookableVisitDate } from '../../utils/scheduleBooking';
 import { validatePhoneByCountry } from '../../utils/phoneNumber';
 
 const NEW_PATIENT_DEFAULTS = {
@@ -218,6 +219,10 @@ export default function ScheduleBookAppointmentDrawer({ open, context, onClose, 
 
   const bookExisting = useCallback(async () => {
     if (!context) return;
+    if (!isBookableVisitDate(context.date)) {
+      showError('Appointments can only be booked for today or a future date.');
+      return;
+    }
     const pid = patientRowId(selectedPatient);
     if (pid == null) {
       showError('Select a patient.');
@@ -253,6 +258,10 @@ export default function ScheduleBookAppointmentDrawer({ open, context, onClose, 
   const bookNew = useCallback(
     async values => {
       if (!context) return;
+      if (!isBookableVisitDate(context.date)) {
+        showError('Appointments can only be booked for today or a future date.');
+        return;
+      }
       clearErrors();
       if (!validateNewPatient(values)) return;
 
@@ -291,6 +300,7 @@ export default function ScheduleBookAppointmentDrawer({ open, context, onClose, 
 
   const submitDisabled = useMemo(() => {
     if (submitting || !context) return true;
+    if (!isBookableVisitDate(context.date)) return true;
     if (mode === 'existing') return patientRowId(selectedPatient) == null;
     return false;
   }, [context, mode, selectedPatient, submitting]);

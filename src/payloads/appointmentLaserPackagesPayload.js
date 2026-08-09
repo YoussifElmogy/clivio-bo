@@ -58,11 +58,13 @@ export function buildUsedPackagesReviewSummary(selections, pulsePackages = [], a
 
     if (type === PACKAGE_TYPE_PULSE) {
       const pkg = pulseByRecordId.get(record_id);
+      const catalogRemaining = Number(pkg?.remaining_pulses) || 0;
+      const used_pulses = Number(item.used_pulses) || 0;
       pulseItems.push({
         record_id,
         title: pulsePackageTitle(pkg),
-        used_pulses: Number(item.used_pulses) || 0,
-        remaining_pulses: Number(pkg?.remaining_pulses) || 0,
+        used_pulses,
+        remaining_pulses: Math.max(0, catalogRemaining - used_pulses),
         price: pkg?.price ?? null,
       });
     } else if (type === PACKAGE_TYPE_AREA) {

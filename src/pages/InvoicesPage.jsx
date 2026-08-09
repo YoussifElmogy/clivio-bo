@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
@@ -106,6 +107,7 @@ function InvoiceInfoRow({ label, value }) {
 }
 
 export default function InvoicesPage() {
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { get, post } = useApi();
   const { showError, showSuccess, showInfo } = useToast();
@@ -116,12 +118,14 @@ export default function InvoicesPage() {
   const canPay = useMemo(() => canPayInvoices(user), [user]);
   const canUseInvoices = isSuperAdmin || userBranchIds.length > 0;
 
+  const initialInvoiceSearch = searchParams.get('search')?.trim() ?? '';
+
   const [branchOptions, setBranchOptions] = useState([]);
   const [branchFilter, setBranchFilter] = useState('');
   const [statusInput, setStatusInput] = useState('');
   const [appliedStatus, setAppliedStatus] = useState('');
-  const [searchInput, setSearchInput] = useState('');
-  const [appliedSearch, setAppliedSearch] = useState('');
+  const [searchInput, setSearchInput] = useState(initialInvoiceSearch);
+  const [appliedSearch, setAppliedSearch] = useState(initialInvoiceSearch);
   const [visitDateInput, setVisitDateInput] = useState('');
   const [appliedVisitDate, setAppliedVisitDate] = useState('');
   const [doctorInput, setDoctorInput] = useState('');
@@ -147,6 +151,17 @@ export default function InvoicesPage() {
   const [exportMode, setExportMode] = useState('all');
   const [exportFrom, setExportFrom] = useState('');
   const [exportTo, setExportTo] = useState('');
+
+  useEffect(() => {
+    const nextSearch = searchParams.get('search')?.trim() ?? '';
+    setSearchInput(prev => (prev === nextSearch ? prev : nextSearch));
+    setAppliedSearch(prev => {
+      if (prev === nextSearch) return prev;
+      setPage(0);
+      setListVersion(v => v + 1);
+      return nextSearch;
+    });
+  }, [searchParams]);
 
   useEffect(() => {
     if (!canUseInvoices) {

@@ -32,8 +32,10 @@ import {
 } from '../payloads/reservationPrescriptionPayload';
 import {
   RESERVATION_PRICING_URL,
+  buildReservationPricingFetchKey,
   buildReservationPricingPayload,
   normalizeReservationPricingResponse,
+  shouldFetchReservationPricing,
 } from '../payloads/reservationPricingPayload';
 
 function apiErrorMessage(err, fallback) {
@@ -139,6 +141,21 @@ export default function DoctorDermaAppointmentPage() {
 
   const activeTabId = visibleTabs[tab]?.id ?? visibleTabs[0]?.id ?? null;
 
+  /** Keep visited tab panels mounted so unsaved summary edits survive tab switches. */
+  const [visitedTabIds, setVisitedTabIds] = useState(() =>
+    activeTabId ? new Set([activeTabId]) : new Set()
+  );
+
+  useEffect(() => {
+    if (!activeTabId) return;
+    setVisitedTabIds(prev => {
+      if (prev.has(activeTabId)) return prev;
+      const next = new Set(prev);
+      next.add(activeTabId);
+      return next;
+    });
+  }, [activeTabId]);
+
   useEffect(() => {
     if (tab >= visibleTabs.length) {
       setTab(0);
@@ -178,8 +195,36 @@ export default function DoctorDermaAppointmentPage() {
     setPrescriptionSnapshot(snapshot);
   }, []);
 
+  const fetchReservationPricing = useMemo(
+    () =>
+      shouldFetchReservationPricing({
+        prescriptionSnapshot,
+        faceAssignments,
+        bodyAssignments,
+      }),
+    [prescriptionSnapshot, faceAssignments, bodyAssignments]
+  );
+
+  const pricingFetchKey = useMemo(
+    () =>
+      buildReservationPricingFetchKey({
+        reservationId,
+        prescriptionSnapshot,
+        faceAssignments,
+        bodyAssignments,
+      }),
+    [reservationId, prescriptionSnapshot, faceAssignments, bodyAssignments]
+  );
+
   useEffect(() => {
     if (!reviewOpen || !reservationId) return undefined;
+
+    if (!pricingFetchKey) {
+      setReservationPricing(null);
+      setPricingError(null);
+      setPricingLoading(false);
+      return undefined;
+    }
 
     let cancelled = false;
     (async () => {
@@ -207,7 +252,9 @@ export default function DoctorDermaAppointmentPage() {
     return () => {
       cancelled = true;
     };
-  }, [reviewOpen, reservationId, prescriptionSnapshot]);
+    // `post` from useApi is not referentially stable; key captures inputs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewOpen, reservationId, pricingFetchKey]);
 
   const handleSubmitReviewRequest = async () => {
     if (reviewViewOnly) return;
@@ -347,8 +394,12 @@ export default function DoctorDermaAppointmentPage() {
             </Tabs>
           ) : null}
 
-          {activeTabId === 'summary' ? (
-            <Box sx={{ pt: visibleTabs.length > 1 ? 3 : 0 }}>
+          {visitedTabIds.has('summary') ? (
+            <Box
+              role="tabpanel"
+              hidden={activeTabId !== 'summary'}
+              sx={{ pt: visibleTabs.length > 1 ? 3 : 0 }}
+            >
               <ReservationSummaryContent
                 reservationId={reservationId}
                 patientId={patientId}
@@ -360,8 +411,12 @@ export default function DoctorDermaAppointmentPage() {
             </Box>
           ) : null}
 
-          {activeTabId === 'face' ? (
-            <Box sx={{ pt: visibleTabs.length > 1 ? 3 : 0 }}>
+          {visitedTabIds.has('face') ? (
+            <Box
+              role="tabpanel"
+              hidden={activeTabId !== 'face'}
+              sx={{ pt: visibleTabs.length > 1 ? 3 : 0 }}
+            >
               <InteractiveFaceMap
                 reservationId={reservationId}
                 patientId={patientId}
@@ -371,8 +426,12 @@ export default function DoctorDermaAppointmentPage() {
             </Box>
           ) : null}
 
-          {activeTabId === 'body' ? (
-            <Box sx={{ pt: visibleTabs.length > 1 ? 3 : 0 }}>
+          {visitedTabIds.has('body') ? (
+            <Box
+              role="tabpanel"
+              hidden={activeTabId !== 'body'}
+              sx={{ pt: visibleTabs.length > 1 ? 3 : 0 }}
+            >
               <InteractiveBodyMap
                 reservationId={reservationId}
                 patientId={patientId}
@@ -382,8 +441,12 @@ export default function DoctorDermaAppointmentPage() {
             </Box>
           ) : null}
 
-          {activeTabId === 'laser' ? (
-            <Box sx={{ pt: visibleTabs.length > 1 ? 3 : 0 }}>
+          {visitedTabIds.has('laser') ? (
+            <Box
+              role="tabpanel"
+              hidden={activeTabId !== 'laser'}
+              sx={{ pt: visibleTabs.length > 1 ? 3 : 0 }}
+            >
               <AppointmentLaserPackagesTab
                 pulsePackages={pulsePackages}
                 areaPackages={areaPackages}
@@ -444,6 +507,7 @@ export default function DoctorDermaAppointmentPage() {
         onSubmit={handleSubmitReviewRequest}
         readOnly={reviewViewOnly}
         showLaserPackages={DERMA_APPOINTMENT_TABS.LASER_PACKAGES}
+        showPricing={fetchReservationPricing}
         usedPackages={usedPackages}
         pulsePackages={pulsePackages}
         areaPackages={areaPackages}
