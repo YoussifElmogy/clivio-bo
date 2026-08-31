@@ -21,6 +21,15 @@ export function unwrapReservationDetail(raw) {
   return inner && typeof inner === 'object' ? inner : raw;
 }
 
+/** Reservation id from create/book response (supports wrapped payloads). */
+export function unwrapReservationId(raw) {
+  const row = unwrapReservationDetail(raw);
+  const id = row?.id ?? (raw && typeof raw === 'object' ? raw.id : null);
+  if (id == null || id === '') return null;
+  const n = Number(id);
+  return Number.isFinite(n) ? n : id;
+}
+
 /** e.g. `"20:00:00"` → `"20:00"` for form + slot API */
 export function normalizeReservationSlot(value) {
   const s = String(value ?? '').trim();
@@ -99,6 +108,12 @@ export function buildReservationPatchPayload(values) {
     slot: normalizeReservationSlot(values.appointmentTime),
     status: String(values.status ?? '').trim().toLowerCase(),
   };
+}
+
+/** Quick status update from appointments list. */
+export function buildReservationStatusPatchPayload(status) {
+  const normalized = String(status ?? '').trim().toLowerCase();
+  return { status: STATUS_SET.has(normalized) ? normalized : RESERVATION_STATUS.PENDING };
 }
 
 export function buildReservationsListQuery({

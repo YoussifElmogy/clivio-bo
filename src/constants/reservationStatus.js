@@ -16,6 +16,11 @@ export const RESERVATION_STATUS_OPTIONS = [
   { value: RESERVATION_STATUS.CANCELED, label: 'Canceled' },
 ];
 
+/** Status choices when booking a new appointment from schedules. */
+export const RESERVATION_STATUS_BOOK_OPTIONS = RESERVATION_STATUS_OPTIONS.filter(
+  o => o.value !== RESERVATION_STATUS.FINISHED && o.value !== RESERVATION_STATUS.CANCELED
+);
+
 /** Appointments list filter dropdown options. */
 export const RESERVATION_STATUS_FILTER_OPTIONS = RESERVATION_STATUS_OPTIONS;
 

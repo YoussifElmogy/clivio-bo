@@ -41,6 +41,7 @@ import DeleteOutlineOutlined from '@mui/icons-material/DeleteOutlineOutlined';
 import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined';
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
 import MedicalServicesOutlined from '@mui/icons-material/MedicalServicesOutlined';
+import PublishedWithChangesOutlined from '@mui/icons-material/PublishedWithChangesOutlined';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import usePermissions from '../hooks/usePermissions';
@@ -51,6 +52,7 @@ import { parsePaginatedList } from '../utils/parsePaginatedList';
 import {
   RESERVATION_STATUS,
   RESERVATION_STATUS_FILTER_OPTIONS,
+  RESERVATION_STATUS_OPTIONS,
   reservationStatusLabel,
 } from '../constants/reservationStatus';
 import { formatAttachmentSecondaryLine, formatArrivalTimeDisplay, formatHhmmToAmPm } from '../utils/timeFormat';
@@ -65,6 +67,7 @@ import {
 } from '../utils/doctorsCatalog';
 import {
   buildReservationsListQuery,
+  buildReservationStatusPatchPayload,
   RESERVATION_SORT_ASC,
   RESERVATION_SORT_DESC,
 } from '../payloads/reservationPayload';
@@ -202,10 +205,12 @@ function rowDoctorId(row) {
 export default function ReservationsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { get, post, del } = useApi();
+  const { get, post, patch, del } = useApi();
   const { showError, showSuccess, showInfo } = useToast();
   const { can } = usePermissions();
   const isDoctor = isDoctorUser(user);
+  const isAssistant = isAssistantUser(user);
+  const isSuperAdmin = isSuperAdminUser(user);
   const canEditAppointment = can(PERM.EDIT_APPOINTMENT);
   const canViewAppointment = can(PERM.VIEW_APPOINTMENT);
   const canDeleteAppointment = can(PERM.DELETE_APPOINTMENT);
@@ -239,6 +244,9 @@ export default function ReservationsPage() {
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [generalServicesOpen, setGeneralServicesOpen] = useState(false);
   const [generalServicesTarget, setGeneralServicesTarget] = useState(null);
+  const [statusChangeTarget, setStatusChangeTarget] = useState(null);
+  const [statusChangeValue, setStatusChangeValue] = useState('');
+  const [statusChangeSubmitting, setStatusChangeSubmitting] = useState(false);
 
   const refreshAttachments = useCallback(
     async reservationId => {
@@ -495,6 +503,61 @@ export default function ReservationsPage() {
     }
   }, [deleteTarget, del, listMode, rowsPerPage, showError, showSuccess, totalCount]);
 
+  const openStatusChangeDialog = useCallback(
+    row => {
+      const reservationId = row.id ?? row.uuid;
+      if (reservationId == null) {
+        showInfo('This row has no id.');
+        return;
+      }
+      const currentStatus = String(row.status ?? RESERVATION_STATUS.PENDING).trim().toLowerCase();
+      setStatusChangeTarget({
+        id: reservationId,
+        label: patientCell(row),
+        currentStatus,
+      });
+      setStatusChangeValue(
+        RESERVATION_STATUS_OPTIONS.some(o => o.value === currentStatus)
+          ? currentStatus
+          : RESERVATION_STATUS.PENDING
+      );
+    },
+    [showInfo]
+  );
+
+  const handleConfirmStatusChange = useCallback(async () => {
+    if (statusChangeTarget == null) return;
+    const nextStatus = String(statusChangeValue ?? '').trim().toLowerCase();
+    if (!nextStatus) {
+      showError('Select a status.');
+      return;
+    }
+    if (nextStatus === statusChangeTarget.currentStatus) {
+      setStatusChangeTarget(null);
+      return;
+    }
+    setStatusChangeSubmitting(true);
+    try {
+      await patch(
+        `/reservations/${encodeURIComponent(statusChangeTarget.id)}`,
+        buildReservationStatusPatchPayload(nextStatus)
+      );
+      setStatusChangeTarget(null);
+      showSuccess('Appointment status updated.');
+      setListVersion(v => v + 1);
+    } catch (err) {
+      const msg =
+        err?.detail ||
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Could not update appointment status.';
+      showError(typeof msg === 'string' ? msg : 'Could not update appointment status.');
+    } finally {
+      setStatusChangeSubmitting(false);
+    }
+  }, [patch, showError, showSuccess, statusChangeTarget, statusChangeValue]);
+
   const applyFilters = useCallback(() => {
     setAppliedSearch(searchInput.trim());
     setAppliedStatus(statusInput.trim());
@@ -657,11 +720,12 @@ export default function ReservationsPage() {
         id: 'actions',
         label: 'Actions',
         align: 'right',
-        minWidth: isDoctor ? 72 : 232,
+        minWidth: isDoctor ? 72 : isAssistant || isSuperAdmin ? 272 : 232,
         render: row => {
           const rid = row.id ?? row.uuid;
           const editBlockedFinished = blocksStaffEditOnFinished(user, row);
           const canEditRow = canEditAppointment && !editBlockedFinished;
+          const canChangeStatus = canEditAppointment && (isAssistant || isSuperAdmin);
           const generalServicesAccess = generalServicesListingAccess(user, row, canViewAppointment);
           const editTooltip = !canEditAppointment
             ? 'No permission'
@@ -670,6 +734,23 @@ export default function ReservationsPage() {
               : 'Edit';
           return (
             <>
+              {canChangeStatus ? (
+                <Tooltip title="Change status">
+                  <span>
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      aria-label="Change appointment status"
+                      onClick={e => {
+                        e.stopPropagation();
+                        openStatusChangeDialog(row);
+                      }}
+                    >
+                      <PublishedWithChangesOutlined fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              ) : null}
               <Tooltip title={canEditAppointment ? 'Attachments' : 'No permission'}>
                 <span>
                   <IconButton
@@ -764,13 +845,16 @@ export default function ReservationsPage() {
       canDeleteAppointment,
       canEditAppointment,
       canViewAppointment,
+      isAssistant,
       isDoctor,
+      isSuperAdmin,
       showAppointmentNumber,
       appliedSort,
       toggleAppointmentSort,
       openAttachmentsDrawer,
       openGeneralServicesDrawer,
       openReservationSummary,
+      openStatusChangeDialog,
       requestDelete,
       user,
     ]
@@ -809,7 +893,7 @@ export default function ReservationsPage() {
 
   return (
     <>
-      <CustomLoader active={deleteSubmitting} />
+      <CustomLoader active={deleteSubmitting || statusChangeSubmitting} />
       <FormPageShell
         title={`Appointments (${count})`}
         description="View and edit reservations. Search by patient name or mobile; filter by status or visit date."
@@ -1112,6 +1196,57 @@ export default function ReservationsPage() {
             }
           >
             {deleteSubmitting ? 'Deleting…' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={statusChangeTarget != null}
+        onClose={() => !statusChangeSubmitting && setStatusChangeTarget(null)}
+        aria-labelledby="change-appointment-status-dialog-title"
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle id="change-appointment-status-dialog-title">Change appointment status</DialogTitle>
+        <DialogContent>
+          {statusChangeTarget ? (
+            <Stack spacing={2} sx={{ pt: 0.5 }}>
+              <Typography variant="body2" color="text.secondary">
+                Update status for <strong>{statusChangeTarget.label}</strong>.
+              </Typography>
+              <FormControl fullWidth size="small">
+                <InputLabel id="appointment-status-change-label">Status</InputLabel>
+                <Select
+                  labelId="appointment-status-change-label"
+                  label="Status"
+                  value={statusChangeValue}
+                  onChange={e => setStatusChangeValue(e.target.value)}
+                  disabled={statusChangeSubmitting}
+                >
+                  {RESERVATION_STATUS_OPTIONS.map(o => (
+                    <MenuItem key={o.value} value={o.value}>
+                      {o.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Stack>
+          ) : null}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setStatusChangeTarget(null)} disabled={statusChangeSubmitting}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleConfirmStatusChange}
+            disabled={statusChangeSubmitting}
+            startIcon={
+              statusChangeSubmitting ? (
+                <CircularProgress size={18} thickness={5} color="inherit" aria-hidden />
+              ) : null
+            }
+          >
+            {statusChangeSubmitting ? 'Saving…' : 'Save status'}
           </Button>
         </DialogActions>
       </Dialog>

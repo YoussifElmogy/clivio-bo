@@ -5,8 +5,12 @@ import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import Drawer from '@mui/material/Drawer';
+import FormControl from '@mui/material/FormControl';
 import FormLabel from '@mui/material/FormLabel';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
+import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
@@ -23,12 +27,17 @@ import FormTextField from '../FormTextField/FormTextField';
 import PhoneNumberField from '../PhoneNumberField/PhoneNumberField';
 import { useToast } from '../../context/ToastContext';
 import { DEFAULT_COUNTRY_CODE } from '../../constants/countryPhoneOptions';
+import { RESERVATION_STATUS, RESERVATION_STATUS_BOOK_OPTIONS } from '../../constants/reservationStatus';
 import {
   buildReservationBookNewPatientPayload,
   buildReservationCreatePayload,
   RESERVATION_BOOK_URL,
   RESERVATIONS_CREATE_URL,
 } from '../../payloads/reservationBookPayload';
+import {
+  buildReservationStatusPatchPayload,
+  unwrapReservationId,
+} from '../../payloads/reservationPayload';
 import { parsePaginatedList } from '../../utils/parsePaginatedList';
 import { formatHhmmToAmPm } from '../../utils/timeFormat';
 import { validatePhoneByCountry } from '../../utils/phoneNumber';
@@ -117,7 +126,7 @@ function AppointmentSummary({ context }) {
  * }} props
  */
 export default function ScheduleBookAppointmentDrawer({ open, context, onClose, onBooked }) {
-  const { get, post } = useApi();
+  const { get, post, patch } = useApi();
   const { showError, showSuccess } = useToast();
 
   const [mode, setMode] = useState('existing');
@@ -126,6 +135,7 @@ export default function ScheduleBookAppointmentDrawer({ open, context, onClose, 
   const [patientOptions, setPatientOptions] = useState([]);
   const [patientSearchLoading, setPatientSearchLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [appointmentStatus, setAppointmentStatus] = useState(RESERVATION_STATUS.PENDING);
   const [dobPickerOpen, setDobPickerOpen] = useState(false);
 
   const methods = useForm({ defaultValues: NEW_PATIENT_DEFAULTS, mode: 'onSubmit' });
@@ -143,6 +153,7 @@ export default function ScheduleBookAppointmentDrawer({ open, context, onClose, 
     setSelectedPatient(null);
     setPatientSearchInput('');
     setPatientOptions([]);
+    setAppointmentStatus(RESERVATION_STATUS.PENDING);
     reset(NEW_PATIENT_DEFAULTS);
     clearErrors();
   }, [clearErrors, reset]);
@@ -193,6 +204,43 @@ export default function ScheduleBookAppointmentDrawer({ open, context, onClose, 
     onClose();
   }, [onClose, submitting]);
 
+  const applyStatusAfterBook = useCallback(
+    async postResponse => {
+      const nextStatus = String(appointmentStatus ?? '').trim().toLowerCase();
+      if (!nextStatus || nextStatus === RESERVATION_STATUS.PENDING) {
+        showSuccess('Appointment booked.');
+        return;
+      }
+
+      const reservationId = unwrapReservationId(postResponse);
+      if (reservationId == null) {
+        showSuccess('Appointment booked, but status could not be updated.');
+        return;
+      }
+
+      try {
+        await patch(
+          `/reservations/${encodeURIComponent(reservationId)}`,
+          buildReservationStatusPatchPayload(nextStatus)
+        );
+        showSuccess('Appointment booked.');
+      } catch (err) {
+        const msg =
+          err?.detail ||
+          err?.response?.data?.detail ||
+          err?.response?.data?.message ||
+          err?.message ||
+          'Could not update status.';
+        showError(
+          typeof msg === 'string'
+            ? `Appointment booked, but status could not be updated: ${msg}`
+            : 'Appointment booked, but status could not be updated.'
+        );
+      }
+    },
+    [appointmentStatus, patch, showError, showSuccess]
+  );
+
   const validateNewPatient = useCallback(values => {
     let ok = true;
     if (!String(values.first_name ?? '').trim()) {
@@ -232,8 +280,8 @@ export default function ScheduleBookAppointmentDrawer({ open, context, onClose, 
         dateOfVisit: context.date,
         slot: context.slot,
       });
-      await post(RESERVATIONS_CREATE_URL, payload);
-      showSuccess('Appointment booked.');
+      const created = await post(RESERVATIONS_CREATE_URL, payload);
+      await applyStatusAfterBook(created);
       onBooked?.();
       onClose();
     } catch (err) {
@@ -248,7 +296,7 @@ export default function ScheduleBookAppointmentDrawer({ open, context, onClose, 
     } finally {
       setSubmitting(false);
     }
-  }, [context, onBooked, onClose, post, selectedPatient, showError, showSuccess]);
+  }, [applyStatusAfterBook, context, onBooked, onClose, post, selectedPatient, showError, showSuccess]);
 
   const bookNew = useCallback(
     async values => {
@@ -269,8 +317,8 @@ export default function ScheduleBookAppointmentDrawer({ open, context, onClose, 
           dateOfVisit: context.date,
           slot: context.slot,
         });
-        await post(RESERVATION_BOOK_URL, payload);
-        showSuccess('Appointment booked.');
+        const created = await post(RESERVATION_BOOK_URL, payload);
+        await applyStatusAfterBook(created);
         onBooked?.();
         onClose();
       } catch (err) {
@@ -286,7 +334,7 @@ export default function ScheduleBookAppointmentDrawer({ open, context, onClose, 
         setSubmitting(false);
       }
     },
-    [clearErrors, context, onBooked, onClose, post, showError, showSuccess, validateNewPatient]
+    [applyStatusAfterBook, clearErrors, context, onBooked, onClose, post, showError, showSuccess, validateNewPatient]
   );
 
   const submitDisabled = useMemo(() => {
@@ -334,6 +382,24 @@ export default function ScheduleBookAppointmentDrawer({ open, context, onClose, 
         </ToggleButtonGroup>
 
         <Divider />
+
+        <FormControl fullWidth size="small" disabled={submitting}>
+          <InputLabel id="schedule-book-status-label">Appointment status</InputLabel>
+          <Select
+            labelId="schedule-book-status-label"
+            id="schedule-book-status"
+            label="Appointment status"
+            value={appointmentStatus}
+            onChange={e => setAppointmentStatus(e.target.value)}
+            sx={{ borderRadius: 2 }}
+          >
+            {RESERVATION_STATUS_BOOK_OPTIONS.map(o => (
+              <MenuItem key={o.value} value={o.value}>
+                {o.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
 
         {mode === 'existing' ? (
           <Stack spacing={2} sx={{ flex: 1, minHeight: 0 }}>
