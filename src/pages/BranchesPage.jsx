@@ -176,19 +176,23 @@ export default function BranchesPage() {
   );
 
   const branchLimit = getBranchLimit();
-  const atBranchLimit = branchLimit != null && totalCount >= branchLimit;
-  const canAddBranchNow = canAddBranch && canAddMoreBranches(totalCount);
+  const countReady = !loading && listMode != null;
+  const atBranchLimit = branchLimit != null && countReady && count >= branchLimit;
+  const canAddBranchNow =
+    canAddBranch && (branchLimit == null ? true : countReady && canAddMoreBranches(count));
   const addBranchTooltip = !canAddBranch
     ? 'No permission'
-    : atBranchLimit
-      ? `Branch limit reached (${branchLimit})`
-      : 'Add branch';
+    : !countReady && branchLimit != null
+      ? 'Checking branch limit…'
+      : atBranchLimit
+        ? `Branch limit reached (${branchLimit})`
+        : 'Add branch';
 
   return (
     <>
       <CustomLoader active={deleteSubmitting} />
       <FormPageShell
-        title={`Branches (${count})`}
+        title={`Branches (${countReady ? count : '…'})`}
         headerAction={
           <Tooltip title={addBranchTooltip}>
             <span>
@@ -196,7 +200,10 @@ export default function BranchesPage() {
                 variant="contained"
                 onClick={() =>
                   navigate('/branches/new', {
-                    state: { fromBranchesList: true, branchCount: totalCount },
+                    state: {
+                      fromBranchesList: true,
+                      branchCount: count,
+                    },
                   })
                 }
                 sx={{ borderRadius: 2 }}

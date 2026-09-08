@@ -38,7 +38,7 @@ import usePermissions from '../hooks/usePermissions';
 import { PERM } from '../config/permissions';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import { allServicesCatalogUrl } from '../utils/servicesCatalogUrl';
-import { isAssistantUser, isDoctorUser, isSuperAdminUser } from '../utils/authRoles';
+import { isDoctorUser } from '../utils/authRoles';
 import { isSmsPackageEnabled } from '../config/packageFeatures';
 import { buildSmsSendPayload, SMS_SEND_URL } from '../payloads/smsPayload';
 
@@ -117,8 +117,7 @@ export default function PatientsPage() {
   const { showError, showInfo, showSuccess } = useToast();
   const { can } = usePermissions();
   const isDoctor = isDoctorUser(user);
-  const canSendSms =
-    isSmsPackageEnabled() && (isSuperAdminUser(user) || isAssistantUser(user));
+  const canSendSms = isSmsPackageEnabled();
   const canAddPatient = can(PERM.ADD_PATIENT);
   const canEditPatient = can(PERM.EDIT_PATIENT);
   const canDeletePatient = can(PERM.DELETE_PATIENT);

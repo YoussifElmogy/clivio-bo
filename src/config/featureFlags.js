@@ -367,7 +367,7 @@ export function normalizeFeatureFlags(raw) {
     return attachTenantFeatures(
       {
         packageTier: tier,
-        smsPackage: set.has('sms_package') || set.has('sms') ? true : envFallback.smsPackage,
+        smsPackage: set.has('sms_package') || set.has('sms'),
         branchLimit: envFallback.branchLimit,
         clinicMode: set.has('derma') || set.has('derma_clinic') ? 'derma' : envFallback.clinicMode,
         dermaTabs: envFallback.dermaTabs,
@@ -396,7 +396,12 @@ export function normalizeFeatureFlags(raw) {
   }
 
   const smsRaw = obj.sms_package ?? obj.smsPackage ?? obj.sms;
-  const smsPackage = smsRaw !== undefined && smsRaw !== null ? truthyFlag(smsRaw) : envFallback.smsPackage;
+  const smsPackage =
+    smsRaw !== undefined && smsRaw !== null
+      ? truthyFlag(smsRaw)
+      : hasLookupFeatureKeys(obj)
+        ? false
+        : envFallback.smsPackage;
 
   return attachTenantFeatures(
     {

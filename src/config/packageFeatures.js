@@ -1,4 +1,5 @@
 import { getRuntimeFeatureFlags } from './featureFlags';
+import { readTenantBranchNo } from './tenantStorage';
 import {
   isTenantFeatureNavAllowed,
   isTenantFeatureRouteAllowed,
@@ -55,8 +56,9 @@ export function isSmsPackageEnabled() {
   return getRuntimeFeatureFlags().smsPackage;
 }
 
+/** Max branches from lookup `branch_no` only (outside feature flags). */
 export function getBranchLimit() {
-  return getRuntimeFeatureFlags().branchLimit;
+  return readTenantBranchNo();
 }
 
 export function canAddMoreBranches(currentCount) {

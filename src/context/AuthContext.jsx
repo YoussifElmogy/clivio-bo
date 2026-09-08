@@ -125,6 +125,7 @@ export const AuthProvider = ({ children }) => {
           baseUrl: tenant.baseUrl,
           featureFlagsRaw: tenant.featureFlagsRaw,
           clinicId: tenant.clinicId,
+          branchNo: tenant.branchNo,
         });
       } else {
         restoreTenantConfigFromStorage();

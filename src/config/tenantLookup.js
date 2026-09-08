@@ -23,6 +23,14 @@ function parseClinicId(raw) {
   return s || null;
 }
 
+/** Max branches from lookup root `branch_no` (outside features). */
+function parseBranchNo(raw) {
+  if (raw == null || String(raw).trim() === '') return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.floor(n);
+}
+
 /** FastAPI-style `detail` (string, object, or validation array). */
 export function readApiDetail(data) {
   if (data == null || typeof data !== 'object') return null;
@@ -104,6 +112,7 @@ export function normalizeTenantLookupResponse(data) {
         ? /** @type {{ id?: unknown }} */ (root.clinic).id
         : null)
   );
+  const branchNo = parseBranchNo(root.branch_no ?? root.branchNo);
 
   if (!baseUrl) {
     const err = new Error('Tenant lookup did not return a base URL.');
@@ -114,6 +123,7 @@ export function normalizeTenantLookupResponse(data) {
   return {
     baseUrl,
     clinicId,
+    branchNo,
     featureFlagsRaw: featureFlags,
     featureFlags: normalizeFeatureFlags(featureFlags),
   };

@@ -3,6 +3,7 @@ import Cookies from 'js-cookie';
 export const TENANT_API_BASE_URL_KEY = 'tenantApiBaseUrl';
 export const TENANT_FEATURE_FLAGS_KEY = 'tenantFeatureFlags';
 export const TENANT_CLINIC_ID_KEY = 'tenantClinicId';
+export const TENANT_BRANCH_NO_KEY = 'tenantBranchNo';
 
 export function readTenantApiBaseUrl() {
   const raw = Cookies.get(TENANT_API_BASE_URL_KEY);
@@ -54,8 +55,33 @@ export function writeTenantClinicId(clinicId) {
   Cookies.set(TENANT_CLINIC_ID_KEY, value, { expires: 7, sameSite: 'lax' });
 }
 
+/** Max branches from lookup `branch_no` (outside features). null = no limit stored. */
+export function readTenantBranchNo() {
+  const raw = Cookies.get(TENANT_BRANCH_NO_KEY);
+  if (raw == null || String(raw).trim() === '') return null;
+  const n = Number(String(raw).trim());
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
+}
+
+export function writeTenantBranchNo(branchNo) {
+  if (branchNo == null || String(branchNo).trim() === '') {
+    Cookies.remove(TENANT_BRANCH_NO_KEY);
+    return;
+  }
+  const n = Number(branchNo);
+  if (!Number.isFinite(n) || n < 0) {
+    Cookies.remove(TENANT_BRANCH_NO_KEY);
+    return;
+  }
+  Cookies.set(TENANT_BRANCH_NO_KEY, String(Math.floor(n)), {
+    expires: 7,
+    sameSite: 'lax',
+  });
+}
+
 export function clearTenantStorage() {
   Cookies.remove(TENANT_API_BASE_URL_KEY);
   Cookies.remove(TENANT_FEATURE_FLAGS_KEY);
   Cookies.remove(TENANT_CLINIC_ID_KEY);
+  Cookies.remove(TENANT_BRANCH_NO_KEY);
 }

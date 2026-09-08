@@ -4,6 +4,7 @@ import {
   readTenantClinicId,
   writeTenantApiBaseUrl,
   writeTenantClinicId,
+  writeTenantBranchNo,
 } from './tenantStorage';
 import {
   resetRuntimeFeatureFlags,
@@ -13,7 +14,7 @@ import {
 import { setApiBaseUrl, getEnvFallbackApiBaseUrl } from '../configs/apiClient';
 
 /** Apply resolved tenant config (after lookup or when restoring session). */
-export function applyTenantConfig({ baseUrl, featureFlagsRaw, clinicId }) {
+export function applyTenantConfig({ baseUrl, featureFlagsRaw, clinicId, branchNo }) {
   if (baseUrl) {
     setApiBaseUrl(baseUrl);
     writeTenantApiBaseUrl(baseUrl);
@@ -23,6 +24,9 @@ export function applyTenantConfig({ baseUrl, featureFlagsRaw, clinicId }) {
   }
   if (clinicId != null && String(clinicId).trim() !== '') {
     writeTenantClinicId(clinicId);
+  }
+  if (branchNo !== undefined) {
+    writeTenantBranchNo(branchNo);
   }
 }
 
