@@ -15,6 +15,7 @@ import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import CloudUploadOutlined from '@mui/icons-material/CloudUploadOutlined';
 import useApi from '../../configs/useApi';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -32,6 +33,17 @@ const VISIT_STATUS_OPTIONS = [
   { value: 'arrived', label: 'Arrived' },
   { value: 'finished', label: 'Finished' },
 ];
+
+function parseAttachmentsList(data) {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === 'object') {
+    if (Array.isArray(data.attachments)) return data.attachments;
+    if (Array.isArray(data.results)) return data.results;
+    if (Array.isArray(data.items)) return data.items;
+    if (data.data && Array.isArray(data.data)) return data.data;
+  }
+  return [];
+}
 
 function attachmentViewUrl(row) {
   const raw =
@@ -112,6 +124,8 @@ export default function ReservationSummaryContent({
   const [medicineRows, setMedicineRows] = useState([]);
   const [savingPrescription, setSavingPrescription] = useState(false);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState(null);
+  const [selectedAttachmentFile, setSelectedAttachmentFile] = useState(null);
+  const [attachmentsUploading, setAttachmentsUploading] = useState(false);
 
   useEffect(() => {
     if (!reservationId || !patientId) {
@@ -186,6 +200,53 @@ export default function ReservationSummaryContent({
       return;
     }
     window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const refreshAttachments = async () => {
+    if (!reservationId) return;
+    try {
+      const data = await get(`/reservations/${encodeURIComponent(reservationId)}/attachments`);
+      const nextAttachments = parseAttachmentsList(data);
+      setSummaryData(prev => {
+        if (!prev || typeof prev !== 'object') return prev;
+        return { ...prev, attachments: nextAttachments };
+      });
+    } catch (err) {
+      const msg =
+        err?.detail ||
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Could not load attachments.';
+      showError(typeof msg === 'string' ? msg : 'Could not load attachments.');
+    }
+  };
+
+  const handleUploadAttachment = async () => {
+    if (!reservationId) return;
+    if (!selectedAttachmentFile) {
+      showInfo('Choose a file first.');
+      return;
+    }
+    setAttachmentsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedAttachmentFile);
+      await post(`/reservations/${encodeURIComponent(reservationId)}/attachments`, formData);
+      showSuccess('Attachment uploaded.');
+      setSelectedAttachmentFile(null);
+      await refreshAttachments();
+    } catch (err) {
+      const msg =
+        err?.detail ||
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Could not upload attachment.';
+      showError(typeof msg === 'string' ? msg : 'Could not upload attachment.');
+    } finally {
+      setAttachmentsUploading(false);
+    }
   };
 
   const handleDeleteAttachment = async attachmentId => {
@@ -526,6 +587,39 @@ export default function ReservationSummaryContent({
         <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
           Attachments
         </Typography>
+        {!viewOnly ? (
+          <Stack spacing={1.25} sx={{ mb: 2 }}>
+            <Button
+              component="label"
+              variant="outlined"
+              startIcon={<CloudUploadOutlined />}
+              disabled={attachmentsUploading}
+              sx={{ borderRadius: 2, alignSelf: 'flex-start' }}
+            >
+              Choose file
+              <input
+                hidden
+                type="file"
+                onChange={e => {
+                  const file = e.target.files?.[0] ?? null;
+                  setSelectedAttachmentFile(file);
+                  e.target.value = '';
+                }}
+              />
+            </Button>
+            <Typography variant="body2" color="text.secondary">
+              {selectedAttachmentFile ? selectedAttachmentFile.name : 'No file selected'}
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={handleUploadAttachment}
+              disabled={!selectedAttachmentFile || attachmentsUploading}
+              sx={{ borderRadius: 2, alignSelf: 'flex-start' }}
+            >
+              {attachmentsUploading ? 'Uploading…' : 'Upload attachment'}
+            </Button>
+          </Stack>
+        ) : null}
         {Array.isArray(summaryData?.attachments) && summaryData.attachments.length > 0 ? (
           <List disablePadding>
             {summaryData.attachments.map(att => (

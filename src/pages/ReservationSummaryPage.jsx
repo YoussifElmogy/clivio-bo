@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Button from '@mui/material/Button';
+import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
 import ReservationSummaryContent from '../components/ReservationSummary/ReservationSummaryContent';
@@ -16,6 +17,7 @@ export default function ReservationSummaryPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { showError } = useToast();
+  const isDoctor = isDoctorUser(user);
 
   const patientId = useMemo(() => searchParams.get('patient_id')?.trim() || '', [searchParams]);
 
@@ -30,7 +32,7 @@ export default function ReservationSummaryPage() {
       navigate('/appointments', { replace: true });
       return;
     }
-    if (isDoctorUser(user) && isDermaClinicMode(user)) {
+    if (isDoctor && isDermaClinicMode(user)) {
       navigate(
         getDoctorAppointmentViewPath({
           reservationId: id,
@@ -43,7 +45,7 @@ export default function ReservationSummaryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, patientId, navigate, showError, user]);
 
-  if (isDoctorUser(user) && isDermaClinicMode(user)) {
+  if (isDoctor && isDermaClinicMode(user)) {
     return null;
   }
 
@@ -52,9 +54,20 @@ export default function ReservationSummaryPage() {
       title="Appointment summary"
       description="Review reservation details and attachments."
       headerAction={
-        <Button variant="outlined" onClick={() => navigate('/appointments')} sx={{ borderRadius: 2 }}>
-          Back to appointments
-        </Button>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          {isDoctor && patientId ? (
+            <Button
+              variant="outlined"
+              onClick={() => navigate(`/patients/${encodeURIComponent(patientId)}/profile`)}
+              sx={{ borderRadius: 2 }}
+            >
+              Patient profile
+            </Button>
+          ) : null}
+          <Button variant="outlined" onClick={() => navigate('/appointments')} sx={{ borderRadius: 2 }}>
+            Back to appointments
+          </Button>
+        </Stack>
       }
       paperSx={{ p: { xs: 2, sm: 3 } }}
     >

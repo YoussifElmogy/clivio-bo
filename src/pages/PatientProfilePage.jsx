@@ -5,13 +5,14 @@ import AttachFileRounded from '@mui/icons-material/AttachFileRounded';
 import CalendarMonthOutlined from '@mui/icons-material/CalendarMonthOutlined';
 import LocalPhoneOutlined from '@mui/icons-material/LocalPhoneOutlined';
 import PersonOutlineRounded from '@mui/icons-material/PersonOutlineRounded';
+import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
-import Grid from '@mui/material/Grid';
+import IconButton from '@mui/material/IconButton';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
 import useApi from '../configs/useApi';
@@ -26,6 +27,8 @@ import { getDoctorAppointmentViewPath } from '../utils/doctorAppointmentNavigati
 import { parsePaginatedList } from '../utils/parsePaginatedList';
 import { reservationStatusLabel } from '../constants/reservationStatus';
 import { formatAttachmentSecondaryLine, formatHhmmToAmPm } from '../utils/timeFormat';
+
+const ATTACHMENTS_PREVIEW_LIMIT = 9;
 
 function attachmentViewUrl(row) {
   const raw =
@@ -126,6 +129,7 @@ export default function PatientProfilePage() {
   const [profileLoading, setProfileLoading] = useState(true);
   const [patient, setPatient] = useState(null);
   const [attachments, setAttachments] = useState([]);
+  const [attachmentsExpanded, setAttachmentsExpanded] = useState(false);
 
   const [apptLoading, setApptLoading] = useState(true);
   const [apptRows, setApptRows] = useState([]);
@@ -222,6 +226,14 @@ export default function PatientProfilePage() {
     const s = String(raw).trim();
     return s || '—';
   }, [patient]);
+
+  const visibleAttachments = useMemo(() => {
+    if (attachmentsExpanded || attachments.length <= ATTACHMENTS_PREVIEW_LIMIT) {
+      return attachments;
+    }
+    return attachments.slice(0, ATTACHMENTS_PREVIEW_LIMIT);
+  }, [attachments, attachmentsExpanded]);
+  const hasMoreAttachments = attachments.length > ATTACHMENTS_PREVIEW_LIMIT;
 
   const handleOpenAttachment = useCallback(
     att => {
@@ -450,81 +462,129 @@ export default function PatientProfilePage() {
         </Paper>
 
         <Box>
-          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 2 }}>
-            <AttachFileRounded color="primary" sx={{ fontSize: 26 }} />
-            <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: -0.01 }}>
+          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 1.25 }}>
+            <AttachFileRounded color="primary" sx={{ fontSize: 22 }} />
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, letterSpacing: -0.01 }}>
               Files & attachments
             </Typography>
           </Stack>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5, maxWidth: 720 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, maxWidth: 720 }}>
             Documents linked to this patient. Click view to open in a new tab.
           </Typography>
           {profileLoading && attachments.length === 0 ? (
-            <Paper variant="outlined" sx={{ p: { xs: 3.5, sm: 4 }, borderRadius: 2.5, textAlign: 'center' }}>
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, textAlign: 'center' }}>
               <Typography color="text.secondary">Loading attachments…</Typography>
             </Paper>
           ) : attachments.length === 0 ? (
-            <Paper variant="outlined" sx={{ p: { xs: 3.5, sm: 4 }, borderRadius: 2.5, textAlign: 'center' }}>
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, textAlign: 'center' }}>
               <Typography color="text.secondary">No attachments yet.</Typography>
             </Paper>
           ) : (
-            <Grid container spacing={{ xs: 2, sm: 2.5 }}>
-              {attachments.map(att => (
-                <Grid size={{ xs: 12, sm: 6, md: 4 }} key={att.id ?? att.file_url ?? att.file_name}>
-                  <Paper
-                    variant="outlined"
-                    sx={{
-                      p: { xs: 2.5, sm: 3 },
-                      height: '100%',
-                      borderRadius: 2.5,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 1,
-                      transition: 'box-shadow 0.2s, border-color 0.2s',
-                      '&:hover': {
-                        borderColor: alpha(accent, 0.45),
-                        boxShadow: `0 8px 24px ${alpha(theme.palette.common.black, 0.06)}`,
-                      },
-                    }}
-                  >
-                    <Stack direction="row" spacing={1.25} alignItems="flex-start">
-                      <Box
-                        sx={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 1.5,
-                          bgcolor: alpha(accent, 0.1),
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: accent,
-                          flexShrink: 0,
-                        }}
-                      >
-                        <AttachFileRounded fontSize="small" />
-                      </Box>
-                      <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700, wordBreak: 'break-word' }}>
-                          {att.file_name || 'Attachment'}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                          {formatAttachmentSecondaryLine(att) || '—'}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                    <Divider sx={{ my: 0.5 }} />
-                    <Button
-                      size="small"
+            <Stack spacing={1}>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: 'repeat(2, minmax(0, 1fr))',
+                    sm: 'repeat(3, minmax(0, 1fr))',
+                  },
+                  gap: 1.75,
+                }}
+              >
+                {visibleAttachments.map(att => {
+                  const fileName = att.file_name || 'Attachment';
+                  const secondary = formatAttachmentSecondaryLine(att);
+                  const tooltipTitle = secondary ? `${fileName}\n${secondary}` : fileName;
+                  return (
+                    <Paper
+                      key={att.id ?? att.file_url ?? fileName}
                       variant="outlined"
-                      onClick={() => handleOpenAttachment(att)}
-                      sx={{ alignSelf: 'flex-start', borderRadius: 2 }}
+                      sx={{
+                        p: 2,
+                        borderRadius: 1.5,
+                        minWidth: 0,
+                      }}
                     >
-                      View file
-                    </Button>
-                  </Paper>
-                </Grid>
-              ))}
-            </Grid>
+                      <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+                        <Box
+                          sx={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 1,
+                            bgcolor: alpha(accent, 0.1),
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: accent,
+                            flexShrink: 0,
+                          }}
+                        >
+                          <AttachFileRounded sx={{ fontSize: 16 }} />
+                        </Box>
+                        <Tooltip
+                          title={
+                            <Box sx={{ whiteSpace: 'pre-line' }}>
+                              {tooltipTitle}
+                            </Box>
+                          }
+                        >
+                          <Box sx={{ minWidth: 0, flex: 1 }}>
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                fontWeight: 700,
+                                display: 'block',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                lineHeight: 1.3,
+                              }}
+                            >
+                              {fileName}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{
+                                display: 'block',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                lineHeight: 1.3,
+                              }}
+                            >
+                              {secondary || '—'}
+                            </Typography>
+                          </Box>
+                        </Tooltip>
+                        <Tooltip title="View file">
+                          <IconButton
+                            size="small"
+                            aria-label="View file"
+                            onClick={() => handleOpenAttachment(att)}
+                            sx={{ flexShrink: 0 }}
+                          >
+                            <VisibilityOutlined sx={{ fontSize: 18 }} />
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
+                    </Paper>
+                  );
+                })}
+              </Box>
+              {hasMoreAttachments ? (
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => setAttachmentsExpanded(prev => !prev)}
+                  sx={{ alignSelf: 'flex-start', textTransform: 'none', px: 0.5 }}
+                >
+                  {attachmentsExpanded
+                    ? 'Show less'
+                    : `Show more (${attachments.length - ATTACHMENTS_PREVIEW_LIMIT} more)`}
+                </Button>
+              ) : null}
+            </Stack>
           )}
         </Box>
 

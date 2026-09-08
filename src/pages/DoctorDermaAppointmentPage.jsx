@@ -8,6 +8,7 @@ import FlashOnOutlined from '@mui/icons-material/FlashOnOutlined';
 import RateReviewOutlined from '@mui/icons-material/RateReviewOutlined';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
@@ -355,14 +356,25 @@ export default function DoctorDermaAppointmentPage() {
             : 'Map face and body zones for this visit.'
       }
       headerAction={
-        <Button
-          variant="outlined"
-          startIcon={<ArrowBackRounded />}
-          onClick={() => navigate(backPath)}
-          sx={{ borderRadius: 2 }}
-        >
-          {fromPatientProfile ? 'Back to patient profile' : 'Back to appointments'}
-        </Button>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          {isDoctor && patientId ? (
+            <Button
+              variant="outlined"
+              onClick={() => navigate(`/patients/${encodeURIComponent(patientId)}/profile`)}
+              sx={{ borderRadius: 2 }}
+            >
+              Patient profile
+            </Button>
+          ) : null}
+          <Button
+            variant="outlined"
+            startIcon={<ArrowBackRounded />}
+            onClick={() => navigate(backPath)}
+            sx={{ borderRadius: 2 }}
+          >
+            {fromPatientProfile ? 'Back to patient profile' : 'Back to appointments'}
+          </Button>
+        </Stack>
       }
       paperSx={{ p: { xs: 2, sm: 3 }, pb: { xs: 10, sm: 11 } }}
     >
