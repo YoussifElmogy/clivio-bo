@@ -104,6 +104,6 @@ export const productSchema = yup.object({
   price: yup
     .number()
     .typeError('Price must be a number')
-    .moreThan(0, 'Price must be greater than 0')
+    .min(0, 'Price must be at least 0')
     .required('Price is required'),
 });

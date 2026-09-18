@@ -5,6 +5,7 @@ import Button from '@mui/material/Button';
 import Grid from '@mui/material/Grid';
 import FormControl from '@mui/material/FormControl';
 import FormHelperText from '@mui/material/FormHelperText';
+import InputAdornment from '@mui/material/InputAdornment';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import { useToast } from '../../context/ToastContext';
@@ -78,6 +79,37 @@ export default function ServiceForm({ onSubmit, submitLabel = 'Save service' }) 
                   ) : null}
                 </FormControl>
               </Box>
+            )}
+          />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <Controller
+            name="clinicFees"
+            control={control}
+            render={({ field }) => (
+              <FormTextField
+                field={{
+                  ...field,
+                  value: field.value === '' || field.value == null ? '' : field.value,
+                  onChange: e => {
+                    const v = e.target.value;
+                    field.onChange(v === '' ? '' : Number(v));
+                  },
+                }}
+                id="service-clinic-fees"
+                label="Clinic fees (%)"
+                type="number"
+                placeholder="e.g. 10"
+                invalid={Boolean(errors.clinicFees)}
+                errorMessage={errors.clinicFees?.message}
+                disabled={isSubmitting}
+                slotProps={{
+                  htmlInput: { min: 0, max: 100, step: 0.01 },
+                  input: {
+                    endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                  },
+                }}
+              />
             )}
           />
         </Grid>
