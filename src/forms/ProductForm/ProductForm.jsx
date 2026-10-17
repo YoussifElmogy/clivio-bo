@@ -10,6 +10,7 @@ import Select from '@mui/material/Select';
 import Typography from '@mui/material/Typography';
 import FormFieldLabel from '../../components/FormFieldLabel/FormFieldLabel';
 import FormTextField from '../../components/FormTextField/FormTextField';
+import ServiceSearchSelect from '../../components/ServiceSearchSelect/ServiceSearchSelect';
 import { useToast } from '../../context/ToastContext';
 import { PRODUCT_TYPE_OPTIONS, productPriceFieldLabel } from '../../schemas/productSchema';
 
@@ -43,36 +44,17 @@ export default function ProductForm({ services, onSubmit, submitLabel = 'Save pr
             name="service"
             control={control}
             render={({ field, fieldState }) => (
-              <Box>
-                <FormFieldLabel htmlFor="product-service" required>
-                  Service
-                </FormFieldLabel>
-                <FormControl fullWidth error={Boolean(fieldState.error)} variant="outlined">
-                  <Select
-                    id="product-service"
-                    value={field.value === '' || field.value === undefined ? '' : field.value}
-                    onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
-                    disabled={isSubmitting}
-                    inputProps={{ 'aria-label': 'Service' }}
-                  >
-                    <MenuItem value="">
-                      <em>Select service</em>
-                    </MenuItem>
-                    {services.map(s => {
-                      const sid = s.id ?? s.uuid;
-                      if (sid == null) return null;
-                      return (
-                        <MenuItem key={String(sid)} value={Number(sid)}>
-                          {s.name?.trim?.() || `Service #${sid}`}
-                        </MenuItem>
-                      );
-                    })}
-                  </Select>
-                  {fieldState.error?.message ? (
-                    <FormHelperText>{fieldState.error.message}</FormHelperText>
-                  ) : null}
-                </FormControl>
-              </Box>
+              <ServiceSearchSelect
+                id="product-service"
+                services={services}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                inputRef={field.ref}
+                disabled={isSubmitting}
+                error={Boolean(fieldState.error)}
+                errorMessage={fieldState.error?.message}
+              />
             )}
           />
         </Grid>

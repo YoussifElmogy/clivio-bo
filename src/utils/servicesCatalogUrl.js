@@ -7,6 +7,12 @@ export function servicesCatalogUrl(category) {
   return `/services?${params.toString()}`;
 }
 
+/** Full category list for add injectable / add machine (`all=true`, not a page). */
+export function servicesCatalogAllUrl(category) {
+  const params = new URLSearchParams({ category, all: 'true' });
+  return `/services?${params.toString()}`;
+}
+
 /** All services for patient / invoice filters. */
 export function allServicesCatalogUrl() {
   const params = new URLSearchParams({ page: '1', page_size: '500' });

@@ -12,7 +12,7 @@ import { useToast } from '../context/ToastContext';
 import { productDefaultValues, productSchema } from '../schemas/productSchema';
 import { buildProductPayload } from '../payloads/productPayload';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
-import { servicesCatalogUrl } from '../utils/servicesCatalogUrl';
+import { servicesCatalogAllUrl } from '../utils/servicesCatalogUrl';
 
 function ProductFormSkeleton() {
   return (
@@ -55,7 +55,7 @@ export default function ProductCreatePage() {
     (async () => {
       setServicesLoading(true);
       try {
-        const data = await get(servicesCatalogUrl('injectable'));
+        const data = await get(servicesCatalogAllUrl('injectable'));
         if (cancelled) return;
         const { rows } = parsePaginatedList(data, { listKeys: ['services'] });
         setServices(rows);

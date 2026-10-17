@@ -14,6 +14,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 import FormFieldLabel from '../../components/FormFieldLabel/FormFieldLabel';
 import FormTextField from '../../components/FormTextField/FormTextField';
+import ServiceSearchSelect from '../../components/ServiceSearchSelect/ServiceSearchSelect';
 import { useToast } from '../../context/ToastContext';
 import { MACHINE_TYPE_OPTIONS, machinePriceFieldLabel } from '../../schemas/machineSchema';
 
@@ -126,32 +127,17 @@ export default function MachineForm({ services, onSubmit, submitLabel = 'Save ma
             name="service"
             control={control}
             render={({ field, fieldState }) => (
-              <Box>
-                <FormFieldLabel htmlFor="machine-service" required>
-                  Service
-                </FormFieldLabel>
-                <FormControl fullWidth error={Boolean(fieldState.error)} variant="outlined">
-                  <Select
-                    id="machine-service"
-                    value={field.value === '' || field.value === undefined ? '' : field.value}
-                    onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
-                    disabled={isSubmitting}
-                    inputProps={{ 'aria-label': 'Service' }}
-                  >
-                    <MenuItem value="">
-                      <em>Select service</em>
-                    </MenuItem>
-                    {services.map(s => (
-                      <MenuItem key={s.id} value={Number(s.id)}>
-                        {s.name?.trim?.() || `Service #${s.id}`}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  {fieldState.error?.message ? (
-                    <FormHelperText>{fieldState.error.message}</FormHelperText>
-                  ) : null}
-                </FormControl>
-              </Box>
+              <ServiceSearchSelect
+                id="machine-service"
+                services={services}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                inputRef={field.ref}
+                disabled={isSubmitting}
+                error={Boolean(fieldState.error)}
+                errorMessage={fieldState.error?.message}
+              />
             )}
           />
         </Grid>

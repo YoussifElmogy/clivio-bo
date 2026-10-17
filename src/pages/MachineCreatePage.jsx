@@ -12,7 +12,7 @@ import { useToast } from '../context/ToastContext';
 import { machineDefaultValues, machineSchema } from '../schemas/machineSchema';
 import { buildMachinePayload } from '../payloads/machinePayload';
 import { parsePaginatedList } from '../utils/parsePaginatedList';
-import { servicesCatalogUrl } from '../utils/servicesCatalogUrl';
+import { servicesCatalogAllUrl } from '../utils/servicesCatalogUrl';
 
 function MachineFormSkeleton() {
   return (
@@ -55,7 +55,7 @@ export default function MachineCreatePage() {
     (async () => {
       setServicesLoading(true);
       try {
-        const data = await get(servicesCatalogUrl('machine'));
+        const data = await get(servicesCatalogAllUrl('machine'));
         if (cancelled) return;
         const { rows } = parsePaginatedList(data, { listKeys: ['services'] });
         setServices(rows);
