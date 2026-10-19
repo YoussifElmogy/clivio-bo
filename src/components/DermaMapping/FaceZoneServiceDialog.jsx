@@ -8,13 +8,11 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import Divider from '@mui/material/Divider';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import MenuItem from '@mui/material/MenuItem';
+import Autocomplete from '@mui/material/Autocomplete';
 import Paper from '@mui/material/Paper';
-import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import Typography from '@mui/material/Typography';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import RadioButtonUncheckedRounded from '@mui/icons-material/RadioButtonUncheckedRounded';
@@ -433,6 +431,8 @@ export default function FaceZoneServiceDialog({
   onRemoveZone,
 }) {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const serviceListMaxHeight = isMobile ? 180 : 240;
   const { get } = useApi();
   const { showError } = useToast();
 
@@ -464,6 +464,23 @@ export default function FaceZoneServiceDialog({
     id => assignedServiceIds.some(assignedId => catalogIdsMatch(assignedId, id)),
     [assignedServiceIds]
   );
+
+  const serviceOptions = useMemo(
+    () =>
+      services.map(service => {
+        const id = service.id ?? service.uuid;
+        const name = service.name?.trim?.() || `Service #${id}`;
+        const label = service.category_display ? `${name} · ${service.category_display}` : name;
+        return {
+          id,
+          label,
+          assigned: !isEditingService && isServiceAssignedToZone(id),
+        };
+      }),
+    [services, isEditingService, isServiceAssignedToZone]
+  );
+  const selectedServiceOption =
+    serviceOptions.find(option => catalogIdsMatch(option.id, serviceId)) ?? null;
 
   const hasInjectablesMachine = useMemo(
     () =>
@@ -623,8 +640,8 @@ export default function FaceZoneServiceDialog({
     setSubmitAttempted(false);
   };
 
-  const handleServiceChange = e => {
-    setServiceId(normalizeServiceId(e.target.value));
+  const handleServiceChange = nextId => {
+    setServiceId(normalizeServiceId(nextId));
     resetCatalogSelection();
   };
 
@@ -918,39 +935,70 @@ export default function FaceZoneServiceDialog({
         <Typography variant="overline" color="text.secondary" sx={{ display: 'block', letterSpacing: 0.8, mb: 1 }}>
           Service
         </Typography>
-        <FormControl
+        <Autocomplete
+          id="face-zone-service"
           fullWidth
           size="small"
+          options={serviceOptions}
+          value={selectedServiceOption}
+          loading={servicesLoading}
           disabled={servicesLoading || isEditingService}
+          onChange={(_, option) => handleServiceChange(option ? option.id : '')}
+          getOptionLabel={option => option?.label ?? ''}
+          isOptionEqualToValue={(option, current) => catalogIdsMatch(option.id, current.id)}
+          getOptionDisabled={option => option.assigned}
+          noOptionsText="No services found"
           sx={{ mb: 2 }}
-        >
-          <InputLabel id="face-zone-service-label">Select service</InputLabel>
-          <Select
-            labelId="face-zone-service-label"
-            label="Select service"
-            value={serviceId}
-            onChange={handleServiceChange}
-            sx={{
-              borderRadius: 2,
-              ...(isEditingService
-                ? {
-                    '& .MuiSelect-select': { cursor: 'default' },
-                  }
-                : {}),
-            }}
-          >
-            {services.map(s => {
-              const id = s.id ?? s.uuid;
-              const alreadyOnZone = !isEditingService && isServiceAssignedToZone(id);
-              const label = s.category_display ? `${s.name} · ${s.category_display}` : s.name;
-              return (
-                <MenuItem key={id} value={id} disabled={alreadyOnZone}>
-                  {alreadyOnZone ? `${label} (already on this zone)` : label}
-                </MenuItem>
-              );
-            })}
-          </Select>
-        </FormControl>
+          slotProps={{
+            popper: {
+              placement: 'bottom-start',
+              modifiers: [
+                {
+                  name: 'preventOverflow',
+                  options: { boundary: 'viewport', padding: 8, altAxis: true },
+                },
+                { name: 'flip', options: { padding: 8 } },
+              ],
+              sx: {
+                zIndex: theme.zIndex.modal + 1,
+                maxWidth: 'calc(100vw - 16px)',
+              },
+            },
+            paper: {
+              sx: {
+                maxHeight: serviceListMaxHeight + 8,
+                overflow: 'hidden',
+              },
+            },
+            listbox: {
+              sx: {
+                maxHeight: `${serviceListMaxHeight}px !important`,
+                overflowY: 'auto',
+                overscrollBehavior: 'contain',
+                WebkitOverflowScrolling: 'touch',
+              },
+            },
+          }}
+          renderOption={(props, option) => {
+            const { key, ...optionProps } = props;
+            return (
+              <li key={key} {...optionProps}>
+                {option.assigned ? `${option.label} (already on this zone)` : option.label}
+              </li>
+            );
+          }}
+          renderInput={params => (
+            <TextField
+              {...params}
+              label="Select service"
+              placeholder="Search services"
+              sx={{
+                '& .MuiOutlinedInput-root': { borderRadius: 2 },
+                '& .MuiInputBase-input': { fontSize: { xs: '1rem', sm: '0.875rem' } },
+              }}
+            />
+          )}
+        />
 
         {servicesLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>

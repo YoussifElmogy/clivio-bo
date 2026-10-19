@@ -1,12 +1,9 @@
 /** Page size when loading full catalogs for derma zone mapping. */
 export const DERMA_CATALOG_PAGE_SIZE = 100;
 
+/** Every service for zone mapping (`all=true`, not a page). */
 export function dermaServicesListUrl() {
-  const params = new URLSearchParams({
-    page: '1',
-    page_size: String(DERMA_CATALOG_PAGE_SIZE),
-  });
-  return `/services?${params.toString()}`;
+  return '/services?all=true';
 }
 
 export function isMachineServiceCategory(category) {
