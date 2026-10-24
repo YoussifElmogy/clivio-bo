@@ -10,8 +10,19 @@ function apiDayFromJsWeekday(jsWeekday) {
   return (jsWeekday + 1) % 7;
 }
 
-/** Next `horizonDays` calendar days whose API weekday appears in `apiDays`. */
-function collectIsoDaysForApiDays(apiDays, horizonDays = 90) {
+/** Open slot window: past + future so back-office can book any year. */
+export const APPOINTMENT_SLOT_PAST_DAYS = 365 * 50;
+export const APPOINTMENT_SLOT_FUTURE_DAYS = 365 * 50;
+
+/**
+ * Calendar days (past and future) whose API weekday appears in `apiDays`.
+ * Starts `pastDays` before today and continues `futureDays` ahead.
+ */
+function collectIsoDaysForApiDays(
+  apiDays,
+  pastDays = APPOINTMENT_SLOT_PAST_DAYS,
+  futureDays = APPOINTMENT_SLOT_FUTURE_DAYS
+) {
   const set = new Set(
     apiDays.map(n => Number(n)).filter(n => !Number.isNaN(n) && n >= 0 && n <= 6)
   );
@@ -21,8 +32,10 @@ function collectIsoDaysForApiDays(apiDays, horizonDays = 90) {
   const seen = new Set();
   const start = new Date();
   start.setHours(12, 0, 0, 0);
+  start.setDate(start.getDate() - pastDays);
 
-  for (let i = 0; i < horizonDays; i += 1) {
+  const totalDays = pastDays + futureDays + 1;
+  for (let i = 0; i < totalDays; i += 1) {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
     const apiD = apiDayFromJsWeekday(d.getDay());

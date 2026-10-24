@@ -220,7 +220,7 @@ export default function ScheduleBookAppointmentDrawer({ open, context, onClose, 
   const bookExisting = useCallback(async () => {
     if (!context) return;
     if (!isBookableVisitDate(context.date)) {
-      showError('Appointments can only be booked for today or a future date.');
+      showError('Enter a valid appointment date.');
       return;
     }
     const pid = patientRowId(selectedPatient);
@@ -259,7 +259,7 @@ export default function ScheduleBookAppointmentDrawer({ open, context, onClose, 
     async values => {
       if (!context) return;
       if (!isBookableVisitDate(context.date)) {
-        showError('Appointments can only be booked for today or a future date.');
+        showError('Enter a valid appointment date.');
         return;
       }
       clearErrors();

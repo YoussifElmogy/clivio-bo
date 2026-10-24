@@ -55,10 +55,9 @@ function DayTooltipCard({ heading, body, variant }) {
   );
 }
 
-function AppointmentPickerDay({ slotDaySet, minDate, maxDate, ...props }) {
+function AppointmentPickerDay({ slotDaySet, ...props }) {
   const { day, outsideCurrentMonth, disabled, ...pickerProps } = props;
   const iso = dayjs(day).format('YYYY-MM-DD');
-  const d = dayjs(day).startOf('day');
 
   if (outsideCurrentMonth) {
     return (
@@ -75,11 +74,7 @@ function AppointmentPickerDay({ slotDaySet, minDate, maxDate, ...props }) {
   if (disabled) {
     let body =
       'This date cannot be selected. Try another day or contact reception.';
-    if (d.isBefore(minDate, 'day')) {
-      body = 'Past dates cannot be booked.';
-    } else if (d.isAfter(maxDate, 'day')) {
-      body = 'Online booking is limited to the next 3 months from today.';
-    } else if (!slotDaySet.has(iso)) {
+    if (!slotDaySet.has(iso)) {
       body =
         'No visits on this day for your branch or doctor. Try another date or contact reception.';
     }
@@ -163,17 +158,10 @@ export default function SlotDayField({ control, slotDays, loading, hasDoctor, br
   }, [branchSelected, loading, slotDays.length]);
 
   const slotDaySet = useMemo(() => new Set(slotDays ?? []), [slotDays]);
-  const minDate = dayjs().startOf('day');
-  const maxDate = dayjs().add(3, 'month').startOf('day');
 
   const shouldDisableDate = useMemo(
     () => date => {
-      const d = dayjs(date).startOf('day');
-      const min = dayjs().startOf('day');
-      const max = dayjs().add(3, 'month').startOf('day');
-      if (d.isBefore(min, 'day')) return true;
-      if (d.isAfter(max, 'day')) return true;
-      const iso = d.format('YYYY-MM-DD');
+      const iso = dayjs(date).format('YYYY-MM-DD');
       return !slotDaySet.has(iso);
     },
     [slotDaySet]
@@ -181,14 +169,9 @@ export default function SlotDayField({ control, slotDays, loading, hasDoctor, br
 
   const daySlot = useMemo(
     () => pickerProps => (
-      <AppointmentPickerDay
-        {...pickerProps}
-        slotDaySet={slotDaySet}
-        minDate={minDate}
-        maxDate={maxDate}
-      />
+      <AppointmentPickerDay {...pickerProps} slotDaySet={slotDaySet} />
     ),
-    [slotDaySet, minDate, maxDate]
+    [slotDaySet]
   );
 
   return (
@@ -225,8 +208,8 @@ export default function SlotDayField({ control, slotDays, loading, hasDoctor, br
           sx={{ mt: 0.75, maxWidth: 520, lineHeight: 1.7, fontSize: '0.875rem' }}
         >
           {hasDoctor
-            ? 'Pick a date within the next 3 months, then choose a time below.'
-            : 'Pick a date within the next 3 months. Only days with visits are enabled.'}
+            ? 'Pick any open day (including past dates), then choose a time below.'
+            : 'Pick any open day (including past dates). Only days with visits are enabled.'}
         </Typography>
       </Box>
 
@@ -294,8 +277,6 @@ export default function SlotDayField({ control, slotDays, loading, hasDoctor, br
                   field.onChange(v && dayjs(v).isValid() ? dayjs(v).format('YYYY-MM-DD') : '');
                 }}
                 format="ddd, D MMM YYYY"
-                minDate={minDate}
-                maxDate={maxDate}
                 shouldDisableDate={shouldDisableDate}
                 slots={{ day: daySlot }}
                 slotProps={{

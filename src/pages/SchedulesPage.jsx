@@ -20,13 +20,11 @@ import dayjs from 'dayjs';
 import useApi from '../configs/useApi';
 import FormPageShell from '../components/FormPageShell/FormPageShell';
 import ScheduleBookAppointmentDrawer from '../components/Schedules/ScheduleBookAppointmentDrawer';
-import ScheduleDatePickerDay from '../components/Schedules/ScheduleDatePickerDay';
 import { useToast } from '../context/ToastContext';
 import { formatHhmmToAmPm } from '../utils/timeFormat';
 import {
   clampBookableVisitDateIso,
   isBookableVisitDate,
-  minBookableVisitDate,
   minBookableVisitDateIso,
 } from '../utils/scheduleBooking';
 
@@ -323,7 +321,7 @@ export default function SchedulesPage() {
   const applyFilters = () => {
     const nextDate = clampBookableVisitDateIso(dateInput);
     if (dateInput && !isBookableVisitDate(dateInput)) {
-      showError('Appointments can only be booked for today or a future date.');
+      showError('Enter a valid appointment date.');
       setDateInput(nextDate);
     }
     setAppliedDate(nextDate);
@@ -349,17 +347,10 @@ export default function SchedulesPage() {
 
   const dateValue = useMemo(() => (dateInput ? dayjs(dateInput) : null), [dateInput]);
 
-  const minVisitDate = useMemo(() => minBookableVisitDate(), []);
-  const minVisitDateIso = useMemo(() => minBookableVisitDateIso(), []);
-  const scheduleDaySlot = useMemo(
-    () => pickerProps => <ScheduleDatePickerDay {...pickerProps} minBookableDate={minVisitDateIso} />,
-    [minVisitDateIso]
-  );
-
   return (
     <FormPageShell
       title="Schedule Availability"
-      description="Check available and reserved doctor slots for a specific date."
+      description="Check available and reserved doctor slots for a specific date. Past dates can be selected for back-office booking."
       paperSx={{ p: { xs: 2, sm: 3 } }}
     >
       <Stack spacing={2} sx={{ mb: 2 }}>
@@ -376,9 +367,7 @@ export default function SchedulesPage() {
             onChange={v =>
               setDateInput(v?.isValid?.() ? clampBookableVisitDateIso(v.format('YYYY-MM-DD')) : todayIsoDate())
             }
-            minDate={minVisitDate}
             disabled={loading || catalogLoading}
-            slots={{ day: scheduleDaySlot }}
             slotProps={{ textField: { size: 'small', fullWidth: true } }}
             sx={{ minWidth: { xs: '100%', md: 180 }, maxWidth: { md: 220 } }}
           />
