@@ -17,6 +17,7 @@ import {
   isAttachmentImage,
 } from '../../utils/attachmentUpload';
 import { formatAttachmentSecondaryLine } from '../../utils/timeFormat';
+import AttachmentPreviewImage from './AttachmentPreviewImage';
 
 /**
  * Carousel gallery: main preview + left/right arrows + thumbnail strip.
@@ -110,16 +111,14 @@ export default function AttachmentGallery({
             }}
           >
             {currentIsImage ? (
-              <Box
-                component="img"
+              <AttachmentPreviewImage
+                key={currentUrl || currentName}
+                attachment={current}
                 src={currentUrl}
                 alt={currentName}
-                sx={{
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                  objectFit: 'contain',
-                  display: 'block',
-                }}
+                accent={accent}
+                variant="main"
+                fallbackName={currentName}
               />
             ) : (
               <Stack alignItems="center" spacing={1} sx={{ px: 2 }}>
@@ -303,12 +302,13 @@ export default function AttachmentGallery({
               }}
             >
               {isImage ? (
-                <Box
-                  component="img"
+                <AttachmentPreviewImage
+                  key={url || String(id)}
+                  attachment={att}
                   src={url}
                   alt={name}
-                  loading="lazy"
-                  sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  accent={accent}
+                  variant="thumb"
                 />
               ) : (
                 <InsertDriveFileOutlined sx={{ fontSize: 22, color: accent }} />

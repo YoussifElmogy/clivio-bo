@@ -29,13 +29,65 @@ export function formatSelectedAttachmentNames(files) {
   return `${list.length} files selected`;
 }
 
-export function isAttachmentImage(row) {
-  const mime = String(row?.content_type ?? row?.mime_type ?? row?.mimetype ?? '').toLowerCase();
-  if (mime.startsWith('image/')) return true;
-  const name = String(
-    row?.file_name ?? row?.filename ?? row?.name ?? row?.file_url ?? row?.url ?? ''
+function attachmentNameHint(row) {
+  return String(
+    row?.file_name ?? row?.filename ?? row?.name ?? row?.original_name ?? row?.file_url ?? row?.url ?? ''
   ).toLowerCase();
-  return /\.(png|jpe?g|gif|webp|bmp|svg)(\?|#|$)/i.test(name);
+}
+
+function attachmentMime(row) {
+  return String(row?.content_type ?? row?.mime_type ?? row?.mimetype ?? '').toLowerCase();
+}
+
+/** iPhone HEIC/HEIF — most Chromium browsers cannot paint these in <img> without conversion. */
+export function isAttachmentHeic(row) {
+  const mime = attachmentMime(row);
+  if (mime === 'image/heic' || mime === 'image/heif' || mime === 'image/heic-sequence' || mime === 'image/heif-sequence') {
+    return true;
+  }
+  return /\.(heic|heif)(\?|#|$)/i.test(attachmentNameHint(row));
+}
+
+export function isAttachmentImage(row) {
+  const mime = attachmentMime(row);
+  if (mime.startsWith('image/')) return true;
+  return /\.(png|jpe?g|gif|webp|bmp|svg|heic|heif)(\?|#|$)/i.test(attachmentNameHint(row));
+}
+
+const heicPreviewCache = new Map();
+
+/**
+ * Fetch a HEIC/HEIF URL and convert to a JPEG object URL for <img> preview.
+ * Results are cached by source URL. Returns '' on failure.
+ */
+export async function heicSourceToPreviewUrl(sourceUrl) {
+  const key = String(sourceUrl ?? '').trim();
+  if (!key) return '';
+  if (heicPreviewCache.has(key)) return heicPreviewCache.get(key);
+
+  const pending = (async () => {
+    try {
+      const { default: heic2any } = await import('heic2any');
+      const res = await fetch(key);
+      if (!res.ok) throw new Error(`HEIC fetch failed (${res.status})`);
+      const blob = await res.blob();
+      const converted = await heic2any({
+        blob,
+        toType: 'image/jpeg',
+        quality: 0.85,
+      });
+      const jpegBlob = Array.isArray(converted) ? converted[0] : converted;
+      if (!jpegBlob) return '';
+      return URL.createObjectURL(jpegBlob);
+    } catch {
+      return '';
+    }
+  })();
+
+  heicPreviewCache.set(key, pending);
+  const result = await pending;
+  heicPreviewCache.set(key, Promise.resolve(result));
+  return result;
 }
 
 export function attachmentViewUrl(row) {
