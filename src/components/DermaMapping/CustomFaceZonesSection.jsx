@@ -110,7 +110,7 @@ function CustomZoneCard({
                 </IconButton>
               </span>
             </Tooltip>
-            <Tooltip title="Add or edit treatment">
+            <Tooltip title="Add treatment">
               <span>
                 <IconButton
                   size="small"

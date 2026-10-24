@@ -42,6 +42,7 @@ import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined
 import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined';
 import WarningAmberOutlined from '@mui/icons-material/WarningAmberOutlined';
 import MedicalServicesOutlined from '@mui/icons-material/MedicalServicesOutlined';
+import SyncAltOutlined from '@mui/icons-material/SyncAltOutlined';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import usePermissions from '../hooks/usePermissions';
@@ -52,8 +53,15 @@ import { parsePaginatedList } from '../utils/parsePaginatedList';
 import {
   RESERVATION_STATUS,
   RESERVATION_STATUS_FILTER_OPTIONS,
+  RESERVATION_STATUS_OPTIONS,
   reservationStatusLabel,
 } from '../constants/reservationStatus';
+import {
+  ATTACHMENT_UPLOAD_MAX_FILES,
+  buildAttachmentsFormData,
+  formatSelectedAttachmentNames,
+  pickAttachmentFiles,
+} from '../utils/attachmentUpload';
 import { formatAttachmentSecondaryLine, formatArrivalTimeDisplay, formatHhmmToAmPm } from '../utils/timeFormat';
 import {
   isReservationInvoicePaid,
@@ -66,6 +74,7 @@ import {
 } from '../utils/doctorsCatalog';
 import {
   buildReservationsListQuery,
+  buildReservationStatusPayload,
   RESERVATION_MUST_PAY_TOOLTIP,
   reservationMustPay,
   reservationPatientDisplayName,
@@ -207,10 +216,11 @@ function rowDoctorId(row) {
 export default function ReservationsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { get, post, del } = useApi();
+  const { get, post, patch, del } = useApi();
   const { showError, showSuccess, showInfo } = useToast();
   const { can } = usePermissions();
   const isDoctor = isDoctorUser(user);
+  const canChangeStatus = isSuperAdminUser(user) || isAssistantUser(user);
   const canEditAppointment = can(PERM.EDIT_APPOINTMENT);
   const canViewAppointment = can(PERM.VIEW_APPOINTMENT);
   const canDeleteAppointment = can(PERM.DELETE_APPOINTMENT);
@@ -238,11 +248,14 @@ export default function ReservationsPage() {
   const [attachmentsUploading, setAttachmentsUploading] = useState(false);
   const [attachmentsDeletingId, setAttachmentsDeletingId] = useState(null);
   const [attachmentRows, setAttachmentRows] = useState([]);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [activeReservation, setActiveReservation] = useState(null);
   const [listVersion, setListVersion] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [statusTarget, setStatusTarget] = useState(null);
+  const [statusValue, setStatusValue] = useState('');
+  const [statusSubmitting, setStatusSubmitting] = useState(false);
   const [generalServicesOpen, setGeneralServicesOpen] = useState(false);
   const [generalServicesTarget, setGeneralServicesTarget] = useState(null);
   const [mustPayPrompt, setMustPayPrompt] = useState(null);
@@ -315,7 +328,7 @@ export default function ReservationsPage() {
         label: patientCell(row),
         invoicePaid,
       });
-      setSelectedFile(null);
+      setSelectedFiles([]);
       setAttachmentsOpen(true);
       await refreshAttachments(rid);
     },
@@ -376,17 +389,20 @@ export default function ReservationsPage() {
   const handleUploadAttachment = useCallback(async () => {
     const reservationId = activeReservation?.id;
     if (!reservationId) return;
-    if (!selectedFile) {
+    if (!selectedFiles.length) {
       showInfo('Choose a file first.');
       return;
     }
     setAttachmentsUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
+      const formData = buildAttachmentsFormData(selectedFiles);
       await post(`/reservations/${encodeURIComponent(reservationId)}/attachments`, formData);
-      showSuccess('Attachment uploaded.');
-      setSelectedFile(null);
+      showSuccess(
+        selectedFiles.length === 1
+          ? 'Attachment uploaded.'
+          : `${selectedFiles.length} attachments uploaded.`
+      );
+      setSelectedFiles([]);
       await refreshAttachments(reservationId);
     } catch (err) {
       const msg =
@@ -399,7 +415,49 @@ export default function ReservationsPage() {
     } finally {
       setAttachmentsUploading(false);
     }
-  }, [activeReservation?.id, post, refreshAttachments, selectedFile, showError, showInfo, showSuccess]);
+  }, [activeReservation?.id, post, refreshAttachments, selectedFiles, showError, showInfo, showSuccess]);
+
+  const openStatusDialog = useCallback(
+    row => {
+      const rid = row?.id ?? row?.uuid;
+      if (rid == null) {
+        showInfo('This row has no id.');
+        return;
+      }
+      const current = String(row?.status ?? '').trim().toLowerCase();
+      setStatusTarget({
+        id: rid,
+        label: patientCell(row),
+        status: current,
+      });
+      setStatusValue(current || RESERVATION_STATUS.PENDING);
+    },
+    [showInfo]
+  );
+
+  const handleConfirmStatusChange = useCallback(async () => {
+    if (!statusTarget?.id || !statusValue) return;
+    setStatusSubmitting(true);
+    try {
+      await patch(
+        `/reservations/${encodeURIComponent(statusTarget.id)}`,
+        buildReservationStatusPayload(statusValue)
+      );
+      showSuccess('Appointment status updated.');
+      setStatusTarget(null);
+      setListVersion(v => v + 1);
+    } catch (err) {
+      const msg =
+        err?.detail ||
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Could not update status.';
+      showError(typeof msg === 'string' ? msg : 'Could not update status.');
+    } finally {
+      setStatusSubmitting(false);
+    }
+  }, [patch, showError, showSuccess, statusTarget, statusValue]);
 
   const closeGeneralServicesDrawer = useCallback(() => {
     setGeneralServicesOpen(false);
@@ -700,17 +758,23 @@ export default function ReservationsPage() {
         id: 'actions',
         label: 'Actions',
         align: 'right',
-        minWidth: isDoctor ? 72 : 232,
+        minWidth: isDoctor ? 72 : 280,
         render: row => {
           const rid = row.id ?? row.uuid;
           const editBlockedFinished = blocksStaffEditOnFinished(user, row);
           const canEditRow = canEditAppointment && !editBlockedFinished;
+          const canStatusRow = canChangeStatus && canEditAppointment && !editBlockedFinished;
           const generalServicesAccess = generalServicesListingAccess(user, row, canViewAppointment);
           const editTooltip = !canEditAppointment
             ? 'No permission'
             : editBlockedFinished
               ? 'Finished appointments cannot be edited'
               : 'Edit';
+          const statusTooltip = !canEditAppointment
+            ? 'No permission'
+            : editBlockedFinished
+              ? 'Finished appointments cannot be edited'
+              : 'Change status';
           return (
             <>
               <Tooltip title={canEditAppointment ? 'Attachments' : 'No permission'}>
@@ -747,6 +811,22 @@ export default function ReservationsPage() {
                 </Tooltip>
               ) : (
                 <>
+                  <Tooltip title={statusTooltip}>
+                    <span>
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        aria-label="Change appointment status"
+                        onClick={e => {
+                          e.stopPropagation();
+                          openStatusDialog(row);
+                        }}
+                        disabled={!canStatusRow}
+                      >
+                        <SyncAltOutlined fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
                   <Tooltip title={generalServicesAccess.tooltip}>
                     <span>
                       <IconButton
@@ -807,6 +887,7 @@ export default function ReservationsPage() {
       canDeleteAppointment,
       canEditAppointment,
       canViewAppointment,
+      canChangeStatus,
       isDoctor,
       showAppointmentNumber,
       appliedSort,
@@ -814,6 +895,7 @@ export default function ReservationsPage() {
       openAttachmentsDrawer,
       openGeneralServicesDrawer,
       openReservationSummary,
+      openStatusDialog,
       requestDelete,
       openMustPayPrompt,
       canViewInvoices,
@@ -854,7 +936,7 @@ export default function ReservationsPage() {
 
   return (
     <>
-      <CustomLoader active={deleteSubmitting} />
+      <CustomLoader active={deleteSubmitting || statusSubmitting} />
       <FormPageShell
         title={`Appointments (${count})`}
         description="View and edit reservations. Search by patient name or mobile; filter by status or visit date."
@@ -1020,26 +1102,38 @@ export default function ReservationsPage() {
                 disabled={attachmentsUploading}
                 sx={{ borderRadius: 2, alignSelf: 'flex-start' }}
               >
-                Choose file
+                Choose files
                 <input
                   hidden
                   type="file"
+                  multiple
                   onChange={e => {
-                    const file = e.target.files?.[0] ?? null;
-                    setSelectedFile(file);
+                    const { files, truncated } = pickAttachmentFiles(e.target.files);
+                    setSelectedFiles(files);
+                    if (truncated) {
+                      showInfo(`You can upload up to ${ATTACHMENT_UPLOAD_MAX_FILES} files at once.`);
+                    }
+                    e.target.value = '';
                   }}
                 />
               </Button>
               <Typography variant="body2" color="text.secondary">
-                {selectedFile ? selectedFile.name : 'No file selected'}
+                {formatSelectedAttachmentNames(selectedFiles)}
+                {selectedFiles.length
+                  ? ` (max ${ATTACHMENT_UPLOAD_MAX_FILES})`
+                  : ` · up to ${ATTACHMENT_UPLOAD_MAX_FILES} files`}
               </Typography>
               <Button
                 variant="contained"
                 onClick={handleUploadAttachment}
-                disabled={!selectedFile || attachmentsUploading}
+                disabled={!selectedFiles.length || attachmentsUploading}
                 sx={{ borderRadius: 2, alignSelf: 'flex-start' }}
               >
-                {attachmentsUploading ? 'Uploading…' : 'Upload attachment'}
+                {attachmentsUploading
+                  ? 'Uploading…'
+                  : selectedFiles.length > 1
+                    ? `Upload ${selectedFiles.length} attachments`
+                    : 'Upload attachment'}
               </Button>
             </Stack>
           </Paper>
@@ -1127,6 +1221,58 @@ export default function ReservationsPage() {
         readOnly={generalServicesTarget?.invoicePaid ?? false}
         onSaved={handleGeneralServicesSaved}
       />
+      <Dialog
+        open={statusTarget != null}
+        onClose={() => !statusSubmitting && setStatusTarget(null)}
+        aria-labelledby="change-appointment-status-dialog-title"
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle id="change-appointment-status-dialog-title">Change status</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {statusTarget ? (
+              <>
+                Update status for <strong>{statusTarget.label}</strong>.
+              </>
+            ) : null}
+          </Typography>
+          <FormControl fullWidth size="small">
+            <InputLabel id="change-appointment-status-label">Status</InputLabel>
+            <Select
+              labelId="change-appointment-status-label"
+              label="Status"
+              value={statusValue}
+              onChange={e => setStatusValue(String(e.target.value))}
+              disabled={statusSubmitting}
+            >
+              {RESERVATION_STATUS_OPTIONS.map(opt => (
+                <MenuItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setStatusTarget(null)} disabled={statusSubmitting}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleConfirmStatusChange}
+            disabled={statusSubmitting || !statusValue}
+            startIcon={
+              statusSubmitting ? (
+                <CircularProgress size={18} thickness={5} color="inherit" aria-hidden />
+              ) : null
+            }
+          >
+            {statusSubmitting ? 'Saving…' : 'Save status'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Dialog
         open={deleteTarget != null}
         onClose={() => !deleteSubmitting && setDeleteTarget(null)}

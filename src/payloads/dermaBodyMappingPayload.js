@@ -8,7 +8,7 @@
  * DELETE /derma-body-mapping-lines/:pk
  *
  * POST body: reservation_id, patient_id, mapping_type: "body", zone_label, services[],
- * optional zone_id (map zones 1–5; additional zones: create without zone_id, edit when returned).
+ * optional zone_id for map zones 1–5 only. Additional zones: never send zone_id; update via mapping id.
  */
 
 import {
@@ -18,13 +18,11 @@ import {
   isMapBodyZoneId,
 } from '../constants/customBodyZones';
 import {
+  BODY_MAP_LABEL_BY_ID,
   DERMA_MAPPING_TYPE,
   buildDermaMappingZonePostPayload,
-  collectDermaFaceMappingLineIds,
-  collectDermaFaceMappingLineIdsForZone,
   createMergeDermaMappingStateFromApi,
-  getZoneAssignmentsFromRecord,
-  prepareAdditionalZoneForPost,
+  isFlatMappingZoneDocument,
 } from './dermaFaceMappingPayload';
 
 export {
@@ -98,7 +96,7 @@ export function extractDermaBodyMappingZoneRows(data) {
       return;
     }
 
-    if (doc.zone_id != null) {
+    if (isFlatMappingZoneDocument(doc)) {
       zoneRows.push(doc);
     }
   });
@@ -111,6 +109,7 @@ export const mergeDermaBodyMappingStateFromApi = createMergeDermaMappingStateFro
   isMapZoneId: isMapBodyZoneId,
   customZoneIdStart: CUSTOM_BODY_ZONE_ID_START,
   additionalZoneInternalIdFn: additionalBodyZoneInternalId,
+  mapZoneLabelById: BODY_MAP_LABEL_BY_ID,
 });
 
 export function mergeDermaBodyMappingFromApi(data) {

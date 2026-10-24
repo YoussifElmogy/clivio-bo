@@ -29,7 +29,7 @@ export default function PaginatedTable({
   onPageChange,
   onRowsPerPageChange,
   count,
-  rowsPerPageOptions = [5, 10, 25],
+  rowsPerPageOptions = [5, 10, 25, 50],
   getRowId = row => row.id,
   getCellValue,
   skeletonRows: skeletonRowsProp,

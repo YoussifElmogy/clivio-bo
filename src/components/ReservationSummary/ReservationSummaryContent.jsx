@@ -5,9 +5,6 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import FormControl from '@mui/material/FormControl';
 import FormLabel from '@mui/material/FormLabel';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemText from '@mui/material/ListItemText';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Select from '@mui/material/Select';
@@ -20,13 +17,20 @@ import useApi from '../../configs/useApi';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { reservationStatusLabel } from '../../constants/reservationStatus';
-import { formatAttachmentSecondaryLine } from '../../utils/timeFormat';
 import {
   extractGeneralServicesFromSummary,
   fetchAllGeneralServices,
 } from '../../payloads/generalServicePayload';
 import { buildReservationPrescriptionPayload } from '../../payloads/reservationPrescriptionPayload';
 import { isReservationInvoicePaid } from '../../utils/reservationInvoiceStatus';
+import {
+  ATTACHMENT_UPLOAD_MAX_FILES,
+  attachmentViewUrl,
+  buildAttachmentsFormData,
+  formatSelectedAttachmentNames,
+  pickAttachmentFiles,
+} from '../../utils/attachmentUpload';
+import AttachmentGallery from '../AttachmentGallery/AttachmentGallery';
 import ViewOnlyBanner from '../DermaMapping/ViewOnlyBanner';
 
 const VISIT_STATUS_OPTIONS = [
@@ -43,23 +47,6 @@ function parseAttachmentsList(data) {
     if (data.data && Array.isArray(data.data)) return data.data;
   }
   return [];
-}
-
-function attachmentViewUrl(row) {
-  const raw =
-    row?.file_url ||
-    row?.url ||
-    row?.file ||
-    row?.path ||
-    row?.attachment_url ||
-    row?.download_url ||
-    '';
-  if (!raw) return '';
-  const value = String(raw).trim();
-  if (!value) return '';
-  if (/^https?:\/\//i.test(value)) return value;
-  if (value.startsWith('/')) return value;
-  return `/${value.replace(/^\/+/, '')}`;
 }
 
 export function ReservationSummarySkeleton() {
@@ -124,7 +111,7 @@ export default function ReservationSummaryContent({
   const [medicineRows, setMedicineRows] = useState([]);
   const [savingPrescription, setSavingPrescription] = useState(false);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState(null);
-  const [selectedAttachmentFile, setSelectedAttachmentFile] = useState(null);
+  const [selectedAttachmentFiles, setSelectedAttachmentFiles] = useState([]);
   const [attachmentsUploading, setAttachmentsUploading] = useState(false);
 
   useEffect(() => {
@@ -224,17 +211,20 @@ export default function ReservationSummaryContent({
 
   const handleUploadAttachment = async () => {
     if (!reservationId) return;
-    if (!selectedAttachmentFile) {
+    if (!selectedAttachmentFiles.length) {
       showInfo('Choose a file first.');
       return;
     }
     setAttachmentsUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', selectedAttachmentFile);
+      const formData = buildAttachmentsFormData(selectedAttachmentFiles);
       await post(`/reservations/${encodeURIComponent(reservationId)}/attachments`, formData);
-      showSuccess('Attachment uploaded.');
-      setSelectedAttachmentFile(null);
+      showSuccess(
+        selectedAttachmentFiles.length === 1
+          ? 'Attachment uploaded.'
+          : `${selectedAttachmentFiles.length} attachments uploaded.`
+      );
+      setSelectedAttachmentFiles([]);
       await refreshAttachments();
     } catch (err) {
       const msg =
@@ -596,68 +586,49 @@ export default function ReservationSummaryContent({
               disabled={attachmentsUploading}
               sx={{ borderRadius: 2, alignSelf: 'flex-start' }}
             >
-              Choose file
+              Choose files
               <input
                 hidden
                 type="file"
+                multiple
                 onChange={e => {
-                  const file = e.target.files?.[0] ?? null;
-                  setSelectedAttachmentFile(file);
+                  const { files, truncated } = pickAttachmentFiles(e.target.files);
+                  setSelectedAttachmentFiles(files);
+                  if (truncated) {
+                    showInfo(`You can upload up to ${ATTACHMENT_UPLOAD_MAX_FILES} files at once.`);
+                  }
                   e.target.value = '';
                 }}
               />
             </Button>
             <Typography variant="body2" color="text.secondary">
-              {selectedAttachmentFile ? selectedAttachmentFile.name : 'No file selected'}
+              {formatSelectedAttachmentNames(selectedAttachmentFiles)}
+              {selectedAttachmentFiles.length
+                ? ` (max ${ATTACHMENT_UPLOAD_MAX_FILES})`
+                : ` · up to ${ATTACHMENT_UPLOAD_MAX_FILES} files`}
             </Typography>
             <Button
               variant="contained"
               onClick={handleUploadAttachment}
-              disabled={!selectedAttachmentFile || attachmentsUploading}
+              disabled={!selectedAttachmentFiles.length || attachmentsUploading}
               sx={{ borderRadius: 2, alignSelf: 'flex-start' }}
             >
-              {attachmentsUploading ? 'Uploading…' : 'Upload attachment'}
+              {attachmentsUploading
+                ? 'Uploading…'
+                : selectedAttachmentFiles.length > 1
+                  ? `Upload ${selectedAttachmentFiles.length} attachments`
+                  : 'Upload attachment'}
             </Button>
           </Stack>
         ) : null}
         {Array.isArray(summaryData?.attachments) && summaryData.attachments.length > 0 ? (
-          <List disablePadding>
-            {summaryData.attachments.map(att => (
-              <ListItem
-                key={att.id ?? att.file_url ?? att.file_name}
-                disableGutters
-                secondaryAction={
-                  <Stack direction="row" spacing={1}>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => handleOpenAttachment(att)}
-                      sx={{ borderRadius: 2 }}
-                    >
-                      View
-                    </Button>
-                    {!viewOnly ? (
-                      <Button
-                        size="small"
-                        color="error"
-                        variant="outlined"
-                        disabled={deletingAttachmentId === (att.id ?? att.uuid)}
-                        onClick={() => handleDeleteAttachment(att.id ?? att.uuid)}
-                        sx={{ borderRadius: 2 }}
-                      >
-                        {deletingAttachmentId === (att.id ?? att.uuid) ? 'Deleting...' : 'Delete'}
-                      </Button>
-                    ) : null}
-                  </Stack>
-                }
-              >
-                <ListItemText
-                  primary={att.file_name || 'Attachment'}
-                  secondary={formatAttachmentSecondaryLine(att)}
-                />
-              </ListItem>
-            ))}
-          </List>
+          <AttachmentGallery
+            attachments={summaryData.attachments}
+            canDelete={!viewOnly}
+            deletingId={deletingAttachmentId}
+            onDelete={handleDeleteAttachment}
+            onOpen={handleOpenAttachment}
+          />
         ) : (
           <Typography variant="body2" color="text.secondary">
             No attachments.

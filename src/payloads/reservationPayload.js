@@ -101,6 +101,13 @@ export function buildReservationPatchPayload(values) {
   };
 }
 
+/** Status-only update for appointments list quick action. */
+export function buildReservationStatusPayload(status) {
+  return {
+    status: String(status ?? '').trim().toLowerCase(),
+  };
+}
+
 export function buildReservationsListQuery({
   search,
   status,

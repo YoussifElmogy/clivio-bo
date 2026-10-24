@@ -121,7 +121,7 @@ export default function BranchCardGrid({
   onPageChange,
   onRowsPerPageChange,
   count,
-  rowsPerPageOptions = [5, 10, 25],
+  rowsPerPageOptions = [5, 10, 25, 50],
   onEdit,
   onDelete,
   getRowId = row => row.id,

@@ -216,9 +216,10 @@ export default function InteractiveFaceMap({
   const highlightedMapZoneIds = useMemo(() => {
     const ids = new Set();
     Object.values(zoneAssignments).forEach(a => {
-      if (a.isCustomZone) return;
+      // Additional zones must never paint face polygons.
+      if (a.isCustomZone === true) return;
       const items = a.lines ?? a.products ?? [];
-      if (items.length > 0 && isMapFaceZoneId(a.zoneId)) ids.add(a.zoneId);
+      if (items.length > 0 && isMapFaceZoneId(a.zoneId)) ids.add(Number(a.zoneId));
     });
     return ids;
   }, [zoneAssignments]);
@@ -398,7 +399,7 @@ export default function InteractiveFaceMap({
       {readOnly ? <ViewOnlyBanner message="Face mapping is view only." /> : null}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 560 }}>
-          Tap a zone on the face or add an additional zone below. Multiple services per face zone are supported.
+          Tap a zone on the face or add an additional zone below. Multiple services per map zone and additional zone are supported.
         </Typography>
         {saving ? (
           <Chip label="Saving…" size="small" color="primary" variant="outlined" />

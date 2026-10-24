@@ -6,8 +6,8 @@
  * DELETE /derma-face-mapping-lines/:id  (lines only — no DELETE on /derma-face-mappings/:id)
  *
  * Map zones 1–8: send `zone_id` + `zone_label`.
- * Additional zones: create with `zone_label` only (no `zone_id`).
- * When editing (mapping `id` set), include `zone_id` only if the backend previously returned one.
+ * Additional zones: `zone_label` + `services[]` only — never send `zone_id`.
+ * Updates use mapping document `id` (not a face/body map zone_id).
  */
 
 import {
@@ -17,6 +17,8 @@ import {
   isMapFaceZoneId,
 } from '../constants/customFaceZones';
 import { isMapBodyZoneId } from '../constants/customBodyZones';
+import { FACE_MAP_ZONES } from '../constants/faceMapZones';
+import { BODY_MAP_ZONES } from '../constants/bodyMapZones';
 
 export const DERMA_MAPPING_TYPE = {
   FACE: 'face',
@@ -51,18 +53,39 @@ function toInt(value) {
   return Number.isFinite(n) ? n : null;
 }
 
-/** Additional-zone POST body: omit zone_id unless the API returned a positive id. */
-export function prepareAdditionalZoneForPost(zone, zoneEntries = []) {
+/**
+ * Additional-zone POST body: always omit `zone_id` so the backend never paints a map polygon.
+ * Updates are keyed by mapping document `id` only.
+ */
+export function prepareAdditionalZoneForPost(zone) {
   if (!zone) return zone;
-  const backendZoneId =
-    zone.zone_id !== undefined && zone.zone_id !== null && zone.zone_id !== ''
-      ? zone.zone_id
-      : zoneEntries[0]?.apiZoneId;
-  const parsed = toInt(backendZoneId);
-  const { zone_id: _z, ...rest } = zone;
-  if (parsed == null || parsed <= 0) return rest;
-  return { ...rest, zone_id: parsed };
+  const { zone_id: _unusedZoneId, ...rest } = zone;
+  return rest;
 }
+
+export function isFlatMappingZoneDocument(doc) {
+  if (!doc || typeof doc !== 'object') return false;
+  if (doc.zone_id != null && doc.zone_id !== '') return true;
+  const label = typeof doc.zone_label === 'string' ? doc.zone_label.trim() : '';
+  if (!label) return false;
+  if (Array.isArray(doc.services) && doc.services.length > 0) return true;
+  if (doc.service?.id != null || doc.service_id != null) return true;
+  return false;
+}
+
+/** Map-range zone_id with a non-canonical label → additional zone (API mistag). */
+function resolveIsCustomMappingRow(apiZoneId, zoneLabelRaw, isMapZoneId, mapZoneLabelById) {
+  if (apiZoneId == null) return true;
+  if (!isMapZoneId(apiZoneId)) return true;
+  if (!mapZoneLabelById) return false;
+  const canonical = mapZoneLabelById.get(apiZoneId);
+  if (canonical == null) return false;
+  if (!zoneLabelRaw) return false;
+  return zoneLabelRaw.trim().toLowerCase() !== String(canonical).trim().toLowerCase();
+}
+
+const FACE_MAP_LABEL_BY_ID = new Map(FACE_MAP_ZONES.map(z => [z.id, z.label]));
+export const BODY_MAP_LABEL_BY_ID = new Map(BODY_MAP_ZONES.map(z => [z.id, z.label]));
 
 function toPositiveNumber(value) {
   const n = Number(value);
@@ -461,7 +484,8 @@ export function extractDermaFaceMappingZoneRows(data) {
       return;
     }
 
-    if (doc.zone_id != null) {
+    // Map zones have zone_id; additional zones may be label/services only.
+    if (isFlatMappingZoneDocument(doc)) {
       zoneRows.push(doc);
     }
   });
@@ -505,6 +529,7 @@ export function mergeDermaFaceMappingFromApi(data) {
  *   isMapZoneId: (zoneId: unknown) => boolean,
  *   customZoneIdStart: number,
  *   additionalZoneInternalIdFn: Function,
+ *   mapZoneLabelById?: Map<number, string>,
  * }} config
  */
 export function createMergeDermaMappingStateFromApi({
@@ -512,31 +537,51 @@ export function createMergeDermaMappingStateFromApi({
   isMapZoneId,
   customZoneIdStart,
   additionalZoneInternalIdFn,
+  mapZoneLabelById,
 }) {
   return function mergeDermaMappingStateFromApi(data) {
     const rows = extractZoneRows(data);
     const record = {};
     const customZonesById = new Map();
+    const customLabelToZoneId = new Map();
     let nextCustomId = customZoneIdStart;
 
     rows.forEach(row => {
-      const zoneMappingId = toInt(row?.id);
+      // Nested zone rows often omit `id`; parent mapping id is on documentId.
+      const zoneMappingId = toInt(row?.id) ?? toInt(row?.documentId);
       const apiZoneId = toInt(row?.zone_id);
       let zoneId = apiZoneId;
       const zoneLabelRaw = typeof row?.zone_label === 'string' ? row.zone_label.trim() : '';
-      const isCustomRow = apiZoneId == null || !isMapZoneId(apiZoneId);
+      const isCustomRow = resolveIsCustomMappingRow(
+        apiZoneId,
+        zoneLabelRaw,
+        isMapZoneId,
+        mapZoneLabelById
+      );
+
+      // Never keep a face/body map id on additional zones (avoids polygon paint).
+      const safeApiZoneId =
+        isCustomRow && apiZoneId != null && apiZoneId > 0 && !isMapZoneId(apiZoneId)
+          ? apiZoneId
+          : null;
 
       if (isCustomRow) {
         if (!zoneLabelRaw) return;
-        zoneId = additionalZoneInternalIdFn({
-          zoneMappingId,
-          apiZoneId,
-          tempId: nextCustomId,
-        });
-        if (typeof zoneId === 'number' && zoneId >= customZoneIdStart) {
-          nextCustomId = Math.max(nextCustomId, zoneId + 1);
-        } else if (typeof zoneId === 'number' && zoneId < 0) {
-          nextCustomId += 1;
+        const labelKey = zoneLabelRaw.toLowerCase();
+        if (customLabelToZoneId.has(labelKey)) {
+          zoneId = customLabelToZoneId.get(labelKey);
+        } else {
+          zoneId = additionalZoneInternalIdFn({
+            zoneMappingId,
+            apiZoneId: safeApiZoneId,
+            tempId: nextCustomId,
+          });
+          customLabelToZoneId.set(labelKey, zoneId);
+          if (typeof zoneId === 'number' && zoneId >= customZoneIdStart) {
+            nextCustomId = Math.max(nextCustomId, zoneId + 1);
+          } else if (typeof zoneId === 'number' && zoneId < 0) {
+            nextCustomId += 1;
+          }
         }
       } else if (zoneId == null) {
         return;
@@ -559,35 +604,49 @@ export function createMergeDermaMappingStateFromApi({
 
         const lineIds = rawLines.map(line => toInt(line?.id)).filter(id => id != null);
         const key = `${zoneId}-${serviceId}`;
+        const existing = record[key];
+        // Prefer the earliest mapping id when collapsing same-label additional rows.
+        const mergedMappingId =
+          existing?.zoneMappingId != null && existing.zoneMappingId > 0
+            ? existing.zoneMappingId
+            : zoneMappingId;
 
         record[key] = {
-          zoneMappingId,
+          zoneMappingId: mergedMappingId,
           serviceMappingId: toInt(block?.id),
-          lineIds,
-          documentId: toInt(row?.documentId),
+          lineIds: existing?.lineIds?.length ? existing.lineIds : lineIds,
+          documentId: toInt(row?.documentId) ?? existing?.documentId ?? null,
           zoneId,
           zoneLabel,
-          apiZoneId:
-            isCustomRow && apiZoneId != null && apiZoneId > 0 ? apiZoneId : null,
+          apiZoneId: safeApiZoneId,
           isCustomZone: isCustomRow,
           serviceId,
-          serviceName: service?.name ?? '',
-          serviceCategory: service?.category ?? null,
-          serviceCategoryDisplay: service?.category_display ?? null,
-          service,
+          serviceName: service?.name ?? existing?.serviceName ?? '',
+          serviceCategory: service?.category ?? existing?.serviceCategory ?? null,
+          serviceCategoryDisplay:
+            service?.category_display ?? existing?.serviceCategoryDisplay ?? null,
+          service: Object.keys(service).length ? service : existing?.service,
           lines: items,
           products: items,
         };
       });
 
-      if (isCustomRow && rowHasLines && !customZonesById.has(zoneId)) {
-        customZonesById.set(zoneId, {
-          id: zoneId,
-          label: zoneLabelRaw,
-          isCustom: true,
-          zone_id: apiZoneId != null && apiZoneId > 0 ? apiZoneId : undefined,
-          zoneMappingId: zoneMappingId != null && zoneMappingId > 0 ? zoneMappingId : null,
-        });
+      if (isCustomRow && rowHasLines) {
+        const existingZone = customZonesById.get(zoneId);
+        if (!existingZone) {
+          customZonesById.set(zoneId, {
+            id: zoneId,
+            label: zoneLabelRaw,
+            isCustom: true,
+            zoneMappingId: zoneMappingId != null && zoneMappingId > 0 ? zoneMappingId : null,
+          });
+        } else if (
+          (existingZone.zoneMappingId == null || existingZone.zoneMappingId <= 0) &&
+          zoneMappingId != null &&
+          zoneMappingId > 0
+        ) {
+          existingZone.zoneMappingId = zoneMappingId;
+        }
       }
     });
 
@@ -605,6 +664,7 @@ export const mergeDermaFaceMappingStateFromApi = createMergeDermaMappingStateFro
   isMapZoneId: isMapFaceZoneId,
   customZoneIdStart: CUSTOM_FACE_ZONE_ID_START,
   additionalZoneInternalIdFn: additionalZoneInternalId,
+  mapZoneLabelById: FACE_MAP_LABEL_BY_ID,
 });
 
 /**
@@ -648,13 +708,11 @@ export function buildDermaMappingZonePostPayload({
   const mappingId = toInt(zoneMappingId);
   if (mappingId != null && mappingId > 0) payload.id = mappingId;
 
+  // Map zones only — additional zones must not send zone_id (prevents face/body polygon paint).
   if (!isCustomZone(zone)) {
     const zoneId = toInt(zone?.id);
     if (zoneId == null) return null;
     payload.zone_id = zoneId;
-  } else if (mappingId != null && mappingId > 0) {
-    const returnedZoneId = toInt(zone?.zone_id);
-    if (returnedZoneId != null && returnedZoneId > 0) payload.zone_id = returnedZoneId;
   }
 
   return payload;
