@@ -7,9 +7,8 @@ import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined
 import { heicSourceToPreviewUrl, isAttachmentHeic } from '../../utils/attachmentUpload';
 
 /**
- * Renders an attachment as an image. HEIC/HEIF is converted to JPEG for browsers
- * that cannot decode Apple formats natively.
- * Remount with `key={src}` when the source URL changes.
+ * Renders an attachment as an image. HEIC/HEIF is converted to JPEG when the
+ * browser cannot decode Apple formats (Chrome). Remount with `key={src}`.
  */
 export default function AttachmentPreviewImage({
   attachment,
@@ -34,7 +33,9 @@ export default function AttachmentPreviewImage({
         setPreviewSrc(url);
         setFailed(false);
       } else {
-        setFailed(true);
+        // Last resort: try native decode (Safari / some macOS Chrome builds).
+        setPreviewSrc(src);
+        setFailed(false);
       }
       setLoading(false);
     });

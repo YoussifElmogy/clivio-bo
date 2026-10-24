@@ -42,7 +42,12 @@ function attachmentMime(row) {
 /** iPhone HEIC/HEIF — most Chromium browsers cannot paint these in <img> without conversion. */
 export function isAttachmentHeic(row) {
   const mime = attachmentMime(row);
-  if (mime === 'image/heic' || mime === 'image/heif' || mime === 'image/heic-sequence' || mime === 'image/heif-sequence') {
+  if (
+    mime === 'image/heic' ||
+    mime === 'image/heif' ||
+    mime === 'image/heic-sequence' ||
+    mime === 'image/heif-sequence'
+  ) {
     return true;
   }
   return /\.(heic|heif)(\?|#|$)/i.test(attachmentNameHint(row));
@@ -54,40 +59,32 @@ export function isAttachmentImage(row) {
   return /\.(png|jpe?g|gif|webp|bmp|svg|heic|heif)(\?|#|$)/i.test(attachmentNameHint(row));
 }
 
-const heicPreviewCache = new Map();
-
 /**
- * Fetch a HEIC/HEIF URL and convert to a JPEG object URL for <img> preview.
- * Results are cached by source URL. Returns '' on failure.
+ * Avoid www vs apex CORS: if the file host matches the page host ignoring `www.`,
+ * rewrite to the current page origin so fetch() is same-origin.
+ *
+ * Example: page `https://www.reve-online.info` + file `https://reve-online.info/media/a.HEIC`
+ *       → `https://www.reve-online.info/media/a.HEIC`
  */
-export async function heicSourceToPreviewUrl(sourceUrl) {
-  const key = String(sourceUrl ?? '').trim();
-  if (!key) return '';
-  if (heicPreviewCache.has(key)) return heicPreviewCache.get(key);
+export function sameOriginMediaUrl(raw) {
+  const value = String(raw ?? '').trim();
+  if (!value) return '';
+  if (typeof window === 'undefined') {
+    if (/^https?:\/\//i.test(value)) return value;
+    return value.startsWith('/') ? value : `/${value.replace(/^\/+/, '')}`;
+  }
 
-  const pending = (async () => {
-    try {
-      const { default: heic2any } = await import('heic2any');
-      const res = await fetch(key);
-      if (!res.ok) throw new Error(`HEIC fetch failed (${res.status})`);
-      const blob = await res.blob();
-      const converted = await heic2any({
-        blob,
-        toType: 'image/jpeg',
-        quality: 0.85,
-      });
-      const jpegBlob = Array.isArray(converted) ? converted[0] : converted;
-      if (!jpegBlob) return '';
-      return URL.createObjectURL(jpegBlob);
-    } catch {
-      return '';
+  try {
+    const abs = new URL(value, window.location.origin);
+    const pageHost = window.location.hostname.replace(/^www\./i, '').toLowerCase();
+    const fileHost = abs.hostname.replace(/^www\./i, '').toLowerCase();
+    if (fileHost && fileHost === pageHost) {
+      return `${window.location.origin}${abs.pathname}${abs.search}${abs.hash}`;
     }
-  })();
-
-  heicPreviewCache.set(key, pending);
-  const result = await pending;
-  heicPreviewCache.set(key, Promise.resolve(result));
-  return result;
+    return abs.href;
+  } catch {
+    return value.startsWith('/') ? value : `/${value.replace(/^\/+/, '')}`;
+  }
 }
 
 export function attachmentViewUrl(row) {
@@ -102,6 +99,8 @@ export function attachmentViewUrl(row) {
   if (!raw) return '';
   const value = String(raw).trim();
   if (!value) return '';
+  // Keep absolute CDN/API URLs as-is for <img> (cross-origin display is fine).
+  // HEIC conversion uses sameOriginMediaUrl() separately to avoid www↔apex CORS.
   if (/^https?:\/\//i.test(value)) return value;
   if (value.startsWith('/')) return value;
   return `/${value.replace(/^\/+/, '')}`;
@@ -115,4 +114,63 @@ export function attachmentDisplayName(row) {
     row?.original_name ||
     'Attachment'
   );
+}
+
+const heicPreviewCache = new Map();
+
+async function fetchMediaBlob(sourceUrl) {
+  const candidates = [];
+  const sameOrigin = sameOriginMediaUrl(sourceUrl);
+  const original = String(sourceUrl ?? '').trim();
+  if (sameOrigin) candidates.push(sameOrigin);
+  if (original && original !== sameOrigin) candidates.push(original);
+
+  let lastError = null;
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, {
+        credentials: 'include',
+        cache: 'no-cache',
+      });
+      if (!res.ok) {
+        lastError = new Error(`HEIC fetch failed (${res.status})`);
+        continue;
+      }
+      return res.blob();
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError ?? new Error('HEIC fetch failed');
+}
+
+/**
+ * Fetch a HEIC/HEIF URL (same-origin rewritten) and convert to a JPEG object URL.
+ * Results are cached by source URL. Returns '' on failure.
+ */
+export async function heicSourceToPreviewUrl(sourceUrl) {
+  const key = sameOriginMediaUrl(sourceUrl);
+  if (!key) return '';
+  if (heicPreviewCache.has(key)) return heicPreviewCache.get(key);
+
+  const pending = (async () => {
+    try {
+      const blob = await fetchMediaBlob(key);
+      const { heicTo } = await import('heic-to');
+      const jpegBlob = await heicTo({
+        blob,
+        type: 'image/jpeg',
+        quality: 0.85,
+      });
+      if (!jpegBlob) return '';
+      return URL.createObjectURL(jpegBlob);
+    } catch {
+      return '';
+    }
+  })();
+
+  heicPreviewCache.set(key, pending);
+  const result = await pending;
+  heicPreviewCache.set(key, Promise.resolve(result));
+  return result;
 }
